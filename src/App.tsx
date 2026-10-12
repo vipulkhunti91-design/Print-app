@@ -318,9 +318,6 @@ function Home({
           <h1>Hey Mehul,</h1>
           <p>Need to print something today?</p>
         </div>
-        <button className="notice-link" onClick={() => go("notifications")} aria-label="4 notifications">
-          <Asset name="2ab15.svg" /><span>4</span>
-        </button>
       </div>
 
       <section className="hero">
@@ -592,9 +589,6 @@ function Token({ go, job }: { go: (screen: Screen) => void; job: PrintJob }) {
     <main className="page token-page">
       <div className="home-top">
         <div><h1>Hey Mehul,</h1><p>Need to print something today?</p></div>
-        <button className="notice-link" onClick={() => go("notifications")} aria-label="4 notifications">
-          <Asset name="2ab15.svg" /><span>4</span>
-        </button>
       </div>
       <div className="receipt-handle" />
       <section className="pickup-card">
@@ -616,7 +610,7 @@ function Token({ go, job }: { go: (screen: Screen) => void; job: PrintJob }) {
         ))}
       </section>
       <div className="token-actions">
-        <button onClick={() => go("history")}><Asset name="511b0.svg" />View Print History</button>
+        <button onClick={() => go("history")}><Asset name="2ab15.svg" />View Print History</button>
         <button className="danger" onClick={() => go("home")}><Asset name="0bcda.svg" />Cancel Print Order</button>
       </div>
     </main>
@@ -676,13 +670,13 @@ function Profile({ go }: { go: (screen: Screen) => void }) {
     <main className="page account-page">
       <AppHeader title="Profile" onBack={() => go("home")} />
       <section className="profile-summary">
-        <span><Asset name="8c0b7.svg" /></span>
+        <span><Asset name="511b0.svg" /></span>
         <div><h2>Mehul Patel</h2><p>mehul.patel@campus.edu</p><small>Campus Print Member</small></div>
       </section>
       <section className="account-menu" aria-label="Profile options">
         <MenuRow icon="6aaa0.svg" title="Settings" detail="Printing preferences and app settings" onClick={() => go("settings")} />
-        <MenuRow icon="2ab15.svg" title="Notifications" detail="Order and print-shop updates" onClick={() => go("notifications")} />
-        <MenuRow icon="511b0.svg" title="Print History" detail="Previous and active print orders" onClick={() => go("history")} />
+        <MenuRow icon="8c0b7.svg" title="Notifications" detail="Order and print-shop updates" onClick={() => go("notifications")} />
+        <MenuRow icon="2ab15.svg" title="Print History" detail="Previous and active print orders" onClick={() => go("history")} />
         <MenuRow icon="0bcda.svg" title="Help & Support" detail="FAQs and contact information" onClick={() => go("help")} />
         <MenuRow icon="678a9.svg" title="Sign Out" onClick={() => go("login")} danger />
       </section>

@@ -91,9 +91,6 @@ h1, h2, h3, p { margin: 0; }
 .home-top { display: flex; justify-content: space-between; align-items: flex-start; }
 .home-top h1 { font: 500 20px/1.2 "Inter:Medium"; }
 .home-top p { margin-top: 9px; font: 400 16px/1.25 "Inter:Regular"; }
-.notice-link { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid #071827; border-radius: 50%; background: #fff; }
-.notice-link img { display: block; }
-.notice-link span { position: absolute; top: -4px; right: -3px; display: grid; place-items: center; width: 18px; height: 18px; border: 2px solid #fff; border-radius: 50%; background: #071827; color: #fff; font: 600 10px "Roboto:SemiBold"; }
 .hero {
   position: relative; overflow: hidden; margin: 15px -5px 10px; padding: 37px 31px 40px;
   border-radius: 20px; color: white; background: linear-gradient(100deg, #011120, #31495d);
@@ -136,14 +133,15 @@ h1, h2, h3, p { margin: 0; }
 .token-component b { margin-top: 5px; font: 700 18px "Roboto:Bold"; }
 .token-component small { margin-top: 7px; font: 700 14px "Roboto:Bold"; }
 .bottom-navigation {
-  position: sticky; z-index: 10; bottom: 12px; display: flex; justify-content: space-around; align-items: center;
-  width: min(360px, calc(100% - 20px)); height: 58px; margin: 24px auto 0; padding: 0 18px;
+  position: fixed; z-index: 10; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); display: flex; justify-content: space-around; align-items: center;
+  width: min(360px, calc(100% - 20px)); height: 58px; margin: 0; padding: 0 18px;
   border: 1px solid rgba(7, 24, 39, .14); border-radius: 20px; background: rgba(255,255,255,.94);
-  box-shadow: 0 8px 30px rgba(7,24,39,.14); backdrop-filter: blur(10px);
+  box-shadow: 0 8px 30px rgba(7,24,39,.14); backdrop-filter: blur(10px); transform: translateX(-50%);
 }
 .bottom-navigation button { display: grid; place-items: center; width: 42px; height: 42px; border: 0; border-radius: 14px; background: transparent; }
 .bottom-navigation button.active { background: #eef2f5; }
 .bottom-navigation img { display: block; }
+.home, .list-page, .account-page { padding-bottom: 110px; }
 
 .studio { max-width: 780px; margin: 0 auto; color: #080f24; }
 .studio-heading { display: flex; align-items: center; justify-content: space-between; }

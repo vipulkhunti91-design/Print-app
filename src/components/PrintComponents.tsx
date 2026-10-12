@@ -54,9 +54,9 @@ export function BottomNavigation({
 }) {
   const items = [
     { id: "home", label: "Home", icon: "69715.svg", action: onHome },
-    { id: "history", label: "History", icon: "511b0.svg", action: onHistory },
-    { id: "notifications", label: "Notifications", icon: "2ab15.svg", action: onNotifications },
-    { id: "profile", label: "Profile", icon: "8c0b7.svg", action: onProfile },
+    { id: "history", label: "History", icon: "2ab15.svg", action: onHistory },
+    { id: "notifications", label: "Notifications", icon: "8c0b7.svg", action: onNotifications },
+    { id: "profile", label: "Profile", icon: "511b0.svg", action: onProfile },
   ] as const;
   return (
     <nav className="bottom-navigation" aria-label="Main navigation">
