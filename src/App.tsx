@@ -39,9 +39,19 @@ type PrintJob = {
   colour: boolean;
   singleSided: boolean;
   paper: string;
+  paperSurcharge: number;
   copies: number;
   pricePerPage: number;
+  sideSurcharge: number;
+  stockIndex: number;
+  stockSurcharge: number;
 };
+
+type FilePreviewData = {
+  url: string;
+  type: string;
+  name: string;
+} | null;
 
 const defaultPrintJob: PrintJob = {
   title: "Assignment",
@@ -51,21 +61,33 @@ const defaultPrintJob: PrintJob = {
   colour: false,
   singleSided: false,
   paper: "A4",
+  paperSurcharge: 0,
   copies: 1,
   pricePerPage: 2,
+  sideSurcharge: 0,
+  stockIndex: 0,
+  stockSurcharge: 0,
 };
 
 const quickPrints = [
   { title: "Assignment", detail: "B&W · 2-Sided", icon: "2ace5.svg", preset: defaultPrintJob },
-  { title: "Quick Notes", detail: "B&W/Colour · 1/2-Sided", icon: "d2428.svg", preset: { ...defaultPrintJob, title: "Quick Notes", fileName: "Quick_Notes.pdf", fileSize: "4.1 MB", pages: 24, singleSided: true } },
-  { title: "Report", detail: "B&W · 1-Sided", icon: "b884a.svg", preset: { ...defaultPrintJob, title: "Report", fileName: "Project_Report.pdf", fileSize: "3.2 MB", pages: 18, singleSided: true } },
-  { title: "Project", detail: "Colour · 1-Sided", icon: "99f76.svg", preset: { ...defaultPrintJob, title: "Project", fileName: "Project_Document.pdf", fileSize: "5.6 MB", pages: 10, colour: true, singleSided: true, pricePerPage: 8 } },
-  { title: "Resume", detail: "B&W · Single Side", icon: "0ee37.svg", preset: { ...defaultPrintJob, title: "Resume", fileName: "Mehul_Resume.pdf", fileSize: "0.8 MB", pages: 2, singleSided: true } },
-  { title: "Presentation", detail: "Colour · 1-Sided", icon: "2c290.svg", preset: { ...defaultPrintJob, title: "Presentation", fileName: "Campus_Presentation.pdf", fileSize: "7.3 MB", pages: 15, colour: true, singleSided: true, pricePerPage: 8 } },
+  { title: "Quick Notes", detail: "B&W/Colour · 1/2-Sided", icon: "d2428.svg", preset: { ...defaultPrintJob, title: "Quick Notes", fileName: "Quick_Notes.pdf", fileSize: "4.1 MB", pages: 24, singleSided: true, sideSurcharge: 1 } },
+  { title: "Report", detail: "B&W · 1-Sided", icon: "b884a.svg", preset: { ...defaultPrintJob, title: "Report", fileName: "Project_Report.pdf", fileSize: "3.2 MB", pages: 18, singleSided: true, sideSurcharge: 1 } },
+  { title: "Project", detail: "Colour · 1-Sided", icon: "99f76.svg", preset: { ...defaultPrintJob, title: "Project", fileName: "Project_Document.pdf", fileSize: "5.6 MB", pages: 10, colour: true, singleSided: true, pricePerPage: 8, sideSurcharge: 1 } },
+  { title: "Resume", detail: "B&W · Single Side", icon: "0ee37.svg", preset: { ...defaultPrintJob, title: "Resume", fileName: "Mehul_Resume.pdf", fileSize: "0.8 MB", pages: 2, singleSided: true, sideSurcharge: 1 } },
+  { title: "Presentation", detail: "Colour · 1-Sided", icon: "2c290.svg", preset: { ...defaultPrintJob, title: "Presentation", fileName: "Campus_Presentation.pdf", fileSize: "7.3 MB", pages: 15, colour: true, singleSided: true, pricePerPage: 8, sideSurcharge: 1 } },
 ];
 
 function formatPrice(job: PrintJob) {
-  return `₹${(job.pages * job.pricePerPage * job.copies).toFixed(2)}`;
+  const pages = Number(job.pages) || 0;
+  const pricePerPage = Number(job.pricePerPage) || 0;
+  const sideSurcharge = Number(job.sideSurcharge) || 0;
+  const paperSurcharge = Number(job.paperSurcharge) || 0;
+  const stockSurcharge = Number(job.stockSurcharge) || 0;
+  const copies = Number(job.copies) || 0;
+  const total = pages * (pricePerPage + sideSurcharge + paperSurcharge + stockSurcharge) * copies;
+
+  return `₹${Number.isFinite(total) ? total.toFixed(2) : "0.00"}`;
 }
 
 const notifications = [
@@ -295,7 +317,7 @@ function StepHeader({
           <StepPill
             label={step.label}
             active={active === index + 1}
-            onClick={() => index + 1 <= active && go(step.screen)}
+            onClick={() => go(step.screen)}
             key={step.label}
           />
         ))}
@@ -306,9 +328,11 @@ function StepHeader({
 
 function Home({
   go,
+  onStartPrinting,
   onQuickPrint,
 }: {
   go: (screen: Screen) => void;
+  onStartPrinting: () => void;
   onQuickPrint: (preset: PrintJob) => void;
 }) {
   return (
@@ -324,7 +348,7 @@ function Home({
         <div className="hero-orb" />
         <h2>Let’s print something!</h2>
         <p>Upload your document and get it printed quickly.</p>
-        <StartPrintingButton onClick={() => onQuickPrint(defaultPrintJob)} />
+        <StartPrintingButton onClick={onStartPrinting} />
       </section>
 
       <div className="section-title-row">
@@ -354,13 +378,47 @@ function Home({
   );
 }
 
-function DocumentPreview({ close, totalPages }: { close: () => void; totalPages: number }) {
+function FilePreview({
+  previewData,
+  page,
+  totalPages,
+}: {
+  previewData: FilePreviewData;
+  page: number;
+  totalPages: number;
+}) {
+  if (previewData?.type.startsWith("image/")) {
+    return <img className="uploaded-preview-image" src={previewData.url} alt={`Preview of ${previewData.name}`} />;
+  }
+
+  if (previewData?.type === "application/pdf") {
+    return (
+      <object className="uploaded-preview-document" data={previewData.url} type="application/pdf" aria-label={`Preview of ${previewData.name}`}>
+        <PaperPreview page={page} totalPages={totalPages} />
+      </object>
+    );
+  }
+
+  return <PaperPreview page={page} totalPages={totalPages} />;
+}
+
+function DocumentPreview({
+  close,
+  totalPages,
+  previewData,
+}: {
+  close: () => void;
+  totalPages: number;
+  previewData: FilePreviewData;
+}) {
   const [page, setPage] = useState(1);
   return (
     <div className="modal-backdrop" onClick={close}>
       <section className="preview-modal" onClick={(event) => event.stopPropagation()}>
         <h2>Document Preview</h2>
-        <PaperPreview page={page} totalPages={totalPages} />
+        <div className="modal-file-preview">
+          <FilePreview previewData={previewData} page={page} totalPages={totalPages} />
+        </div>
         <div className="page-controls">
           <button disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>← Prev Page</button>
           <b>{page} / {totalPages}</b>
@@ -386,11 +444,19 @@ function Document({
   preview,
   job,
   setJob,
+  previewData,
+  setPreviewData,
+  hasFile,
+  setHasFile,
 }: {
   go: (screen: Screen) => void;
   preview: () => void;
   job: PrintJob;
   setJob: (job: PrintJob) => void;
+  previewData: FilePreviewData;
+  setPreviewData: (preview: FilePreviewData) => void;
+  hasFile: boolean;
+  setHasFile: (hasFile: boolean) => void;
 }) {
   const [page, setPage] = useState(1);
   const samples = [
@@ -398,50 +464,83 @@ function Document({
     quickPrints[1].preset,
     quickPrints[2].preset,
   ];
+  const uploadFile = (selected?: File) => {
+    if (!selected) return;
+    setJob({
+      ...job,
+      title: "Uploaded Document",
+      fileName: selected.name,
+      fileSize: `${Math.max(1, Math.round(selected.size / 1024 / 1024))} MB`,
+      pages: 1,
+    });
+    setHasFile(true);
+    setPage(1);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPreviewData({
+        url: String(reader.result),
+        type: selected.type,
+        name: selected.name,
+      });
+    };
+    reader.readAsDataURL(selected);
+  };
   return (
     <main className="studio page">
       <StepHeader active={1} go={go} close={() => go("home")} />
       <h2>File info</h2>
       <div className="file-card completed-file">
         <Asset name="6e532.svg" />
-        <span><b>{job.fileName}</b><small>{job.pages} pages · {job.fileSize} · {job.title}</small></span>
+        <span>
+          <b>{hasFile ? job.fileName : "No document selected"}</b>
+          <small>{hasFile ? `${job.pages} pages · ${job.fileSize} · ${job.title}` : "Upload a document to continue"}</small>
+        </span>
         <label className="file-upload-action" aria-label="Upload another file">
           <Asset name="4dcbe.svg" />
           <input
             type="file"
             accept=".pdf,.doc,.docx,.ppt,.pptx,image/*"
-            onChange={(event) => {
-              const selected = event.target.files?.[0];
-              if (selected) {
-                setJob({
-                  ...job,
-                  title: "Uploaded Document",
-                  fileName: selected.name,
-                  fileSize: `${Math.max(1, Math.round(selected.size / 1024 / 1024))} MB`,
-                  pages: 1,
-                });
-                setPage(1);
-              }
-            }}
+            onChange={(event) => uploadFile(event.target.files?.[0])}
           />
         </label>
+      </div>
+      <div className="file-actions">
+        <label className="file-action-button">
+          <Asset name="4dcbe.svg" />
+          <span>Upload File</span>
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx,.ppt,.pptx,image/*"
+            onChange={(event) => uploadFile(event.target.files?.[0])}
+          />
+        </label>
+        <button className="file-action-button delete" onClick={() => { setHasFile(false); setPreviewData(null); }} disabled={!hasFile}>
+          <Asset name="986ce.svg" />
+          Delete File
+        </button>
       </div>
       <label className="micro-label">Quick Sample Documents</label>
       <div className="samples">
         {samples.map((sample) => (
-          <button onClick={() => { setJob({ ...sample }); setPage(1); }} key={sample.title}>
+          <button onClick={() => { setJob({ ...sample }); setHasFile(true); setPreviewData(null); setPage(1); }} key={sample.title}>
             {sample.title} ({sample.pages}p)
           </button>
         ))}
       </div>
       <h2>Live Document Preview</h2>
-      <button className="preview-box" onClick={preview} aria-label="Open document preview"><PaperPreview page={page} totalPages={job.pages} /></button>
+      <button className="preview-box" onClick={preview} aria-label="Open document preview" disabled={!hasFile}>
+        {hasFile ? (
+          <FilePreview previewData={previewData} page={page} totalPages={job.pages} />
+        ) : (
+          <span className="empty-preview"><Asset name="4dcbe.svg" /><b>Upload a file to see its preview</b></span>
+        )}
+      </button>
       <div className="page-controls">
-        <button disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>← Prev Page</button>
-        <b>{page} / {job.pages}</b>
-        <button disabled={page === job.pages} onClick={() => setPage((current) => Math.min(job.pages, current + 1))}>Next Page →</button>
+        <button disabled={!hasFile || page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>← Prev Page</button>
+        <b>{hasFile ? page : 1} / {hasFile ? job.pages : 1}</b>
+        <button disabled={!hasFile || page === job.pages} onClick={() => setPage((current) => Math.min(job.pages, current + 1))}>Next Page →</button>
       </div>
-      <PriceBar action="Continue To Setup" onClick={() => go("setup")} job={job} />
+      <PriceBar action="Continue To Setup" onClick={() => go("setup")} job={job} disabled={!hasFile} empty={!hasFile} />
     </main>
   );
 }
@@ -471,14 +570,26 @@ function Choice({
   );
 }
 
-function PriceBar({ action, onClick, job }: { action: string; onClick: () => void; job: PrintJob }) {
+function PriceBar({
+  action,
+  onClick,
+  job,
+  disabled = false,
+  empty = false,
+}: {
+  action: string;
+  onClick: () => void;
+  job: PrintJob;
+  disabled?: boolean;
+  empty?: boolean;
+}) {
   return (
     <div className="price-bar">
       <span>
-        <strong>{formatPrice(job)}</strong>
-        <small>{job.pages} pages · {job.paper} · {job.colour ? "Colour" : "B&W"}</small>
+        <strong className="price-value" key={empty ? "empty" : formatPrice(job)}>{empty ? "₹0.00" : formatPrice(job)}</strong>
+        <small>{empty ? "Upload a document" : `${job.pages} pages · ${job.paper} · ${job.colour ? "Colour" : "B&W"}`}</small>
       </span>
-      <ContinueButton label={action} onClick={onClick} />
+      <ContinueButton label={action} onClick={onClick} disabled={disabled} />
     </div>
   );
 }
@@ -502,11 +613,14 @@ function Setup({
       </div>
       <h2>Printing Side</h2>
       <div className="two-grid">
-        <SelectionCard active={!job.singleSided} title="Double Sided" detail="Eco-Friendly (Save 50% Paper)" icon="d1b10.svg" activeIcon="0b6b4.svg" onClick={() => setJob({ ...job, singleSided: false })} />
-        <SelectionCard active={job.singleSided} title="Single Sided" detail="Clean Document" icon="44881.svg" activeIcon="b9277.svg" onClick={() => setJob({ ...job, singleSided: true })} />
+        <SelectionCard active={!job.singleSided} title="Double Sided" detail="Eco-Friendly (Save 50% Paper)" icon="d1b10.svg" activeIcon="0b6b4.svg" onClick={() => setJob({ ...job, singleSided: false, sideSurcharge: 0 })} />
+        <SelectionCard active={job.singleSided} title="Single Sided" detail="Clean Document (+₹1/page)" icon="44881.svg" activeIcon="b9277.svg" onClick={() => setJob({ ...job, singleSided: true, sideSurcharge: 1 })} />
       </div>
       <h2>Paper Size</h2>
-      <PaperSizeSelector selected={job.paper} onSelect={(paper) => setJob({ ...job, paper })} />
+      <PaperSizeSelector
+        selected={job.paper}
+        onSelect={(paper, paperSurcharge) => setJob({ ...job, paper, paperSurcharge })}
+      />
       <PriceBar action="Continue" onClick={() => go("finishing")} job={job} />
     </main>
   );
@@ -521,13 +635,15 @@ function Finishing({
   job: PrintJob;
   setJob: (job: PrintJob) => void;
 }) {
-  const [stock, setStock] = useState(0);
   const [speed, setSpeed] = useState("10 min");
   return (
     <main className="studio page">
       <StepHeader active={3} go={go} close={() => go("home")} />
       <h2>Paper Material & Stock</h2>
-      <PaperStockGrid selected={stock} onSelect={setStock} />
+      <PaperStockGrid
+        selected={job.stockIndex}
+        onSelect={(stockIndex, stockSurcharge) => setJob({ ...job, stockIndex, stockSurcharge })}
+      />
       <h2>When would you like to collect it?</h2>
       <div className="four-grid speed-grid">
         {[["10 min", "After print 10 min"], ["30 min", "After print 30 min"], ["1 hour", "After print 1 Hour"], ["2 hour", "After print 2 hour"]].map(([title, detail]) => (
@@ -566,7 +682,8 @@ function Checkout({
         <dl>
           <dt>Pages & Copies</dt><dd>{job.pages} pages × {job.copies} {job.copies === 1 ? "copy" : "copies"}</dd>
           <dt>Print Mode</dt><dd>{job.colour ? "Full Colour" : "Black & White"} (₹{job.pricePerPage}/page)</dd>
-          <dt>Paper Specs</dt><dd>{job.paper} · {job.singleSided ? "Single-sided" : "Duplex"}</dd>
+          <dt>Paper Specs</dt><dd>{job.paper}{job.paperSurcharge ? ` (+₹${job.paperSurcharge}/page)` : ""} · {job.singleSided ? "Single-sided (+₹1/page)" : "Duplex"}</dd>
+          <dt>Paper Stock</dt><dd>{job.stockSurcharge ? `+₹${job.stockSurcharge}/page` : "Standard"}</dd>
           <dt>Binding</dt><dd>No Binding (Free)</dd>
           <dt>Total Payable Amount</dt><dd>{formatPrice(job)}</dd>
         </dl>
@@ -758,6 +875,8 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>("login");
   const [showPreview, setShowPreview] = useState(false);
   const [printJob, setPrintJob] = useState<PrintJob>({ ...defaultPrintJob });
+  const [filePreview, setFilePreview] = useState<FilePreviewData>(null);
+  const [hasDocument, setHasDocument] = useState(false);
   const go = (next: Screen) => {
     setScreen(next);
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -773,13 +892,32 @@ export default function App() {
         {screen === "home" && (
           <Home
             go={go}
+            onStartPrinting={() => {
+              setPrintJob({ ...defaultPrintJob });
+              setFilePreview(null);
+              setHasDocument(false);
+              go("document");
+            }}
             onQuickPrint={(preset) => {
               setPrintJob({ ...preset });
+              setFilePreview(null);
+              setHasDocument(true);
               go("document");
             }}
           />
         )}
-        {screen === "document" && <Document go={go} preview={() => setShowPreview(true)} job={printJob} setJob={setPrintJob} />}
+        {screen === "document" && (
+          <Document
+            go={go}
+            preview={() => setShowPreview(true)}
+            job={printJob}
+            setJob={setPrintJob}
+            previewData={filePreview}
+            setPreviewData={setFilePreview}
+            hasFile={hasDocument}
+            setHasFile={setHasDocument}
+          />
+        )}
         {screen === "setup" && <Setup go={go} job={printJob} setJob={setPrintJob} />}
         {screen === "finishing" && <Finishing go={go} job={printJob} setJob={setPrintJob} />}
         {screen === "checkout" && <Checkout go={go} preview={() => setShowPreview(true)} job={printJob} />}
@@ -790,7 +928,7 @@ export default function App() {
         {screen === "settings" && <Settings go={go} />}
         {screen === "help" && <Help go={go} />}
       </div>
-      {showPreview && <DocumentPreview close={() => setShowPreview(false)} totalPages={printJob.pages} />}
+      {showPreview && <DocumentPreview close={() => setShowPreview(false)} totalPages={printJob.pages} previewData={filePreview} />}
     </div>
   );
 }

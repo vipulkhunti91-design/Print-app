@@ -9,14 +9,16 @@ function Asset({ name }: { name: string }) {
 export function ContinueButton({
   label = "Continue",
   active = false,
+  disabled = false,
   onClick,
 }: {
   label?: string;
   active?: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
-    <button className={`continue-component ${active ? "active" : ""}`} onClick={onClick}>
+    <button className={`continue-component ${active ? "active" : ""}`} onClick={onClick} disabled={disabled}>
       {label}
     </button>
   );
@@ -159,12 +161,12 @@ export function SelectionCard({
 }
 
 const stocks = [
-  { title: "Regular", detail: "75 GSM Standard", price: "+₹2/page" },
-  { title: "Premium", detail: "100 GSM Bright White", price: "+₹5/page" },
-  { title: "Glossy", detail: "Glossy Photo Finish", price: "+₹10/page" },
-  { title: "Matte", detail: "Elegant non-glare", price: "+₹10/page" },
-  { title: "Photo", detail: "250 GSM Ultra Photo", price: "+₹15/page" },
-  { title: "Premium", detail: "Certificate Cardstock", price: "+₹8/page" },
+  { title: "Regular", detail: "75 GSM Standard", price: "+₹2/page", surcharge: 2 },
+  { title: "Premium", detail: "100 GSM Bright White", price: "+₹5/page", surcharge: 5 },
+  { title: "Glossy", detail: "Glossy Photo Finish", price: "+₹10/page", surcharge: 10 },
+  { title: "Matte", detail: "Elegant non-glare", price: "+₹10/page", surcharge: 10 },
+  { title: "Photo", detail: "250 GSM Ultra Photo", price: "+₹15/page", surcharge: 15 },
+  { title: "Premium", detail: "Certificate Cardstock", price: "+₹8/page", surcharge: 8 },
 ];
 
 export function PaperStockGrid({
@@ -172,12 +174,12 @@ export function PaperStockGrid({
   onSelect,
 }: {
   selected: number;
-  onSelect: (index: number) => void;
+  onSelect: (index: number, surcharge: number) => void;
 }) {
   return (
     <div className="paper-stock-component">
       {stocks.map((stock, index) => (
-        <button className={selected === index ? "active" : ""} onClick={() => onSelect(index)} key={`${stock.title}-${index}`}>
+        <button className={selected === index ? "active" : ""} onClick={() => onSelect(index, stock.surcharge)} key={`${stock.title}-${index}`}>
           <b>{stock.title}</b><strong>{stock.price}</strong><small>{stock.detail}</small>
         </button>
       ))}
@@ -186,10 +188,10 @@ export function PaperStockGrid({
 }
 
 const paperSizes = [
-  ["A4", "210 × 297 mm"],
-  ["A3", "297 × 420 mm"],
-  ["A2", "420 × 594 mm"],
-  ["A1", "594 × 841 mm"],
+  { size: "A4", dimensions: "210 × 297 mm", surcharge: 0 },
+  { size: "A3", dimensions: "297 × 420 mm", surcharge: 1 },
+  { size: "A2", dimensions: "420 × 594 mm", surcharge: 2 },
+  { size: "A1", dimensions: "594 × 841 mm", surcharge: 3 },
 ];
 
 export function PaperSizeSelector({
@@ -197,13 +199,13 @@ export function PaperSizeSelector({
   onSelect,
 }: {
   selected: string;
-  onSelect: (size: string) => void;
+  onSelect: (size: string, surcharge: number) => void;
 }) {
   return (
     <div className="paper-size-component">
-      {paperSizes.map(([size, dimensions]) => (
-        <button className={selected === size ? "active" : ""} onClick={() => onSelect(size)} key={size}>
-          <b>{size}</b><small>{dimensions}</small>
+      {paperSizes.map(({ size, dimensions, surcharge }) => (
+        <button className={selected === size ? "active" : ""} onClick={() => onSelect(size, surcharge)} key={size}>
+          <b>{size}</b><small>{dimensions}</small><em>{surcharge ? `+₹${surcharge}/page` : "Base price"}</em>
         </button>
       ))}
     </div>
