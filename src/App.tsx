@@ -670,7 +670,7 @@ function Profile({ go }: { go: (screen: Screen) => void }) {
     <main className="page account-page">
       <AppHeader title="Profile" onBack={() => go("home")} />
       <section className="profile-summary">
-        <span><Asset name="511b0.svg" /></span>
+        <span><img src="/assets/profile-mehul.jpg" alt="Mehul Patel" /></span>
         <div><h2>Mehul Patel</h2><p>mehul.patel@campus.edu</p><small>Campus Print Member</small></div>
       </section>
       <section className="account-menu" aria-label="Profile options">
@@ -760,33 +760,36 @@ export default function App() {
   const [printJob, setPrintJob] = useState<PrintJob>({ ...defaultPrintJob });
   const go = (next: Screen) => {
     setScreen(next);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
   };
 
   return (
     <div className="app-shell">
-      {screen === "login" && <Login go={go} />}
-      {screen === "register" && <Register go={go} />}
-      {screen === "otp" && <Otp go={go} />}
-      {screen === "home" && (
-        <Home
-          go={go}
-          onQuickPrint={(preset) => {
-            setPrintJob({ ...preset });
-            go("document");
-          }}
-        />
-      )}
-      {screen === "document" && <Document go={go} preview={() => setShowPreview(true)} job={printJob} setJob={setPrintJob} />}
-      {screen === "setup" && <Setup go={go} job={printJob} setJob={setPrintJob} />}
-      {screen === "finishing" && <Finishing go={go} job={printJob} setJob={setPrintJob} />}
-      {screen === "checkout" && <Checkout go={go} preview={() => setShowPreview(true)} job={printJob} />}
-      {screen === "token" && <Token go={go} job={printJob} />}
-      {screen === "notifications" && <Notifications go={go} />}
-      {screen === "history" && <History go={go} />}
-      {screen === "profile" && <Profile go={go} />}
-      {screen === "settings" && <Settings go={go} />}
-      {screen === "help" && <Help go={go} />}
+      <div className="screen-transition" key={screen}>
+        {screen === "login" && <Login go={go} />}
+        {screen === "register" && <Register go={go} />}
+        {screen === "otp" && <Otp go={go} />}
+        {screen === "home" && (
+          <Home
+            go={go}
+            onQuickPrint={(preset) => {
+              setPrintJob({ ...preset });
+              go("document");
+            }}
+          />
+        )}
+        {screen === "document" && <Document go={go} preview={() => setShowPreview(true)} job={printJob} setJob={setPrintJob} />}
+        {screen === "setup" && <Setup go={go} job={printJob} setJob={setPrintJob} />}
+        {screen === "finishing" && <Finishing go={go} job={printJob} setJob={setPrintJob} />}
+        {screen === "checkout" && <Checkout go={go} preview={() => setShowPreview(true)} job={printJob} />}
+        {screen === "token" && <Token go={go} job={printJob} />}
+        {screen === "notifications" && <Notifications go={go} />}
+        {screen === "history" && <History go={go} />}
+        {screen === "profile" && <Profile go={go} />}
+        {screen === "settings" && <Settings go={go} />}
+        {screen === "help" && <Help go={go} />}
+      </div>
       {showPreview && <DocumentPreview close={() => setShowPreview(false)} totalPages={printJob.pages} />}
     </div>
   );
