@@ -136,6 +136,7 @@ button:hover, button:active { transform: none; }
   font: 500 20px "Inter:Medium";
 }
 .social-buttons img { display: block; width: 33px; height: 33px; object-fit: contain; }
+.social-buttons .google-logo { display: block; flex: 0 0 24px; width: 24px; height: 24px; }
 .auth-back {
   display: block; margin: 24px auto 0; border: 0; background: transparent; color: #fff;
   font: 400 12px "Inter:Regular"; text-decoration: underline;
@@ -687,6 +688,7 @@ button:hover, button:active { transform: none; }
   .social-buttons { gap: 8px; }
   .social-buttons button { gap: 5px; padding-inline: 6px; font-size: 14px; }
   .social-buttons img { width: 22px; height: 22px; }
+  .social-buttons .google-logo { flex-basis: 22px; width: 22px; height: 22px; }
   .otp-inputs { grid-template-columns: repeat(4, 52px); gap: 16px; }
   .otp-inputs input { width: 52px; }
   .page { padding-inline: 10px; }
