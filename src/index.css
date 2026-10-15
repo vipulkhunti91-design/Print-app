@@ -520,8 +520,10 @@ button:hover, button:active { transform: none; }
 .receipt-handle { position: relative; z-index: 1; height: 90px; margin: 15px 0 12px; border-radius: 20px 20px 0 0; background: linear-gradient(100deg, #011120, #31495d); }
 .token-return-zone { touch-action: pan-y; }
 .receipt-handle::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 47px; border-radius: 20px 20px 0 0; background: #fff; }
-.pickup-card { padding: 17px; border: 1px solid #071827; border-radius: 20px; text-align: center; touch-action: pan-y; transition: transform .28s var(--motion-ease), opacity .2s ease-out; }
-.pickup-card.is-returning-home { opacity: 0; transform: translateY(72px); pointer-events: none; }
+.token-content { touch-action: pan-y; transition: transform .28s var(--motion-ease), opacity .2s ease-out; }
+.token-content.is-dragging { transition: none; user-select: none; }
+.token-content.is-returning-home { opacity: 0; pointer-events: none; transition: transform .22s cubic-bezier(.2,.75,.25,1), opacity .18s ease-out; }
+.pickup-card { padding: 17px; border: 1px solid #071827; border-radius: 20px; text-align: center; }
 .pickup-card h2 { font: 700 16px "Roboto:Bold"; }
 .pickup-card strong { display: block; margin: 4px 0 7px; font: 700 35px "Roboto:Bold"; }
 .pickup-card p { font: 700 14px "Roboto:Bold"; }
@@ -725,8 +727,6 @@ button:hover, button:active { transform: none; }
   button:active { transform: none; }
 }
 
-.pickup-card.is-dragging { transition: none; user-select: none; }
-.pickup-card.is-returning-home { transition: transform .22s cubic-bezier(.2,.75,.25,1), opacity .18s ease-out; opacity: 0; }
 .home-cancel-order { display: block; width: min(100%, 420px); min-height: 46px; margin: 10px auto 0; border: 1px solid #c1444a; border-radius: 14px; background: #fff; color: #b3333d; font: 600 15px "Roboto:SemiBold"; cursor: pointer; }
 .cancel-order-message { width: min(100%, 420px); margin: 10px auto; text-align: center; font: 500 14px/1.4 "Roboto:Medium"; }
 .cancel-order-message.success { color: #27803a; }

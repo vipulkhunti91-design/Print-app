@@ -1136,7 +1136,7 @@ function PaymentSuccess({ go }: { go: (screen: Screen) => void }) {
 }
 
 function Token({ go, order, onCancelOrder }: { go: (screen: Screen) => void; order: ActiveOrder; onCancelOrder: () => boolean }) {
-  const pickupCardRef = useRef<HTMLElement | null>(null);
+  const tokenContentRef = useRef<HTMLDivElement | null>(null);
   const gestureRef = useRef<{ startY: number; lastY: number; startTime: number; mode: "pending" | "dragging" | "scroll" } | null>(null);
   const returnTimerRef = useRef<number | null>(null);
   const [returningHome, setReturningHome] = useState(false);
@@ -1157,8 +1157,8 @@ function Token({ go, order, onCancelOrder }: { go: (screen: Screen) => void; ord
     go("home");
   };
   useEffect(() => {
-    const card = pickupCardRef.current;
-    if (!card) return;
+    const content = tokenContentRef.current;
+    if (!content) return;
     const resetGesture = () => {
       gestureRef.current = null;
       setIsDragging(false);
@@ -1205,20 +1205,27 @@ function Token({ go, order, onCancelOrder }: { go: (screen: Screen) => void; ord
     };
     const onEnd = (event: TouchEvent) => finish(event.changedTouches[0]?.clientY ?? gestureRef.current?.lastY ?? 0);
     const onCancel = () => resetGesture();
-    card.addEventListener("touchstart", onStart, { passive: true });
-    card.addEventListener("touchmove", onMove, { passive: false });
-    card.addEventListener("touchend", onEnd, { passive: true });
-    card.addEventListener("touchcancel", onCancel, { passive: true });
+    content.addEventListener("touchstart", onStart, { passive: true });
+    content.addEventListener("touchmove", onMove, { passive: false });
+    content.addEventListener("touchend", onEnd, { passive: true });
+    content.addEventListener("touchcancel", onCancel, { passive: true });
     return () => {
-      card.removeEventListener("touchstart", onStart);
-      card.removeEventListener("touchmove", onMove);
-      card.removeEventListener("touchend", onEnd);
-      card.removeEventListener("touchcancel", onCancel);
+      content.removeEventListener("touchstart", onStart);
+      content.removeEventListener("touchmove", onMove);
+      content.removeEventListener("touchend", onEnd);
+      content.removeEventListener("touchcancel", onCancel);
       if (returnTimerRef.current !== null) window.clearTimeout(returnTimerRef.current);
     };
   }, [go]);
   return (
     <main className="page token-page has-fixed-actions">
+      <div
+        ref={tokenContentRef}
+        className={`token-content${isDragging ? " is-dragging" : ""}${returningHome ? " is-returning-home" : ""}`}
+        style={{ transform: returningHome ? "translateY(110vh)" : `translateY(${dragY}px)` }}
+        role="group"
+        aria-label="Pickup token and order tracking. Drag down to return home."
+      >
       <div className="token-swipe-instruction" aria-label="Swipe down to return home">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v13m-5-5 5 5 5-5" /></svg>
         <span>Swipe down to return home</span>
@@ -1228,13 +1235,7 @@ function Token({ go, order, onCancelOrder }: { go: (screen: Screen) => void; ord
       </div>
       <div className="token-return-zone">
         <div className="receipt-handle" />
-        <section
-          ref={pickupCardRef}
-          className={`pickup-card${isDragging ? " is-dragging" : ""}${returningHome ? " is-returning-home" : ""}`}
-          style={{ transform: returningHome ? "translateY(110vh)" : `translateY(${dragY}px)` }}
-          role="group"
-          aria-label="Pickup token. Drag down or tap Home to return home."
-        >
+        <section className="pickup-card" aria-label="Pickup token">
           <h2>Your Pickup Token</h2><strong>{order.token}</strong>
           <p>{job.fileName} · {job.pages} pages ({job.colour ? "Colour" : "B&W"})</p><h3>{cancelled ? "Order Cancelled" : `Order ${orderStatusLabels[order.status]}`}</h3>
           {cancelled && <small className="token-cancel-status" role="status">Your print order has been cancelled.</small>}
@@ -1254,6 +1255,7 @@ function Token({ go, order, onCancelOrder }: { go: (screen: Screen) => void; ord
           </div>
         ))}
       </section>
+      </div>
       <div className="token-fixed-actions">
         <button className="token-home-button" onClick={() => go("home")}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3.5 10.5 8.5-7 8.5 7M5.5 9v11h13V9M9.5 20v-6h5v6" /></svg>
