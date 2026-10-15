@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
-
-const A = `${import.meta.env.BASE_URL}assets`;
+import AppIcon from "./AppIcon";
 
 function Asset({ name }: { name: string }) {
-  return <img className="app-icon" src={`${A}/${name}`} alt="" />;
+  return <AppIcon name={name} />;
 }
 
 export function ContinueButton({
@@ -111,7 +110,7 @@ export function QuickPrintCard({
   };
   return (
     <button className={`quick-print-component ${active ? "active" : ""}`} onClick={onClick}>
-      <svg className="quick-print-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{iconPaths[icon] ?? iconPaths.assignment}</svg>
+      <svg className="quick-print-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{iconPaths[icon] ?? iconPaths.assignment}</svg>
       <span><b>{title}</b><small>{detail}</small></span>
     </button>
   );

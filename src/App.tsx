@@ -12,6 +12,7 @@ import {
   StepPill,
   TokenCard,
 } from "./components/PrintComponents";
+import AppIcon from "./components/AppIcon";
 import { formatTimeRemaining, getShopStatus, type ShopStatus } from "./config/shopHours";
 
 const A = `${import.meta.env.BASE_URL}assets`;
@@ -149,7 +150,7 @@ const orders = [
 ];
 
 function Asset({ name, className = "" }: { name: string; className?: string }) {
-  return <img className={`app-icon ${className}`.trim()} src={`${A}/${name}`} alt="" />;
+  return <AppIcon name={name} className={className} />;
 }
 
 function AuthLogo() {
