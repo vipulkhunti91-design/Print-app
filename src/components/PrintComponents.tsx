@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 
-const A = "/assets";
+const A = `${import.meta.env.BASE_URL}assets`;
 
 function Asset({ name }: { name: string }) {
-  return <img src={`${A}/${name}`} alt="" />;
+  return <img className="app-icon" src={`${A}/${name}`} alt="" />;
 }
 
 export function ContinueButton({
@@ -35,7 +35,9 @@ export function StepPill({
 }) {
   return (
     <button className={`step-pill ${active ? "active" : ""}`} onClick={onClick}>
-      {active && <Asset name="4236e.svg" />}
+      <span className="step-pill-icon" aria-hidden="true">
+        <Asset name="4236e.svg" />
+      </span>
       {label}
     </button>
   );
@@ -99,9 +101,17 @@ export function QuickPrintCard({
   active?: boolean;
   onClick: () => void;
 }) {
+  const iconPaths: Record<string, ReactNode> = {
+    assignment: <><path d="M8 3h8l4 4v14H8z"/><path d="M16 3v5h4M11 12h6M11 16h6"/></>,
+    notes: <><path d="M7 4h13v16H7z"/><path d="M4 7v14h13M10 9h7M10 13h7M10 17h5"/></>,
+    report: <><path d="M6 3h12l3 3v15H6z"/><path d="M18 3v4h3M9 11h9M9 15h9M9 18h6"/></>,
+    project: <><path d="M3 7h8l2 2h8v11H3z"/><path d="M3 10h18"/></>,
+    resume: <><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="10" cy="10" r="2"/><path d="M7 16c.8-2 5.2-2 6 0M15 9h2M15 13h2"/></>,
+    presentation: <><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M12 17v4M8 21h8M8 13l3-3 2 2 4-4"/></>,
+  };
   return (
     <button className={`quick-print-component ${active ? "active" : ""}`} onClick={onClick}>
-      <Asset name={icon} />
+      <svg className="quick-print-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{iconPaths[icon] ?? iconPaths.assignment}</svg>
       <span><b>{title}</b><small>{detail}</small></span>
     </button>
   );
@@ -215,16 +225,26 @@ export function PaperSizeSelector({
 export function TokenCard({
   dark = false,
   onClick,
+  token = "A-26",
+  fileName = "",
+  pages = 0,
+  colour = false,
+  status = "In queue",
 }: {
   dark?: boolean;
   onClick?: () => void;
+  token?: string;
+  fileName?: string;
+  pages?: number;
+  colour?: boolean;
+  status?: string;
 }) {
   return (
-    <button className={`token-component ${dark ? "dark" : ""}`} onClick={onClick}>
+    <button className={`token-component ${dark ? "dark" : ""}`} onClick={onClick} aria-label={`View pickup token ${token}`}>
       <span>Your Token</span>
-      <strong>Token A-26</strong>
-      <b>Now coming: A-21</b>
-      <small>DSP_Lab_Manual_Final.pdf · 18 pages (B&W)</small>
+      <strong>Token {token}</strong>
+      <b>{status}</b>
+      <small>{fileName} · {pages} pages ({colour ? "Colour" : "B&W"})</small>
     </button>
   );
 }

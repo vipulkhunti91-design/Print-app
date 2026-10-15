@@ -1,5 +1,9 @@
 {
+  "title": "Phopy Print Studio",
   "description": "Create stunning print designs for college projects with customizable templates and color options, streamlining the design process for students.",
+  "icons": {
+    "icon": "pwa-icon.svg"
+  },
   "robots": {
     "index": false
   },

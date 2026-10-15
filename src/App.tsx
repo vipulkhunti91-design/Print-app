@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BottomNavigation,
   ContinueButton,
@@ -12,8 +12,9 @@ import {
   StepPill,
   TokenCard,
 } from "./components/PrintComponents";
+import { formatTimeRemaining, getShopStatus, type ShopStatus } from "./config/shopHours";
 
-const A = "/assets";
+const A = `${import.meta.env.BASE_URL}assets`;
 
 type Screen =
   | "login"
@@ -24,6 +25,7 @@ type Screen =
   | "setup"
   | "finishing"
   | "checkout"
+  | "paymentSuccess"
   | "token"
   | "notifications"
   | "history"
@@ -47,11 +49,28 @@ type PrintJob = {
   stockSurcharge: number;
 };
 
+type ActiveOrder = {
+  token: string;
+  job: PrintJob;
+  status: "queued" | "printing" | "ready" | "pickup" | "cancelled";
+};
+
+const orderStatusLabels: Record<ActiveOrder["status"], string> = {
+  queued: "Queued",
+  printing: "Printing",
+  ready: "Ready",
+  pickup: "Pick up",
+  cancelled: "Cancelled",
+};
+
 type FilePreviewData = {
   url: string;
   type: string;
   name: string;
+  size: string;
 } | null;
+
+type UploadedFileData = NonNullable<FilePreviewData>;
 
 const defaultPrintJob: PrintJob = {
   title: "Assignment",
@@ -70,12 +89,12 @@ const defaultPrintJob: PrintJob = {
 };
 
 const quickPrints = [
-  { title: "Assignment", detail: "B&W · 2-Sided", icon: "2ace5.svg", preset: defaultPrintJob },
-  { title: "Quick Notes", detail: "B&W/Colour · 1/2-Sided", icon: "d2428.svg", preset: { ...defaultPrintJob, title: "Quick Notes", fileName: "Quick_Notes.pdf", fileSize: "4.1 MB", pages: 24, singleSided: true, sideSurcharge: 1 } },
-  { title: "Report", detail: "B&W · 1-Sided", icon: "b884a.svg", preset: { ...defaultPrintJob, title: "Report", fileName: "Project_Report.pdf", fileSize: "3.2 MB", pages: 18, singleSided: true, sideSurcharge: 1 } },
-  { title: "Project", detail: "Colour · 1-Sided", icon: "99f76.svg", preset: { ...defaultPrintJob, title: "Project", fileName: "Project_Document.pdf", fileSize: "5.6 MB", pages: 10, colour: true, singleSided: true, pricePerPage: 8, sideSurcharge: 1 } },
-  { title: "Resume", detail: "B&W · Single Side", icon: "0ee37.svg", preset: { ...defaultPrintJob, title: "Resume", fileName: "Mehul_Resume.pdf", fileSize: "0.8 MB", pages: 2, singleSided: true, sideSurcharge: 1 } },
-  { title: "Presentation", detail: "Colour · 1-Sided", icon: "2c290.svg", preset: { ...defaultPrintJob, title: "Presentation", fileName: "Campus_Presentation.pdf", fileSize: "7.3 MB", pages: 15, colour: true, singleSided: true, pricePerPage: 8, sideSurcharge: 1 } },
+  { title: "Assignment", detail: "B&W · 2-sided", icon: "assignment", preset: defaultPrintJob },
+  { title: "Quick Notes", detail: "B&W or colour · 1 or 2 sided", icon: "notes", preset: { ...defaultPrintJob, title: "Quick Notes", fileName: "Quick_Notes.pdf", fileSize: "4.1 MB", pages: 24, singleSided: true, sideSurcharge: 1 } },
+  { title: "Report", detail: "B&W · 1-sided", icon: "report", preset: { ...defaultPrintJob, title: "Report", fileName: "Project_Report.pdf", fileSize: "3.2 MB", pages: 18, singleSided: true, sideSurcharge: 1 } },
+  { title: "Project", detail: "Colour · 1-sided", icon: "project", preset: { ...defaultPrintJob, title: "Project", fileName: "Project_Document.pdf", fileSize: "5.6 MB", pages: 10, colour: true, singleSided: true, pricePerPage: 8, sideSurcharge: 1 } },
+  { title: "Resume", detail: "B&W · single-sided", icon: "resume", preset: { ...defaultPrintJob, title: "Resume", fileName: "Mehul_Resume.pdf", fileSize: "0.8 MB", pages: 2, singleSided: true, sideSurcharge: 1 } },
+  { title: "Presentation", detail: "Colour · 1-sided", icon: "presentation", preset: { ...defaultPrintJob, title: "Presentation", fileName: "Campus_Presentation.pdf", fileSize: "7.3 MB", pages: 15, colour: true, singleSided: true, pricePerPage: 8, sideSurcharge: 1 } },
 ];
 
 function formatPrice(job: PrintJob) {
@@ -90,12 +109,36 @@ function formatPrice(job: PrintJob) {
   return `₹${Number.isFinite(total) ? total.toFixed(2) : "0.00"}`;
 }
 
-const notifications = [
-  { title: "Print Shop Open", detail: "The campus print shop is now open.", time: "Mon", icon: "fa4b6.svg" },
-  { title: "Printing Started", detail: "Your assignment DSP_Lab_Manual_Final.pdf.", time: "5m", icon: "eaf6a.svg" },
-  { title: "Payment Successful", detail: "Your assignment DSP_Lab_Manual_Final.pdf.", time: "10m", icon: "4b343.svg" },
-  { title: "Print Ready", detail: "Your assignment DSP_Lab_Manual_Final.pdf. is ready for collection.", time: "2m", icon: "4774e.svg" },
+type AppNotification = {
+  id: string;
+  title: string;
+  detail: string;
+  time: string;
+  icon: string;
+  kind?: "shop-closing";
+  dateKey?: string;
+  shopState?: "closing-soon" | "closed";
+};
+
+const defaultNotifications: AppNotification[] = [
+  { id: "shop-open", title: "Print Shop Open", detail: "The campus print shop is now open.", time: "Mon", icon: "fa4b6.svg" },
+  { id: "printing-started", title: "Printing Started", detail: "Your assignment DSP_Lab_Manual_Final.pdf.", time: "5m", icon: "eaf6a.svg" },
+  { id: "payment-successful", title: "Payment Successful", detail: "Your assignment DSP_Lab_Manual_Final.pdf.", time: "10m", icon: "4b343.svg" },
+  { id: "print-ready", title: "Print Ready", detail: "Your assignment DSP_Lab_Manual_Final.pdf. is ready for collection.", time: "2m", icon: "4774e.svg" },
 ];
+
+const notificationStorageKey = "phopy-notifications";
+
+function readNotifications(): AppNotification[] {
+  try {
+    const saved = window.localStorage.getItem(notificationStorageKey);
+    if (!saved) return defaultNotifications;
+    const parsed: unknown = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed as AppNotification[] : defaultNotifications;
+  } catch {
+    return defaultNotifications;
+  }
+}
 
 const orders = [
   { token: "A-26", file: "DSP_Lab_Manual_Final.pdf", meta: "5 pages · 1 copy · A3 · Black & White · Double", price: "₹120.00", status: "Ready", action: "Take Print", icon: "48c44.svg" },
@@ -106,7 +149,7 @@ const orders = [
 ];
 
 function Asset({ name, className = "" }: { name: string; className?: string }) {
-  return <img className={className} src={`${A}/${name}`} alt="" />;
+  return <img className={`app-icon ${className}`.trim()} src={`${A}/${name}`} alt="" />;
 }
 
 function AuthLogo() {
@@ -330,13 +373,55 @@ function Home({
   go,
   onStartPrinting,
   onQuickPrint,
+  order,
+  onCancelOrder,
 }: {
   go: (screen: Screen) => void;
   onStartPrinting: () => void;
   onQuickPrint: (preset: PrintJob) => void;
+  order: ActiveOrder | null;
+  onCancelOrder: () => boolean;
 }) {
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelMessage, setCancelMessage] = useState("");
+  const [showTokenScrollHint, setShowTokenScrollHint] = useState(false);
+  const homeRef = useRef<HTMLElement | null>(null);
+  const homeTokenRef = useRef<HTMLElement | null>(null);
+  const canCancel = order?.status === "queued";
+  const confirmCancel = () => {
+    if (onCancelOrder()) {
+      setCancelMessage("Your print order has been cancelled successfully.");
+    } else {
+      setCancelMessage("This order can no longer be cancelled. Please refresh your order status.");
+    }
+    setShowCancelDialog(false);
+  };
+
+  useEffect(() => {
+    const updateTokenHint = () => {
+      const tokenBounds = homeTokenRef.current?.getBoundingClientRect();
+      const scrollRoot = document.scrollingElement;
+      const hasMoreContent = !!scrollRoot && scrollRoot.scrollHeight > window.innerHeight + 1;
+      const scrollTop = scrollRoot?.scrollTop ?? window.scrollY;
+      const isAtTop = scrollTop <= 1;
+      const navigationTop = window.innerHeight - 82;
+      setShowTokenScrollHint(Boolean(order && tokenBounds && hasMoreContent && isAtTop && tokenBounds.top > navigationTop));
+    };
+    updateTokenHint();
+    window.addEventListener("scroll", updateTokenHint, { passive: true });
+    window.addEventListener("resize", updateTokenHint);
+    const resizeObserver = typeof ResizeObserver === "undefined" || !homeRef.current
+      ? null
+      : new ResizeObserver(updateTokenHint);
+    if (homeRef.current) resizeObserver?.observe(homeRef.current);
+    return () => {
+      window.removeEventListener("scroll", updateTokenHint);
+      window.removeEventListener("resize", updateTokenHint);
+      resizeObserver?.disconnect();
+    };
+  }, [order, cancelMessage]);
   return (
-    <main className="home page">
+    <main className="home page" ref={homeRef}>
       <div className="home-top">
         <div>
           <h1>Hey Mehul,</h1>
@@ -366,7 +451,39 @@ function Home({
         ))}
       </section>
 
-      <TokenCard onClick={() => go("token")} />
+      {order && (
+        <section className="home-token-section" ref={homeTokenRef} aria-label="Pickup token">
+          <TokenCard
+            onClick={() => go("token")}
+            token={order.token}
+            fileName={order.job.fileName}
+            pages={order.job.pages}
+            colour={order.job.colour}
+            status={orderStatusLabels[order.status]}
+          />
+          {canCancel && <button className="home-cancel-order" onClick={() => { setCancelMessage(""); setShowCancelDialog(true); }}>Cancel Print Order</button>}
+          {cancelMessage && <p className={`cancel-order-message${order.status === "cancelled" ? " success" : " error"}`} role="status" aria-live="polite">{cancelMessage}</p>}
+          {order.status === "cancelled" && !cancelMessage && <p className="cancel-order-message success" role="status" aria-live="polite">Order {order.token} cancelled</p>}
+        </section>
+      )}
+      {showTokenScrollHint && !showCancelDialog && (
+        <div className="home-token-scroll-hint" aria-hidden="true">
+          <span>Scroll down to view your pickup token</span>
+          <svg viewBox="0 0 20 20" focusable="false"><path d="M10 3v12m-5-5 5 5 5-5" /></svg>
+        </div>
+      )}
+      {showCancelDialog && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowCancelDialog(false); }}>
+          <section className="cancel-order-dialog" role="alertdialog" aria-modal="true" aria-labelledby="cancel-order-title" aria-describedby="cancel-order-copy">
+            <h2 id="cancel-order-title">Cancel Print Order?</h2>
+            <p id="cancel-order-copy">Are you sure you want to cancel your current print order?</p>
+            <div className="cancel-order-dialog-actions">
+              <button onClick={() => setShowCancelDialog(false)}>Keep Order</button>
+              <button className="danger" onClick={confirmCancel}>Yes, Cancel Order</button>
+            </div>
+          </section>
+        </div>
+      )}
       <BottomNavigation
         active="home"
         onHome={() => go("home")}
@@ -382,42 +499,105 @@ function FilePreview({
   previewData,
   page,
   totalPages,
+  colour,
+  fileName,
+  applyChanges = false,
 }: {
   previewData: FilePreviewData;
   page: number;
   totalPages: number;
+  colour: boolean;
+  fileName: string;
+  applyChanges?: boolean;
 }) {
-  if (previewData?.type.startsWith("image/")) {
-    return <img className="uploaded-preview-image" src={previewData.url} alt={`Preview of ${previewData.name}`} />;
+  const previewClass = applyChanges && !colour ? " black-and-white-preview" : "";
+  const isImage = previewData?.type.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(previewData?.name ?? "");
+  const isPdf = previewData?.type === "application/pdf" || /\.pdf$/i.test(previewData?.name ?? "");
+
+  if (previewData && isImage) {
+    return <img className={`uploaded-preview-image${previewClass}`} src={previewData.url} alt={`Preview of ${previewData.name}`} />;
   }
 
-  if (previewData?.type === "application/pdf") {
+  if (previewData && isPdf) {
     return (
-      <object className="uploaded-preview-document" data={previewData.url} type="application/pdf" aria-label={`Preview of ${previewData.name}`}>
-        <PaperPreview page={page} totalPages={totalPages} />
+      <object className={`uploaded-preview-document${previewClass}`} data={previewData.url} type="application/pdf" aria-label={`Preview of ${previewData.name}`}>
+        <PaperPreview page={page} totalPages={totalPages} colour={colour} fileName={previewData.name} applyChanges={applyChanges} />
       </object>
     );
   }
 
-  return <PaperPreview page={page} totalPages={totalPages} />;
+  return <PaperPreview page={page} totalPages={totalPages} colour={colour} fileName={previewData?.name ?? fileName} applyChanges={applyChanges} />;
 }
 
 function DocumentPreview({
   close,
   totalPages,
   previewData,
+  fileName,
+  originalJob,
+  updatedJob,
+  hasChanges,
+  initialVersion,
 }: {
   close: () => void;
   totalPages: number;
   previewData: FilePreviewData;
+  fileName: string;
+  originalJob: PrintJob;
+  updatedJob: PrintJob;
+  hasChanges: boolean;
+  initialVersion: "original" | "updated";
 }) {
   const [page, setPage] = useState(1);
+  const [version, setVersion] = useState<"original" | "updated">(initialVersion);
+  const [isClosing, setIsClosing] = useState(false);
+  const closeTimer = useRef<number | null>(null);
+  const isUpdated = version === "updated" && hasChanges;
+  const activeJob = isUpdated ? updatedJob : originalJob;
+  const requestClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    closeTimer.current = window.setTimeout(close, reduceMotion ? 0 : 160);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") requestClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isClosing]);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
+    };
+  }, []);
+
   return (
-    <div className="modal-backdrop" onClick={close}>
-      <section className="preview-modal" onClick={(event) => event.stopPropagation()}>
-        <h2>Document Preview</h2>
+    <div className={`modal-backdrop${isClosing ? " is-closing" : ""}`} onClick={requestClose}>
+      <section className={`preview-modal${isClosing ? " is-closing" : ""}`} role="dialog" aria-modal="true" aria-labelledby="preview-dialog-title" onClick={(event) => event.stopPropagation()}>
+        <header className="preview-modal-header">
+          <h2 id="preview-dialog-title">Document Preview</h2>
+          <button type="button" className="preview-close-button" onClick={requestClose} disabled={isClosing} aria-label="Close preview">×</button>
+        </header>
+        {hasChanges && (
+          <div className="preview-version-switch" role="tablist" aria-label="Preview version">
+            <button className={!isUpdated ? "active" : ""} role="tab" aria-selected={!isUpdated} onClick={() => setVersion("original")}>Original</button>
+            <button className={isUpdated ? "active" : ""} role="tab" aria-selected={isUpdated} onClick={() => setVersion("updated")}>Updated</button>
+          </div>
+        )}
+        <p className="preview-version-caption">
+          {isUpdated
+            ? `Updated preview · ${activeJob.colour ? "Full Colour" : "Black & White"} · ${activeJob.singleSided ? "Single-sided" : "Double-sided"}`
+            : "Original file · formatting preserved"}
+        </p>
         <div className="modal-file-preview">
-          <FilePreview previewData={previewData} page={page} totalPages={totalPages} />
+          <FilePreview previewData={previewData} page={page} totalPages={totalPages} colour={isUpdated ? activeJob.colour : true} fileName={fileName} applyChanges={isUpdated} />
         </div>
         <div className="page-controls">
           <button disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>← Prev Page</button>
@@ -429,12 +609,60 @@ function DocumentPreview({
   );
 }
 
-function PaperPreview({ page = 1, totalPages = 12 }: { page?: number; totalPages?: number }) {
+function PaperPreview({ page = 1, totalPages = 12, colour, fileName = "Document", applyChanges = false }: { page?: number; totalPages?: number; colour: boolean; fileName?: string; applyChanges?: boolean }) {
+  const title = fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ");
   return (
-    <div className="paper">
-      <div className="paper-title" />
+    <div className={`paper${applyChanges && !colour ? " black-and-white-preview" : ""}`}>
+      <div className="paper-title">{title}</div>
       <i /><i /><i /><i />
-      <small>CAMPGRO</small><small>Page {page} of {totalPages}</small>
+      <small>PRINT DOCUMENT</small><small>Page {page} of {totalPages}</small>
+    </div>
+  );
+}
+
+function UploadProgress({ fileName, onComplete }: { fileName: string; onComplete: () => void }) {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      const nextProgress = Math.min(100, Math.round(((Date.now() - startedAt) / 4000) * 100));
+      setProgress(nextProgress);
+      if (nextProgress >= 100) {
+        window.clearInterval(timer);
+        onComplete();
+      }
+    }, 100);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="upload-progress-card" role="status" aria-live="polite">
+      <div className="upload-progress-file">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 3.75h7l5 5V20a.75.75 0 0 1-.75.75h-11.5A.75.75 0 0 1 5 20V4.5a.75.75 0 0 1 .75-.75Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M13 4v5h5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+        </svg>
+        <span>{fileName}</span>
+      </div>
+      <div className="upload-progress-label">
+        <span className="upload-progress-status">
+          {progress >= 100 && <i aria-hidden="true">✓</i>}
+          {progress < 100 ? "Uploading file" : "Upload complete"}
+        </span>
+        <span className="upload-progress-percent">{progress}%</span>
+      </div>
+      <div
+        className={`upload-progress-track${progress >= 100 ? " complete" : ""}`}
+        role="progressbar"
+        aria-label={`Upload progress for ${fileName}`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progress}
+      >
+        <div className="upload-progress-fill" style={{ width: `${progress}%` }} />
+      </div>
     </div>
   );
 }
@@ -446,6 +674,10 @@ function Document({
   setJob,
   previewData,
   setPreviewData,
+  setOriginalPrintJob,
+  resetPreviewHistory,
+  uploadedFiles,
+  setUploadedFiles,
   hasFile,
   setHasFile,
 }: {
@@ -455,35 +687,113 @@ function Document({
   setJob: (job: PrintJob) => void;
   previewData: FilePreviewData;
   setPreviewData: (preview: FilePreviewData) => void;
+  setOriginalPrintJob: (job: PrintJob) => void;
+  resetPreviewHistory: () => void;
+  uploadedFiles: UploadedFileData[];
+  setUploadedFiles: (files: UploadedFileData[]) => void;
   hasFile: boolean;
   setHasFile: (hasFile: boolean) => void;
 }) {
-  const [page, setPage] = useState(1);
+  const [uploadComplete, setUploadComplete] = useState(false);
+  const [applyingSample, setApplyingSample] = useState<string | null>(null);
+  const [uploadRunId, setUploadRunId] = useState(0);
+  const uploadRunIdRef = useRef(0);
+  const sampleTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (sampleTimerRef.current !== null) window.clearTimeout(sampleTimerRef.current);
+  }, []);
   const samples = [
     defaultPrintJob,
     quickPrints[1].preset,
     quickPrints[2].preset,
   ];
-  const uploadFile = (selected?: File) => {
-    if (!selected) return;
-    setJob({
-      ...job,
-      title: "Uploaded Document",
-      fileName: selected.name,
-      fileSize: `${Math.max(1, Math.round(selected.size / 1024 / 1024))} MB`,
-      pages: 1,
-    });
-    setHasFile(true);
-    setPage(1);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPreviewData({
+  const uploadFiles = async (selectedFiles?: FileList) => {
+    const files = Array.from(selectedFiles ?? []);
+    if (files.length === 0) return;
+
+    uploadRunIdRef.current += 1;
+    setUploadRunId(uploadRunIdRef.current);
+    setUploadComplete(false);
+    const uploaded = await Promise.all(files.map((selected) => new Promise<UploadedFileData>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({
         url: String(reader.result),
         type: selected.type,
         name: selected.name,
+        size: `${Math.max(1, Math.round(selected.size / 1024 / 1024))} MB`,
       });
+      reader.onerror = () => resolve({
+        url: "",
+        type: selected.type,
+        name: selected.name,
+        size: `${Math.max(1, Math.round(selected.size / 1024 / 1024))} MB`,
+      });
+      reader.readAsDataURL(selected);
+    })));
+    const allFiles = [...uploadedFiles, ...uploaded];
+    const activeFile = uploaded[uploaded.length - 1];
+    setUploadedFiles(allFiles);
+    setPreviewData(activeFile);
+    resetPreviewHistory();
+    const uploadedJob = {
+      ...job,
+      title: allFiles.length > 1 ? "Uploaded Documents" : "Uploaded Document",
+      fileName: activeFile.name,
+      fileSize: activeFile.size,
+      pages: allFiles.length,
     };
-    reader.readAsDataURL(selected);
+    setJob(uploadedJob);
+    setOriginalPrintJob(uploadedJob);
+    setHasFile(true);
+  };
+  const selectSample = (sample: PrintJob) => {
+    if (sampleTimerRef.current !== null) window.clearTimeout(sampleTimerRef.current);
+    const keepsUploadedFile = Boolean(previewData || uploadedFiles.length);
+    const nextJob = keepsUploadedFile
+      ? { ...job, ...sample, title: sample.title, fileName: job.fileName, fileSize: job.fileSize, pages: job.pages }
+      : { ...sample };
+    setApplyingSample(sample.title);
+    sampleTimerRef.current = window.setTimeout(() => {
+      setJob(nextJob);
+      setHasFile(true);
+      setUploadComplete(true);
+      if (!keepsUploadedFile) {
+        setPreviewData(null);
+        setUploadedFiles([]);
+        setOriginalPrintJob(nextJob);
+        resetPreviewHistory();
+      }
+      setApplyingSample(null);
+      sampleTimerRef.current = null;
+    }, 1200);
+  };
+  const removeUploadedFile = (index: number) => {
+    const remaining = uploadedFiles.filter((_, fileIndex) => fileIndex !== index);
+    const removedFile = uploadedFiles[index];
+    const removedActiveFile = previewData?.url === removedFile?.url;
+    setUploadedFiles(remaining);
+
+    if (remaining.length === 0) {
+      setHasFile(false);
+      setPreviewData(null);
+      setUploadComplete(false);
+      return;
+    }
+
+    const activeFile = removedActiveFile
+      ? remaining[Math.min(index, remaining.length - 1)]
+      : uploadedFiles.find((file) => file.url === previewData?.url) ?? remaining[0];
+    if (removedActiveFile) {
+      setPreviewData(activeFile);
+      setUploadComplete(true);
+    }
+    setJob({
+      ...job,
+      title: remaining.length > 1 ? "Uploaded Documents" : "Uploaded Document",
+      fileName: activeFile.name,
+      fileSize: activeFile.size,
+      pages: remaining.length,
+    });
   };
   return (
     <main className="studio page">
@@ -495,51 +805,99 @@ function Document({
           <b>{hasFile ? job.fileName : "No document selected"}</b>
           <small>{hasFile ? `${job.pages} pages · ${job.fileSize} · ${job.title}` : "Upload a document to continue"}</small>
         </span>
-        <label className="file-upload-action" aria-label="Upload another file">
-          <Asset name="4dcbe.svg" />
-          <input
-            type="file"
-            accept=".pdf,.doc,.docx,.ppt,.pptx,image/*"
-            onChange={(event) => uploadFile(event.target.files?.[0])}
-          />
-        </label>
       </div>
+      {uploadedFiles.length > 1 && (
+        <section className="uploaded-document-list" aria-label="Uploaded documents">
+          {uploadedFiles.map((file, index) => (
+            <div className={`uploaded-document-row${previewData?.url === file.url ? " active" : ""}`} key={`${file.name}-${file.size}-${index}`}>
+              <button
+                className="uploaded-document-select"
+                aria-label={`Preview ${file.name}`}
+                onClick={() => {
+                  setPreviewData(file);
+                  setUploadComplete(true);
+                  resetPreviewHistory();
+                  const activeJob = { ...job, title: uploadedFiles.length > 1 ? "Uploaded Documents" : "Uploaded Document", fileName: file.name, fileSize: file.size, pages: uploadedFiles.length };
+                  setJob(activeJob);
+                  setOriginalPrintJob(activeJob);
+                }}
+              >
+                <Asset name="6e532.svg" />
+                <span><b>{file.name}</b><small>{file.size}</small></span>
+              </button>
+              <button className="uploaded-document-remove" aria-label={`Delete ${file.name}`} onClick={() => removeUploadedFile(index)}>
+                <Asset name="986ce.svg" />
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
+      {hasFile && previewData && (
+        <UploadProgress
+          key={uploadRunId}
+          fileName={previewData.name}
+          onComplete={() => {
+            if (uploadRunId === uploadRunIdRef.current) setUploadComplete(true);
+          }}
+        />
+      )}
       <div className="file-actions">
         <label className="file-action-button">
           <Asset name="4dcbe.svg" />
           <span>Upload File</span>
           <input
             type="file"
+            multiple
             accept=".pdf,.doc,.docx,.ppt,.pptx,image/*"
-            onChange={(event) => uploadFile(event.target.files?.[0])}
+            onChange={(event) => {
+              void uploadFiles(event.target.files ?? undefined);
+              event.currentTarget.value = "";
+            }}
           />
         </label>
-        <button className="file-action-button delete" onClick={() => { setHasFile(false); setPreviewData(null); }} disabled={!hasFile}>
+        <button
+          className="file-action-button delete"
+          onClick={() => {
+            setHasFile(false);
+            setPreviewData(null);
+            setUploadedFiles([]);
+            setUploadComplete(false);
+          }}
+          disabled={!hasFile}
+        >
           <Asset name="986ce.svg" />
-          Delete File
+          Delete All Files
         </button>
       </div>
       <label className="micro-label">Quick Sample Documents</label>
       <div className="samples">
         {samples.map((sample) => (
-          <button onClick={() => { setJob({ ...sample }); setHasFile(true); setPreviewData(null); setPage(1); }} key={sample.title}>
-            {sample.title} ({sample.pages}p)
+          <button onClick={() => selectSample(sample)} key={sample.title} disabled={applyingSample !== null}>
+            {applyingSample === sample.title ? `Applying ${sample.title}…` : `${sample.title} (${sample.pages}p)`}
           </button>
         ))}
       </div>
+      {applyingSample && <p className="sample-conversion-status" role="status">Applying {applyingSample} format to your document…</p>}
       <h2>Live Document Preview</h2>
-      <button className="preview-box" onClick={preview} aria-label="Open document preview" disabled={!hasFile}>
-        {hasFile ? (
-          <FilePreview previewData={previewData} page={page} totalPages={job.pages} />
+      <button className="preview-box" onClick={preview} aria-label="Open document preview" disabled={!hasFile || applyingSample !== null || (!!previewData && !uploadComplete)}>
+        {applyingSample ? (
+          <span className="preview-processing">
+            <Asset name="6e532.svg" />
+            <b>Preparing {applyingSample} preview</b>
+            <small>Your original file stays unchanged.</small>
+          </span>
+        ) : hasFile && previewData && !uploadComplete ? (
+          <span className="preview-processing">
+            <Asset name="6e532.svg" />
+            <b>Preparing your preview</b>
+            <small>It will appear when the upload is complete.</small>
+          </span>
+        ) : hasFile ? (
+          <FilePreview previewData={previewData} page={1} totalPages={job.pages} colour={job.colour} fileName={job.fileName} />
         ) : (
           <span className="empty-preview"><Asset name="4dcbe.svg" /><b>Upload a file to see its preview</b></span>
         )}
       </button>
-      <div className="page-controls">
-        <button disabled={!hasFile || page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>← Prev Page</button>
-        <b>{hasFile ? page : 1} / {hasFile ? job.pages : 1}</b>
-        <button disabled={!hasFile || page === job.pages} onClick={() => setPage((current) => Math.min(job.pages, current + 1))}>Next Page →</button>
-      </div>
       <PriceBar action="Continue To Setup" onClick={() => go("setup")} job={job} disabled={!hasFile} empty={!hasFile} />
     </main>
   );
@@ -656,6 +1014,7 @@ function Finishing({
         <strong>{job.copies}</strong>
         <button onClick={() => setJob({ ...job, copies: job.copies + 1 })}>+</button>
         <small>{job.copies === 1 ? "copy set" : "copy sets"}</small>
+        <em>{job.pages} pages in each set</em>
       </div>
       <PriceBar action="Continue" onClick={() => go("checkout")} job={job} />
     </main>
@@ -666,12 +1025,35 @@ function Checkout({
   go,
   preview,
   job,
+  onOrderConfirmed,
 }: {
   go: (screen: Screen) => void;
   preview: () => void;
   job: PrintJob;
+  onOrderConfirmed: () => void;
 }) {
   const [payment, setPayment] = useState<"UPI" | "Cash">("UPI");
+  const [paymentState, setPaymentState] = useState<"idle" | "processing" | "success">("idle");
+  const [paymentProgress, setPaymentProgress] = useState(0);
+
+  useEffect(() => {
+    if (paymentState !== "processing") return;
+
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      const nextProgress = Math.min(100, Math.round(((Date.now() - startedAt) / 4000) * 100));
+      setPaymentProgress(nextProgress);
+      if (nextProgress >= 100) {
+        window.clearInterval(timer);
+        setPaymentState("success");
+        onOrderConfirmed();
+        go("paymentSuccess");
+      }
+    }, 80);
+
+    return () => window.clearInterval(timer);
+  }, [paymentState, onOrderConfirmed]);
+
   return (
     <main className="studio page">
       <StepHeader active={4} go={go} close={() => go("home")} />
@@ -690,61 +1072,283 @@ function Checkout({
       </section>
       <h2>Preview of file</h2>
       <button className="file-card preview-file" onClick={preview}>
-        <Asset name="a8609.svg" />
         <span><b>{job.fileName}</b><small>{job.pages} pages · {job.fileSize} · {job.title}</small></span>
-        <Asset name="55b40.svg" />
+        <svg className="preview-eye-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="12" cy="12" r="2.7" stroke="currentColor" strokeWidth="1.8" />
+        </svg>
       </button>
-      <h2 className="payment-title">Select Payment Method</h2>
-      <PaymentSelector selected={payment} onSelect={setPayment} />
-      <button className="pay-button" onClick={() => go("token")}>Pay {formatPrice(job)} & Place Order</button>
+      {paymentState === "idle" ? (
+        <>
+          <h2 className="payment-title">Select Payment Method</h2>
+          <PaymentSelector selected={payment} onSelect={setPayment} />
+          <button
+            className="pay-button"
+            onClick={() => {
+              setPaymentProgress(0);
+              setPaymentState("processing");
+            }}
+          >
+            Pay {formatPrice(job)} & Place Order
+          </button>
+        </>
+      ) : (
+        <section className={`payment-feedback${paymentState === "success" ? " success" : ""}`} role="status" aria-live="polite">
+          {paymentState === "processing" ? (
+            <>
+              <span className="payment-feedback-spinner" aria-hidden="true" />
+              <h2>Processing your {payment === "UPI" ? "payment" : "order"}</h2>
+              <p>Please wait while we confirm your order.</p>
+              <div className="upload-progress-label">
+                <span>{payment === "UPI" ? "Processing payment" : "Placing order"}</span>
+                <span className="upload-progress-percent">{paymentProgress}%</span>
+              </div>
+              <div className="upload-progress-track" role="progressbar" aria-label="Payment progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={paymentProgress}>
+                <div className="upload-progress-fill" style={{ width: `${paymentProgress}%` }} />
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="payment-success-icon" aria-hidden="true">✓</span>
+              <h2>{payment === "UPI" ? "Payment successful" : "Order placed successfully"}</h2>
+              <p>{payment === "UPI" ? "Your print order is confirmed." : "Pay at the counter when you collect your prints."}</p>
+              <button className="pay-button" onClick={() => go("token")}>View Pickup Token</button>
+            </>
+          )}
+        </section>
+      )}
     </main>
   );
 }
 
-function Token({ go, job }: { go: (screen: Screen) => void; job: PrintJob }) {
+function PaymentSuccess({ go }: { go: (screen: Screen) => void }) {
   return (
-    <main className="page token-page">
+    <main className="page payment-success-page">
+      <section className="payment-success-card" role="status">
+        <span className="payment-success-icon" aria-hidden="true">✓</span>
+        <p className="payment-success-eyebrow">Order confirmation</p>
+        <h1>Payment successful</h1>
+        <p className="payment-success-copy">Your print order is confirmed.</p>
+        <button className="pay-button" onClick={() => go("token")}>View Pickup Token</button>
+      </section>
+    </main>
+  );
+}
+
+function Token({ go, order, onCancelOrder }: { go: (screen: Screen) => void; order: ActiveOrder; onCancelOrder: () => boolean }) {
+  const pickupCardRef = useRef<HTMLElement | null>(null);
+  const gestureRef = useRef<{ startY: number; lastY: number; startTime: number; mode: "pending" | "dragging" | "scroll" } | null>(null);
+  const returnTimerRef = useRef<number | null>(null);
+  const [returningHome, setReturningHome] = useState(false);
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const cancelled = order.status === "cancelled";
+  const canCancel = order.status === "queued";
+  const job = order.job;
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelError, setCancelError] = useState("");
+  const confirmCancel = () => {
+    if (!canCancel || !onCancelOrder()) {
+      setCancelError("This order can no longer be cancelled.");
+      setShowCancelDialog(false);
+      return;
+    }
+    setShowCancelDialog(false);
+    go("home");
+  };
+  useEffect(() => {
+    const card = pickupCardRef.current;
+    if (!card) return;
+    const resetGesture = () => {
+      gestureRef.current = null;
+      setIsDragging(false);
+      setDragY(0);
+    };
+    const onStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1 || returningHome) return;
+      const y = event.touches[0].clientY;
+      gestureRef.current = { startY: y, lastY: y, startTime: performance.now(), mode: "pending" };
+    };
+    const onMove = (event: TouchEvent) => {
+      const gesture = gestureRef.current;
+      if (!gesture || event.touches.length !== 1 || gesture.mode === "scroll") return;
+      const y = event.touches[0].clientY;
+      const delta = y - gesture.startY;
+      if (gesture.mode === "pending" && Math.abs(delta) > 8) {
+        if (delta < 0 || window.scrollY > 0) {
+          gesture.mode = "scroll";
+          return;
+        }
+        gesture.mode = "dragging";
+        setIsDragging(true);
+      }
+      if (gesture.mode === "dragging" && delta > 0 && window.scrollY <= 0) {
+        event.preventDefault();
+        gesture.lastY = y;
+        setDragY(delta <= 160 ? delta : 160 + (delta - 160) * 0.18);
+      }
+    };
+    const finish = (endY: number) => {
+      const gesture = gestureRef.current;
+      gestureRef.current = null;
+      if (!gesture || gesture.mode !== "dragging") { resetGesture(); return; }
+      const distance = Math.max(0, endY - gesture.startY);
+      const velocity = distance / Math.max(1, performance.now() - gesture.startTime);
+      const shouldReturn = window.scrollY <= 0 && (distance >= 105 || (distance >= 45 && velocity >= 0.7));
+      setIsDragging(false);
+      if (!shouldReturn) { setDragY(0); return; }
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      setReturningHome(true);
+      setDragY(reduced ? 0 : Math.max(140, distance));
+      if (returnTimerRef.current !== null) window.clearTimeout(returnTimerRef.current);
+      returnTimerRef.current = window.setTimeout(() => go("home"), reduced ? 0 : 220);
+    };
+    const onEnd = (event: TouchEvent) => finish(event.changedTouches[0]?.clientY ?? gestureRef.current?.lastY ?? 0);
+    const onCancel = () => resetGesture();
+    card.addEventListener("touchstart", onStart, { passive: true });
+    card.addEventListener("touchmove", onMove, { passive: false });
+    card.addEventListener("touchend", onEnd, { passive: true });
+    card.addEventListener("touchcancel", onCancel, { passive: true });
+    return () => {
+      card.removeEventListener("touchstart", onStart);
+      card.removeEventListener("touchmove", onMove);
+      card.removeEventListener("touchend", onEnd);
+      card.removeEventListener("touchcancel", onCancel);
+      if (returnTimerRef.current !== null) window.clearTimeout(returnTimerRef.current);
+    };
+  }, [go]);
+  return (
+    <main className="page token-page has-fixed-actions">
+      <div className="token-swipe-instruction" aria-label="Swipe down to return home">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v13m-5-5 5 5 5-5" /></svg>
+        <span>Swipe down to return home</span>
+      </div>
       <div className="home-top">
         <div><h1>Hey Mehul,</h1><p>Need to print something today?</p></div>
       </div>
-      <div className="receipt-handle" />
-      <section className="pickup-card">
-        <h2>Your Pickup Token</h2><strong>A-26</strong>
-        <p>{job.fileName} · {job.pages} pages ({job.colour ? "Colour" : "B&W"})</p><h3>Order Complete</h3>
-      </section>
+      <div className="token-return-zone">
+        <div className="receipt-handle" />
+        <section
+          ref={pickupCardRef}
+          className={`pickup-card${isDragging ? " is-dragging" : ""}${returningHome ? " is-returning-home" : ""}`}
+          style={{ transform: returningHome ? "translateY(110vh)" : `translateY(${dragY}px)` }}
+          role="group"
+          aria-label="Pickup token. Drag down or tap Home to return home."
+        >
+          <h2>Your Pickup Token</h2><strong>{order.token}</strong>
+          <p>{job.fileName} · {job.pages} pages ({job.colour ? "Colour" : "B&W"})</p><h3>{cancelled ? "Order Cancelled" : `Order ${orderStatusLabels[order.status]}`}</h3>
+          {cancelled && <small className="token-cancel-status" role="status">Your print order has been cancelled.</small>}
+        </section>
+      </div>
       <section className="track-card">
         <h2>Order Tracking</h2>
         {[
-          ["Queued", "Token assigned in queue", "39cf5.svg"],
-          ["Printing", "Your order is printing on Printer 3.", "fc492.svg"],
-          ["Ready", "Your order is ready", "057e9.svg"],
-          ["Pick up", "Your order is waiting for pickup.", "2851a.svg"],
-        ].map(([title, detail, icon]) => (
-          <div className="track-step" key={title}>
-            <span><Asset name={icon} /></span>
-            <div><b>{title}</b><small>{detail}</small></div>
+          { title: "Queued", detail: "Token assigned in queue", icon: "39cf5.svg" },
+          { title: "Printing", detail: "Your order is printing on Printer 3.", icon: "fc492.svg" },
+          { title: "Ready", detail: "Your order is ready", icon: "057e9.svg" },
+          { title: "Pick up", detail: "Your order is waiting for pickup.", icon: "pickup.svg" },
+         ].map(({ title, detail, icon }, index) => (
+          <div className={`track-step${cancelled ? " is-cancelled" : index <= ["queued", "printing", "ready", "pickup"].indexOf(order.status) ? " is-complete" : ""}`} key={title}>
+            <span aria-hidden="true"><Asset name={icon} /></span>
+            <div><b>{title}</b><small>{cancelled ? "Order cancelled before completion." : detail}</small></div>
           </div>
         ))}
       </section>
-      <div className="token-actions">
-        <button onClick={() => go("history")}><Asset name="2ab15.svg" />View Print History</button>
-        <button className="danger" onClick={() => go("home")}><Asset name="0bcda.svg" />Cancel Print Order</button>
+      <div className="token-fixed-actions">
+        <button className="token-home-button" onClick={() => go("home")}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3.5 10.5 8.5-7 8.5 7M5.5 9v11h13V9M9.5 20v-6h5v6" /></svg>
+          Home
+        </button>
+        <button className={`token-cancel-button${canCancel ? "" : " is-unavailable"}`} onClick={() => { setCancelError(""); setShowCancelDialog(true); }} disabled={!canCancel}>
+          {cancelled ? "Order Cancelled" : "Cancel Order"}
+        </button>
       </div>
+      {cancelError && <p className="token-cancel-error" role="alert">{cancelError}</p>}
+      {!canCancel && !cancelled && <p className="token-cancel-status token-cannot-cancel">Cannot cancel, printing has started.</p>}
+      {showCancelDialog && (
+        <div className="modal-backdrop" role="presentation">
+          <section className="cancel-order-dialog" role="alertdialog" aria-modal="true" aria-labelledby="token-cancel-title" aria-describedby="token-cancel-copy">
+            <h2 id="token-cancel-title">Cancel this order?</h2>
+            <p id="token-cancel-copy">This cannot be undone.</p>
+            <div className="cancel-order-dialog-actions">
+              <button className="danger" onClick={confirmCancel}>Yes, Cancel</button>
+              <button onClick={() => setShowCancelDialog(false)}>No, Keep Order</button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
 
-function Notifications({ go }: { go: (screen: Screen) => void }) {
+function Notifications({
+  go,
+  items,
+  onCheckClosing,
+}: {
+  go: (screen: Screen) => void;
+  items: AppNotification[];
+  onCheckClosing: (status: ShopStatus) => void;
+}) {
+  const [shopStatus, setShopStatus] = useState<ShopStatus>(() => getShopStatus());
+
+  useEffect(() => {
+    const updateShopStatus = () => {
+      const nextStatus = getShopStatus();
+      setShopStatus(nextStatus);
+      onCheckClosing(nextStatus);
+    };
+    updateShopStatus();
+    const interval = window.setInterval(updateShopStatus, 1000);
+    return () => window.clearInterval(interval);
+  }, [onCheckClosing]);
+
+  const todayClosingNotice = items.find((item) => item.kind === "shop-closing" && item.dateKey === shopStatus.dateKey);
+  const displayedItems = items.map((item) => {
+    if (item !== todayClosingNotice) return item;
+    if (shopStatus.state === "closed") {
+      return {
+        ...item,
+        title: "Print Shop Closed",
+        detail: `The print shop is closed now. Today's closing time was ${shopStatus.closingTime ?? "not available"}.`,
+        shopState: "closed" as const,
+      };
+    }
+    return {
+      ...item,
+      title: "Print Shop Closing Soon",
+      detail: `The print shop is closing soon. Please collect your print order before closing time. Closing Time: ${shopStatus.closingTime}. Time Remaining: ${formatTimeRemaining(shopStatus.remainingMs ?? 0)}.`,
+      shopState: "closing-soon" as const,
+    };
+  });
+
   return (
     <main className="page list-page">
       <AppHeader title="Notification" onBack={() => go("home")} />
+      <p className="shop-status-note" role="status">
+        {shopStatus.state === "unavailable"
+          ? "Print shop hours are not configured. Closing time is unavailable."
+          : shopStatus.state === "closed"
+            ? `Print shop is currently closed. Regular closing time: ${shopStatus.closingTime}.`
+            : shopStatus.state === "closing-soon"
+              ? `Print shop closes at ${shopStatus.closingTime} in ${formatTimeRemaining(shopStatus.remainingMs ?? 0)}.`
+              : `Print shop is open. It closes at ${shopStatus.closingTime}.`}
+      </p>
       <section className="notification-list">
-        {notifications.map((item) => (
-          <article className="notification-card" key={item.title}>
-            <Asset name={item.icon} />
-            <span><b>{item.title}</b><small>{item.detail}</small></span>
-            <time>{item.time}</time>
-          </article>
+        {displayedItems.map((item) => (
+          item.kind === "shop-closing" ? (
+            <button className="notification-card notification-action" type="button" key={item.id} onClick={() => go("token")}>
+              <Asset name={item.icon} />
+              <span><b>{item.title}</b><small>{item.detail}</small></span>
+              <time>{item.time}</time>
+            </button>
+          ) : (
+            <article className="notification-card" key={item.id}>
+              <Asset name={item.icon} />
+              <span><b>{item.title}</b><small>{item.detail}</small></span>
+              <time>{item.time}</time>
+            </article>
+          )
         ))}
       </section>
       <BottomNavigation
@@ -758,12 +1362,23 @@ function Notifications({ go }: { go: (screen: Screen) => void }) {
   );
 }
 
-function History({ go }: { go: (screen: Screen) => void }) {
+function History({ go, activeOrder }: { go: (screen: Screen) => void; activeOrder: ActiveOrder | null }) {
+  const historyOrders = activeOrder
+    ? orders.map((item) => item.token === activeOrder.token
+      ? {
+        ...item,
+        file: activeOrder.job.fileName,
+        meta: `${activeOrder.job.pages} pages · ${activeOrder.job.copies} ${activeOrder.job.copies === 1 ? "copy" : "copies"} · ${activeOrder.job.paper} · ${activeOrder.job.colour ? "Colour" : "Black & White"} · ${activeOrder.job.singleSided ? "Single-sided" : "Double-sided"}`,
+        price: formatPrice(activeOrder.job),
+        status: activeOrder.status === "cancelled" ? "Cancelled" : "Pending",
+      }
+      : item)
+    : orders;
   return (
     <main className="page list-page">
       <AppHeader title="History" onBack={() => go("home")} />
       <section className="history-list">
-        {orders.map((order) => (
+        {historyOrders.map((order) => (
           <article className="history-card" key={order.token}>
             <b>Token {order.token}</b><strong>{order.status}</strong>
             <h2>{order.file}</h2><p>{order.meta}</p><h3>{order.price}</h3>
@@ -787,7 +1402,7 @@ function Profile({ go }: { go: (screen: Screen) => void }) {
     <main className="page account-page">
       <AppHeader title="Profile" onBack={() => go("home")} />
       <section className="profile-summary">
-        <span><img src="/assets/profile-mehul.jpg" alt="Mehul Patel" /></span>
+        <span><img src={`${A}/profile-mehul.jpg`} alt="Mehul Patel" /></span>
         <div><h2>Mehul Patel</h2><p>mehul.patel@campus.edu</p><small>Campus Print Member</small></div>
       </section>
       <section className="account-menu" aria-label="Profile options">
@@ -873,18 +1488,125 @@ function Help({ go }: { go: (screen: Screen) => void }) {
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("login");
+  const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(null);
+  const [notificationItems, setNotificationItems] = useState<AppNotification[]>(readNotifications);
   const [showPreview, setShowPreview] = useState(false);
+  const [hasOpenedPreview, setHasOpenedPreview] = useState(false);
+  const [showPreviewComparison, setShowPreviewComparison] = useState(false);
+  const [previewVersion, setPreviewVersion] = useState<"original" | "updated">("original");
   const [printJob, setPrintJob] = useState<PrintJob>({ ...defaultPrintJob });
+  const [originalPrintJob, setOriginalPrintJob] = useState<PrintJob>({ ...defaultPrintJob });
   const [filePreview, setFilePreview] = useState<FilePreviewData>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileData[]>([]);
   const [hasDocument, setHasDocument] = useState(false);
+  const homeFileInput = useRef<HTMLInputElement>(null);
+  const pendingHomePreset = useRef<PrintJob>(defaultPrintJob);
+  const confirmOrder = useCallback(() => {
+    setActiveOrder({ token: "A-26", job: { ...printJob }, status: "queued" });
+  }, [printJob]);
+  const cancelActiveOrder = useCallback(() => {
+    if (!activeOrder || activeOrder.status !== "queued") return false;
+    setActiveOrder((current) => current?.status === "queued" ? { ...current, status: "cancelled" } : current);
+    return true;
+  }, [activeOrder]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(notificationStorageKey, JSON.stringify(notificationItems));
+    } catch {
+      // Notifications remain available in memory if browser storage is unavailable.
+    }
+  }, [notificationItems]);
+
+  const checkClosingNotification = useCallback((status: ShopStatus) => {
+    if (!status.dateKey) return;
+    const id = `shop-closing-${status.dateKey}`;
+    if (status.state === "closing-soon") {
+      setNotificationItems((current) => current.some((item) => item.id === id)
+        ? current
+        : [{
+          id,
+          title: "Print Shop Closing Soon",
+          detail: "The print shop is closing soon. Please collect your print order before closing time.",
+          time: "Now",
+          icon: "fa4b6.svg",
+          kind: "shop-closing",
+          dateKey: status.dateKey,
+          shopState: "closing-soon",
+        }, ...current]);
+    } else if (status.state === "closed") {
+      setNotificationItems((current) => {
+        const existing = current.find((item) => item.id === id);
+        if (!existing || existing.shopState === "closed") return current;
+        return current.map((item) => item.id === id
+          ? { ...item, title: "Print Shop Closed", shopState: "closed" }
+          : item);
+      });
+    }
+  }, []);
+  const hasPreviewChanges = (["colour", "singleSided", "paper", "paperSurcharge", "copies", "stockIndex", "stockSurcharge"] as const)
+    .some((key) => printJob[key] !== originalPrintJob[key]);
+  const openDocumentPreview = () => {
+    const showUpdatedVersion = hasOpenedPreview && hasPreviewChanges;
+    setShowPreviewComparison(showUpdatedVersion);
+    setPreviewVersion(showUpdatedVersion ? "updated" : "original");
+    setHasOpenedPreview(true);
+    setShowPreview(true);
+  };
   const go = (next: Screen) => {
     setScreen(next);
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+    // Route changes replace the screen, so a separate smooth scroll competes
+    // with the screen transition and can make the new screen jump.
+    window.scrollTo(0, 0);
+  };
+
+  const openHomeFilePicker = (preset: PrintJob = defaultPrintJob) => {
+    pendingHomePreset.current = preset;
+    if (homeFileInput.current) {
+      homeFileInput.current.value = "";
+      homeFileInput.current.click();
+    }
+  };
+
+  const handleHomeFileSelected = (selected?: File) => {
+    if (!selected) return;
+
+    const uploadedJob = {
+      ...pendingHomePreset.current,
+      title: "Uploaded Document",
+      fileName: selected.name,
+      fileSize: `${Math.max(1, Math.round(selected.size / 1024 / 1024))} MB`,
+      pages: 1,
+    };
+    setPrintJob(uploadedJob);
+    setOriginalPrintJob(uploadedJob);
+    setHasDocument(true);
+    setHasOpenedPreview(false);
+    setShowPreview(false);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const uploadedFile = {
+        url: String(reader.result),
+        type: selected.type,
+        name: selected.name,
+        size: `${Math.max(1, Math.round(selected.size / 1024 / 1024))} MB`,
+      };
+      setFilePreview(uploadedFile);
+      setUploadedFiles([uploadedFile]);
+    };
+    reader.readAsDataURL(selected);
+    go("document");
   };
 
   return (
     <div className="app-shell">
+      <input
+        ref={homeFileInput}
+        type="file"
+        accept=".pdf,.doc,.docx,.ppt,.pptx,image/*"
+        hidden
+        onChange={(event) => handleHomeFileSelected(event.target.files?.[0])}
+      />
       <div className="screen-transition" key={screen}>
         {screen === "login" && <Login go={go} />}
         {screen === "register" && <Register go={go} />}
@@ -892,43 +1614,43 @@ export default function App() {
         {screen === "home" && (
           <Home
             go={go}
-            onStartPrinting={() => {
-              setPrintJob({ ...defaultPrintJob });
-              setFilePreview(null);
-              setHasDocument(false);
-              go("document");
-            }}
-            onQuickPrint={(preset) => {
-              setPrintJob({ ...preset });
-              setFilePreview(null);
-              setHasDocument(true);
-              go("document");
-            }}
+            onStartPrinting={() => openHomeFilePicker()}
+            onQuickPrint={(preset) => openHomeFilePicker(preset)}
+            order={activeOrder}
+            onCancelOrder={cancelActiveOrder}
           />
         )}
         {screen === "document" && (
           <Document
             go={go}
-            preview={() => setShowPreview(true)}
+            preview={openDocumentPreview}
             job={printJob}
             setJob={setPrintJob}
             previewData={filePreview}
             setPreviewData={setFilePreview}
+            setOriginalPrintJob={setOriginalPrintJob}
+            resetPreviewHistory={() => setHasOpenedPreview(false)}
+            uploadedFiles={uploadedFiles}
+            setUploadedFiles={setUploadedFiles}
             hasFile={hasDocument}
             setHasFile={setHasDocument}
           />
         )}
         {screen === "setup" && <Setup go={go} job={printJob} setJob={setPrintJob} />}
         {screen === "finishing" && <Finishing go={go} job={printJob} setJob={setPrintJob} />}
-        {screen === "checkout" && <Checkout go={go} preview={() => setShowPreview(true)} job={printJob} />}
-        {screen === "token" && <Token go={go} job={printJob} />}
-        {screen === "notifications" && <Notifications go={go} />}
-        {screen === "history" && <History go={go} />}
+        {screen === "checkout" && <Checkout go={go} preview={openDocumentPreview} job={printJob} onOrderConfirmed={confirmOrder} />}
+        {screen === "paymentSuccess" && <PaymentSuccess go={go} />}
+        {screen === "token" && activeOrder && <Token go={go} order={activeOrder} onCancelOrder={cancelActiveOrder} />}
+        {screen === "token" && !activeOrder && <main className="page token-page"><AppHeader title="Pickup Token" onBack={() => go("home")} /><p className="empty-order-message">You don’t have an active print order yet.</p></main>}
+        {screen === "notifications" && (
+          <Notifications go={go} items={notificationItems} onCheckClosing={checkClosingNotification} />
+        )}
+        {screen === "history" && <History go={go} activeOrder={activeOrder} />}
         {screen === "profile" && <Profile go={go} />}
         {screen === "settings" && <Settings go={go} />}
         {screen === "help" && <Help go={go} />}
       </div>
-      {showPreview && <DocumentPreview close={() => setShowPreview(false)} totalPages={printJob.pages} previewData={filePreview} />}
+      {showPreview && <DocumentPreview close={() => setShowPreview(false)} totalPages={printJob.pages} previewData={filePreview} fileName={printJob.fileName} originalJob={originalPrintJob} updatedJob={printJob} hasChanges={showPreviewComparison} initialVersion={previewVersion} />}
     </div>
   );
 }
