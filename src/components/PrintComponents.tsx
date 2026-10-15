@@ -27,13 +27,15 @@ export function StepPill({
   label,
   active,
   onClick,
+  disabled = false,
 }: {
   label: string;
   active: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
-    <button className={`step-pill ${active ? "active" : ""}`} onClick={onClick}>
+    <button className={`step-pill ${active ? "active" : ""}`} onClick={onClick} disabled={disabled}>
       <span className="step-pill-icon" aria-hidden="true">
         <Asset name="4236e.svg" />
       </span>
@@ -82,7 +84,7 @@ export function StartPrintingButton({
   return (
     <button className={`start-printing ${active ? "active" : ""}`} onClick={onClick}>
       <Asset name={active ? "c878a.svg" : "8eec0.svg"} />
-      Start Printing!
+      Upload Document
     </button>
   );
 }
