@@ -291,7 +291,8 @@ button:hover, button:active { transform: none; }
   font: 500 13px "Roboto:Medium"; cursor: pointer;
 }
 .file-action-button .app-icon { display: block; max-width: 20px; max-height: 22px; }
-.file-action-button input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.file-action-button input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.upload-multiple-hint { margin: 8px 2px 0; color: #616e7a; font: 400 12px/1.4 "Roboto:Regular"; }
 .file-action-button.delete { color: #c1444a; }
 .file-action-button.delete .app-icon { opacity: .7; }
 .file-action-button:disabled { cursor: not-allowed; opacity: .4; }

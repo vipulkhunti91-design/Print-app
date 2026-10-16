@@ -743,6 +743,8 @@ function Document({
   setUploadedFiles,
   hasFile,
   setHasFile,
+  initialFiles,
+  onInitialFilesConsumed,
 }: {
   go: (screen: Screen) => void;
   preview: () => void;
@@ -756,6 +758,8 @@ function Document({
   setUploadedFiles: (files: UploadedFileData[]) => void;
   hasFile: boolean;
   setHasFile: (hasFile: boolean) => void;
+  initialFiles?: File[];
+  onInitialFilesConsumed?: () => void;
 }) {
   const [uploadComplete, setUploadComplete] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "preparing" | "ready" | "failed">("idle");
@@ -845,7 +849,9 @@ function Document({
     setUploadedFiles(allFiles);
     setPreviewData(activeFile);
     setUploadProgress(100);
-    setUploadStatus("preparing");
+    setUploadStatus("ready");
+    setUploadComplete(true);
+    setRetryFiles([]);
     resetPreviewHistory();
     const uploadedJob = {
       ...job,
@@ -874,6 +880,11 @@ function Document({
       setUploadStatus("failed");
     });
   };
+  useEffect(() => {
+    if (!initialFiles?.length) return;
+    startUpload(initialFiles);
+    onInitialFilesConsumed?.();
+  }, [initialFiles]);
   const cancelUpload = () => {
     uploadRunIdRef.current += 1;
     stopProgressEstimate();
@@ -888,18 +899,6 @@ function Document({
     setPreviewData(null);
     setUploadedFiles([]);
   };
-  const markPreviewReady = useCallback(() => {
-    if (uploadRunIdRef.current !== uploadRunId || uploadStatus !== "preparing") return;
-    setUploadStatus("ready");
-    setUploadComplete(true);
-    setRetryFiles([]);
-  }, [uploadRunId, uploadStatus]);
-  const markPreviewFailed = useCallback(() => {
-    if (uploadRunIdRef.current !== uploadRunId) return;
-    setUploadStatus("failed");
-    setUploadComplete(false);
-    setHasFile(false);
-  }, [uploadRunId, setHasFile]);
   const selectSample = (sample: PrintJob) => {
     if (sampleTimerRef.current !== null) window.clearTimeout(sampleTimerRef.current);
     const keepsUploadedFile = Boolean(previewData || uploadedFiles.length);
@@ -1000,19 +999,15 @@ function Document({
           onRetry={() => startUpload(retryFiles)}
         />
       )}
-      {uploadStatus === "preparing" && previewData && (
-        <div className="preview-staging" aria-hidden="true">
-          <FilePreview previewData={previewData} page={1} totalPages={job.pages} colour={job.colour} fileName={job.fileName} onReady={markPreviewReady} onError={markPreviewFailed} />
-        </div>
-      )}
       <div className="file-actions">
         <label className={`file-action-button${uploadStatus === "uploading" || uploadStatus === "preparing" ? " disabled" : ""}`} aria-disabled={uploadStatus === "uploading" || uploadStatus === "preparing"}>
           <Asset name="4dcbe.svg" />
-          <span>Upload File</span>
+          <span>Upload Multiple Files</span>
           <input
             type="file"
             multiple
-            accept=".pdf,.doc,.docx,.ppt,.pptx,image/*"
+            accept="*/*"
+            aria-label="Select multiple documents to upload"
             onChange={(event) => {
               startUpload(event.target.files ?? undefined);
               event.currentTarget.value = "";
@@ -1028,6 +1023,7 @@ function Document({
           {uploadStatus === "uploading" || uploadStatus === "preparing" ? "Cancel Upload" : "Delete All Files"}
         </button>
       </div>
+      <p className="upload-multiple-hint">Choose as many PDFs, documents, presentations, or images as you need in one selection.</p>
       <label className="micro-label">Quick Sample Documents</label>
       <div className="samples">
         {samples.map((sample) => (
@@ -1767,6 +1763,7 @@ export default function App() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileData[]>([]);
   const [hasDocument, setHasDocument] = useState(false);
   const [homeStatusMessage, setHomeStatusMessage] = useState("");
+  const [pendingHomeFiles, setPendingHomeFiles] = useState<File[]>([]);
   const homeFileInput = useRef<HTMLInputElement>(null);
   const pendingHomePreset = useRef<PrintJob>(defaultPrintJob);
   useEffect(() => {
@@ -1887,8 +1884,10 @@ export default function App() {
     }
   };
 
-  const handleHomeFileSelected = (selected?: File) => {
-    if (!selected) return;
+  const handleHomeFilesSelected = (selection?: FileList | File[]) => {
+    const selectedFiles = Array.from(selection ?? []);
+    if (!selectedFiles.length) return;
+    const selected = selectedFiles[selectedFiles.length - 1];
 
     const uploadedJob = {
       ...pendingHomePreset.current,
@@ -1899,22 +1898,10 @@ export default function App() {
     };
     setPrintJob(uploadedJob);
     setOriginalPrintJob(uploadedJob);
-    setHasDocument(true);
+    setHasDocument(false);
     setHasOpenedPreview(false);
     setShowPreview(false);
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const uploadedFile = {
-        url: String(reader.result),
-        type: selected.type,
-        name: selected.name,
-        size: `${Math.max(1, Math.round(selected.size / 1024 / 1024))} MB`,
-      };
-      setFilePreview(uploadedFile);
-      setUploadedFiles([uploadedFile]);
-    };
-    reader.readAsDataURL(selected);
+    setPendingHomeFiles(selectedFiles);
     go("document");
   };
 
@@ -1923,9 +1910,13 @@ export default function App() {
       <input
         ref={homeFileInput}
         type="file"
-        accept=".pdf,.doc,.docx,.ppt,.pptx,image/*"
+        multiple
+        accept="*/*"
         hidden
-        onChange={(event) => handleHomeFileSelected(event.target.files?.[0])}
+        onChange={(event) => {
+          handleHomeFilesSelected(event.target.files ?? undefined);
+          event.currentTarget.value = "";
+        }}
       />
       <div className="screen-transition" key={screen} aria-hidden={showSplash} inert={showSplash}>
         {screen === "login" && <Login go={go} />}
@@ -1955,6 +1946,8 @@ export default function App() {
             setUploadedFiles={setUploadedFiles}
             hasFile={hasDocument}
             setHasFile={setHasDocument}
+            initialFiles={pendingHomeFiles}
+            onInitialFilesConsumed={() => setPendingHomeFiles([])}
           />
         )}
         {screen === "setup" && <Setup go={go} job={printJob} setJob={setPrintJob} />}
