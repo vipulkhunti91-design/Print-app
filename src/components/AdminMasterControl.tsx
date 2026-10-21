@@ -148,7 +148,7 @@ export default function AdminMasterControl({
           <h1 className="admin-lock-title">Admin Master Control</h1>
           <p className="admin-lock-desc">
             Signed in as <strong>{adminUser.email}</strong>.<br />
-            Enter your secondary verification factor (Master Passkey or 6-digit TOTP code) to unlock campus controls.
+            Enter your secondary verification factor (Master Key or 6-digit TOTP code) to unlock campus controls.
           </p>
 
           <form onSubmit={handleVerify2FA} className="admin-2fa-form">
@@ -168,12 +168,8 @@ export default function AdminMasterControl({
 
             {totpError && <p className="admin-form-error" role="alert">{totpError}</p>}
 
-            <div style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 16px", lineHeight: 1.4 }}>
-              💡 Campus master key for provisioned admins: <code>PRINTQ-MASTER-77</code> or active 6-digit authenticator code.
-            </div>
-
-            <button type="submit" className="admin-primary-btn" disabled={isVerifying}>
-              {isVerifying ? "Verifying Credentials…" : "Unlock Master Control →"}
+            <button type="submit" className="admin-primary-btn" disabled={isVerifying} style={{ marginTop: 12 }}>
+              {isVerifying ? "Verifying Credentials…" : "Unlock Master Control"}
             </button>
 
             <button type="button" className="admin-secondary-btn" onClick={onBack} style={{ marginTop: 10 }}>
@@ -609,18 +605,38 @@ export default function AdminMasterControl({
               Active Rate Card Preview
             </h3>
             <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-secondary)" }}>
-              Campus Central standardized printing rates.
+              Campus Central standardized printing rates (7 Paper Types × 4 Sizes).
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>B&W Single/Double Sided</span>
-                <strong>₹2.00 / page</strong>
+                <span>Regular Paper (70–75 GSM)</span>
+                <strong>A4: ₹2 / ₹3 · A3: ₹5 / ₹8</strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Full Colour Page</span>
-                <strong>₹8.00 / page</strong>
+                <span>Premium Paper (80–100 GSM)</span>
+                <strong>A4: ₹3 / ₹5 · A3: ₹8 / ₹12</strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Matte Paper (120–170 GSM)</span>
+                <strong>A4: ₹8 / ₹12 · A3: ₹15 / ₹25</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Glossy Photo (180–260 GSM)</span>
+                <strong>A4: ₹15 · A3: ₹30 (Single only)</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Premium Photo (200–260 GSM)</span>
+                <strong>A4: ₹20 · A3: ₹40 (Single only)</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Certificate Paper (100–170 GSM)</span>
+                <strong>A4: ₹8 / ₹12 · A3: ₹15 / ₹25</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Cardstock (200–300 GSM)</span>
+                <strong>A4: ₹15 · A3: ₹30 (Single only)</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid var(--border)", paddingTop: 8 }}>
                 <span>Spiral Binding Set</span>
                 <strong>₹25.00 / book</strong>
               </div>

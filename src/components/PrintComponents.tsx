@@ -177,12 +177,13 @@ export function SelectionCard({
 }
 
 const stocks = [
-  { title: "Regular", detail: "75 GSM Standard", price: "+₹2/page", surcharge: 2 },
-  { title: "Premium", detail: "100 GSM Bright White", price: "+₹5/page", surcharge: 5 },
-  { title: "Glossy", detail: "Glossy Photo Surface", price: "+₹10/page", surcharge: 10 },
-  { title: "Matte", detail: "Elegant non-glare", price: "+₹10/page", surcharge: 10 },
-  { title: "Photo", detail: "250 GSM Ultra Photo", price: "+₹15/page", surcharge: 15 },
-  { title: "Premium", detail: "Certificate Cardstock", price: "+₹8/page", surcharge: 8 },
+  { title: "Regular Paper", detail: "70–75 GSM Standard", price: "₹2/sheet", surcharge: 0 },
+  { title: "Premium Paper", detail: "80–100 GSM Bond", price: "₹3/sheet", surcharge: 1 },
+  { title: "Matte Paper", detail: "120–170 GSM Matte", price: "₹8/sheet", surcharge: 6 },
+  { title: "Glossy Photo", detail: "180–260 GSM Glossy", price: "₹15/sheet", surcharge: 13 },
+  { title: "Premium Photo", detail: "200–260 GSM Photo", price: "₹20/sheet", surcharge: 18 },
+  { title: "Certificate Paper", detail: "100–170 GSM Parchment", price: "₹8/sheet", surcharge: 6 },
+  { title: "Cardstock", detail: "200–300 GSM Heavy Card", price: "₹15/sheet", surcharge: 13 },
 ];
 
 export function PaperStockGrid({
@@ -205,9 +206,9 @@ export function PaperStockGrid({
 
 const paperSizes = [
   { size: "A4", dimensions: "210 × 297 mm", surcharge: 0 },
-  { size: "A3", dimensions: "297 × 420 mm", surcharge: 1 },
-  { size: "A2", dimensions: "420 × 594 mm", surcharge: 2 },
-  { size: "A1", dimensions: "594 × 841 mm", surcharge: 3 },
+  { size: "A3", dimensions: "297 × 420 mm", surcharge: 3 },
+  { size: "A2", dimensions: "420 × 594 mm", surcharge: 13 },
+  { size: "A1", dimensions: "594 × 841 mm", surcharge: 23 },
 ];
 
 export function PaperSizeSelector({

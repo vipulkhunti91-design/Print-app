@@ -37,6 +37,7 @@ import PaymentProcessingModal, {
 } from "./components/PaymentProcessingModal";
 import AdminMasterControl from "./components/AdminMasterControl";
 import { securityEngine, type FirebaseOrderRecord } from "./services/securityEngine";
+import OnboardingFlow from "./components/OnboardingFlow";
 
 const A = `${import.meta.env.BASE_URL}assets`;
 
@@ -245,6 +246,171 @@ export const MARGIN_CONFIG = [
   { id: "none", title: "No Margins", detail: "Edge-to-edge full bleed (where supported)", thumbClass: "none" },
 ] as const;
 
+export const PAPER_PRICES: Record<
+  string,
+  Record<string, { single: number; double: number | null }>
+> = {
+  "Regular Paper": {
+    "A4": { single: 2,   double: 3   },
+    "A3": { single: 5,   double: 8   },
+    "A2": { single: 15,  double: 25  },
+    "A1": { single: 25,  double: 40  }
+  },
+  "Premium Paper": {
+    "A4": { single: 3,   double: 5   },
+    "A3": { single: 8,   double: 12  },
+    "A2": { single: 20,  double: 35  },
+    "A1": { single: 35,  double: 60  }
+  },
+  "Matte Paper": {
+    "A4": { single: 8,   double: 12  },
+    "A3": { single: 15,  double: 25  },
+    "A2": { single: 30,  double: 50  },
+    "A1": { single: 50,  double: 80  }
+  },
+  "Glossy Photo": {
+    "A4": { single: 15,  double: null },
+    "A3": { single: 30,  double: null },
+    "A2": { single: 60,  double: null },
+    "A1": { single: 100, double: null }
+  },
+  "Premium Photo": {
+    "A4": { single: 20,  double: null },
+    "A3": { single: 40,  double: null },
+    "A2": { single: 80,  double: null },
+    "A1": { single: 130, double: null }
+  },
+  "Certificate Paper": {
+    "A4": { single: 8,   double: 12  },
+    "A3": { single: 15,  double: 25  },
+    "A2": { single: 30,  double: 50  },
+    "A1": { single: 50,  double: 80  }
+  },
+  "Cardstock": {
+    "A4": { single: 15,  double: null },
+    "A3": { single: 30,  double: null },
+    "A2": { single: 60,  double: null },
+    "A1": { single: 100, double: null }
+  }
+};
+
+export const PAPER_STOCK_CONFIG = [
+  {
+    name: "Regular Paper",
+    gsm: "70–75 GSM",
+    detail: "70–75 GSM Standard · Everyday documents & xerox",
+    doubleAllowed: true,
+  },
+  {
+    name: "Premium Paper",
+    gsm: "80–100 GSM",
+    detail: "80–100 GSM Bond · Crisp & bright white for resumes",
+    doubleAllowed: true,
+  },
+  {
+    name: "Matte Paper",
+    gsm: "120–170 GSM",
+    detail: "120–170 GSM Matte · Smooth non-glare for portfolios",
+    doubleAllowed: true,
+  },
+  {
+    name: "Glossy Photo",
+    gsm: "180–260 GSM",
+    detail: "180–260 GSM Glossy · High-shine photo surface for flyers",
+    doubleAllowed: false,
+  },
+  {
+    name: "Premium Photo",
+    gsm: "200–260 GSM",
+    detail: "200–260 GSM Ultra Photo · Studio-quality vibrant photo paper",
+    doubleAllowed: false,
+  },
+  {
+    name: "Certificate Paper",
+    gsm: "100–170 GSM",
+    detail: "100–170 GSM Parchment · Elegant heavy card for awards & certificates",
+    doubleAllowed: true,
+  },
+  {
+    name: "Cardstock",
+    gsm: "200–300 GSM",
+    detail: "200–300 GSM Heavy Card · Heavy card for posters & covers",
+    doubleAllowed: false,
+  },
+] as const;
+
+export const PAPER_SIZE_CONFIG = [
+  { size: "A4", dim: "210 × 297 mm", isLargeFormat: false },
+  { size: "A3", dim: "297 × 420 mm", isLargeFormat: false },
+  { size: "A2", dim: "420 × 594 mm", isLargeFormat: true, note: "Requires large-format printer" },
+  { size: "A1", dim: "594 × 841 mm", isLargeFormat: true, note: "Requires large-format printer" },
+] as const;
+
+export function normalizePaperStock(name?: string): string {
+  if (!name) return "Regular Paper";
+  if (name === "Regular") return "Regular Paper";
+  if (name === "Premium") return "Premium Paper";
+  if (name === "Matte") return "Matte Paper";
+  if (name === "Glossy") return "Glossy Photo";
+  if (name === "Photo Premium" || name === "Photo") return "Premium Photo";
+  if (name === "Certificate Cardstock") return "Certificate Paper";
+  return name;
+}
+
+export function isDoubleSidedAvailable(paperStock?: string): boolean {
+  const stock = normalizePaperStock(paperStock);
+  const a4Entry = PAPER_PRICES[stock]?.["A4"];
+  return a4Entry?.double !== null && a4Entry?.double !== undefined;
+}
+
+export function getPricePerSheet(paperStock: string, paperSize: string, singleSided: boolean): number {
+  const stock = normalizePaperStock(paperStock);
+  const stockEntry = PAPER_PRICES[stock] ?? PAPER_PRICES["Regular Paper"];
+  const sizeEntry = stockEntry[paperSize] ?? stockEntry["A4"];
+  if (singleSided || sizeEntry.double === null) {
+    return sizeEntry.single;
+  }
+  return sizeEntry.double;
+}
+
+export function calculateJobPricing(job: PrintJob, uploadedFilesCount = 1) {
+  const stock = normalizePaperStock(job.paperStock);
+  const size = job.paper || "A4";
+  const isSingle = job.singleSided || !isDoubleSidedAvailable(stock);
+
+  const unitRate = getPricePerSheet(stock, size, isSingle);
+
+  const rawPages = Math.max(1, job.pages || 1);
+  const pagesPerSheet = Math.max(1, job.pagesPerSheet || 1);
+  const printableSides = Math.ceil(rawPages / pagesPerSheet);
+  const sheetsPerFile = isSingle ? printableSides : Math.ceil(printableSides / 2);
+
+  const copies = Math.max(1, job.copies || 1);
+  const fileMultiplier = Math.max(1, uploadedFilesCount);
+  const totalSheets = sheetsPerFile * copies * fileMultiplier;
+
+  const printSubtotal = unitRate * totalSheets;
+  const bindingSubtotal = (job.bindingSurcharge || 0) * copies;
+  const grandTotal = printSubtotal + bindingSubtotal;
+
+  return {
+    stock,
+    size,
+    isSingle,
+    sideLabel: isSingle ? "Single-sided" : "Double-sided",
+    unitRate,
+    sheetsPerFile,
+    totalSheets,
+    copies,
+    fileMultiplier,
+    printSubtotal,
+    bindingSubtotal,
+    grandTotal,
+    formulaSummary: `${stock} · ${size} · ${isSingle ? "Single-sided" : "Double-sided"}`,
+    formulaDetail: `₹${unitRate} per sheet × ${totalSheets} ${totalSheets === 1 ? "sheet" : "sheets"} = ₹${printSubtotal.toFixed(2)}`,
+  };
+}
+
 export const QUICK_PRESETS_CONFIG = [
   {
     id: "assignment",
@@ -258,7 +424,7 @@ export const QUICK_PRESETS_CONFIG = [
       printQuality: "Standard" as const,
       marginSize: "normal" as const,
       pagesPerSheet: 1,
-      paperStock: "Regular",
+      paperStock: "Regular Paper",
     },
   },
   {
@@ -272,7 +438,7 @@ export const QUICK_PRESETS_CONFIG = [
       printQuality: "Standard" as const,
       marginSize: "normal" as const,
       pagesPerSheet: 1,
-      paperStock: "Premium",
+      paperStock: "Premium Paper",
     },
   },
   {
@@ -287,46 +453,8 @@ export const QUICK_PRESETS_CONFIG = [
       printQuality: "High" as const,
       marginSize: "none" as const,
       pagesPerSheet: 1,
-      paperStock: "Photo Premium",
+      paperStock: "Glossy Photo",
     },
-  },
-] as const;
-export const PAPER_STOCK_CONFIG = [
-  {
-    name: "Regular",
-    detail: "75 GSM Standard · Everyday documents & xerox",
-    surcharge: 0,
-    priceLabel: "Included (+₹0.00)",
-  },
-  {
-    name: "Premium",
-    detail: "100 GSM Bond · Crisp & bright white for resumes",
-    surcharge: 2,
-    priceLabel: "+₹2.00 / page",
-  },
-  {
-    name: "Matte",
-    detail: "180 GSM Matte · Smooth non-glare for portfolios",
-    surcharge: 4,
-    priceLabel: "+₹4.00 / page",
-  },
-  {
-    name: "Glossy",
-    detail: "210 GSM Glossy · High-shine photo surface for flyers",
-    surcharge: 6,
-    priceLabel: "+₹6.00 / page",
-  },
-  {
-    name: "Photo Premium",
-    detail: "260 GSM Ultra Photo · Studio-quality vibrant photo paper",
-    surcharge: 8,
-    priceLabel: "+₹8.00 / page",
-  },
-  {
-    name: "Certificate Cardstock",
-    detail: "300 GSM Heavy Card · Extra-sturdy card for awards",
-    surcharge: 10,
-    priceLabel: "+₹10.00 / page",
   },
 ] as const;
 
@@ -362,30 +490,21 @@ const defaultPrintJob: PrintJob = {
   specialInstructions: "",
   noteToShop: "",
   readyMinutes: 10,
-  paperStock: "Regular",
+  paperStock: "Regular Paper",
 };
 
 const quickPrints = [
   { title: "Assignment", detail: "B&W · 2-sided", icon: "assignment", preset: defaultPrintJob },
-  { title: "Quick Notes", detail: "B&W or colour · 1 or 2 sided", icon: "notes", preset: { ...defaultPrintJob, title: "Quick Notes", fileName: "Quick_Notes.pdf", fileSize: "4.1 MB", pages: 24, singleSided: true, sideSurcharge: 1 } },
-  { title: "Report", detail: "B&W · 1-sided", icon: "report", preset: { ...defaultPrintJob, title: "Report", fileName: "Project_Report.pdf", fileSize: "3.2 MB", pages: 18, singleSided: true, sideSurcharge: 1 } },
-  { title: "Project", detail: "Colour · 1-sided", icon: "project", preset: { ...defaultPrintJob, title: "Project", fileName: "Project_Document.pdf", fileSize: "5.6 MB", pages: 10, colour: true, singleSided: true, pricePerPage: 8, sideSurcharge: 1 } },
-  { title: "Resume", detail: "B&W · single-sided", icon: "resume", preset: { ...defaultPrintJob, title: "Resume", fileName: "Mehul_Resume.pdf", fileSize: "0.8 MB", pages: 2, singleSided: true, sideSurcharge: 1 } },
-  { title: "Presentation", detail: "Colour · 1-sided", icon: "presentation", preset: { ...defaultPrintJob, title: "Presentation", fileName: "Campus_Presentation.pdf", fileSize: "7.3 MB", pages: 15, colour: true, singleSided: true, pricePerPage: 8, sideSurcharge: 1 } },
+  { title: "Quick Notes", detail: "B&W or colour · 1 or 2 sided", icon: "notes", preset: { ...defaultPrintJob, title: "Quick Notes", fileName: "Quick_Notes.pdf", fileSize: "4.1 MB", pages: 24, singleSided: true } },
+  { title: "Report", detail: "B&W · 1-sided", icon: "report", preset: { ...defaultPrintJob, title: "Report", fileName: "Project_Report.pdf", fileSize: "3.2 MB", pages: 18, singleSided: true } },
+  { title: "Project", detail: "Colour · 1-sided", icon: "project", preset: { ...defaultPrintJob, title: "Project", fileName: "Project_Document.pdf", fileSize: "5.6 MB", pages: 10, colour: true, singleSided: true } },
+  { title: "Resume", detail: "B&W · single-sided", icon: "resume", preset: { ...defaultPrintJob, title: "Resume", fileName: "Mehul_Resume.pdf", fileSize: "0.8 MB", pages: 2, singleSided: true } },
+  { title: "Presentation", detail: "Colour · 1-sided", icon: "presentation", preset: { ...defaultPrintJob, title: "Presentation", fileName: "Campus_Presentation.pdf", fileSize: "7.3 MB", pages: 15, colour: true, singleSided: true } },
 ];
 
 function formatPrice(job: PrintJob) {
-  const pages = getSelectedPageCount(job);
-  const pagesPerSheet = Math.max(1, Number(job.pagesPerSheet) || 1);
-  const printableSheets = Math.ceil(pages / pagesPerSheet);
-  const pricePerPage = Number(job.pricePerPage) || 0;
-  const sideSurcharge = Number(job.sideSurcharge) || 0;
-  const paperSurcharge = Number(job.paperSurcharge) || 0;
-  const stockSurcharge = Number(job.stockSurcharge) || 0;
-  const copies = Number(job.copies) || 0;
-  const total = printableSheets * (pricePerPage + sideSurcharge + paperSurcharge + stockSurcharge) * copies;
-
-  return `₹${Number.isFinite(total) ? total.toFixed(2) : "0.00"}`;
+  const pricing = calculateJobPricing(job, 1);
+  return `₹${pricing.grandTotal.toFixed(2)}`;
 }
 
 function getSelectedPageCount(job: PrintJob) {
@@ -1765,18 +1884,18 @@ function Document({
 
   const pagesPerSheet = Math.max(1, job.pagesPerSheet || 1);
   const printableSidesPerCopy = Math.ceil(effectivePagesPerSet / pagesPerSheet);
-  const sidesCount = job.singleSided ? printableSidesPerCopy : Math.ceil(printableSidesPerCopy / 2);
 
-  const baseRate = job.colour ? 8 : 2;
-  const paperSurcharge = job.paper === "A3" ? 2 : job.paper === "A2" ? 4 : job.paper === "A1" ? 8 : 0;
-  const activeStock = PAPER_STOCK_CONFIG.find((opt) => opt.name === (job.paperStock ?? "Regular")) ?? PAPER_STOCK_CONFIG[0];
-  const stockSurcharge = activeStock.surcharge;
-  const unitPageRate = baseRate + paperSurcharge + stockSurcharge;
+  const currentPricing = calculateJobPricing({
+    ...job,
+    pages: effectivePagesPerSet,
+  }, uploadedFiles.length || 1);
 
-  const bindingSurchargePerSet = job.bindingSurcharge || 0;
-  const bindingTotal = bindingSurchargePerSet * copiesCount;
-  const printTotal = sidesCount * unitPageRate * copiesCount;
-  const calculatedTotal = printTotal + bindingTotal;
+  const unitPageRate = currentPricing.unitRate;
+  const sidesCount = currentPricing.sheetsPerFile;
+  const totalSheets = currentPricing.totalSheets;
+  const printTotal = currentPricing.printSubtotal;
+  const bindingTotal = currentPricing.bindingSubtotal;
+  const calculatedTotal = currentPricing.grandTotal;
 
   const currentEstimate = calculateEstimatedReadyTime({
     pages: hasFile ? effectivePagesPerSet : 0,
@@ -1785,6 +1904,17 @@ function Document({
     paperStock: job.paperStock,
     requestedPickupMinutes: job.readyMinutes,
   });
+  const activeStockName = normalizePaperStock(job.paperStock);
+  const doubleSupported = isDoubleSidedAvailable(activeStockName);
+  const singlePricePerSheet = getPricePerSheet(activeStockName, job.paper || "A4", true);
+  const doublePricePerSheet = doubleSupported ? getPricePerSheet(activeStockName, job.paper || "A4", false) : null;
+
+  useEffect(() => {
+    if (!doubleSupported && !job.singleSided) {
+      setJob((prev) => ({ ...prev, singleSided: true }));
+    }
+  }, [doubleSupported, job.singleSided, setJob]);
+
   const updateJob = (changes: Partial<PrintJob>) => setJob({ ...job, ...changes });
 
   return (
@@ -2239,36 +2369,57 @@ function Document({
           {/* Section 5: Printing Side */}
           <section className="settings-section" aria-labelledby="heading-printing-side">
             <h2 id="heading-printing-side" className="settings-section-title">Printing Side</h2>
+
+            {!doubleSupported && (
+              <div className="settings-restriction-alert" role="alert">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>Double-sided not available for {activeStockName}.</span>
+              </div>
+            )}
+
             <div className="settings-cards-stack" role="radiogroup" aria-labelledby="heading-printing-side">
-              <label className={`settings-radio-card${!job.singleSided ? " is-selected" : ""}`}>
+              <label className={`settings-radio-card${!doubleSupported ? " is-disabled" : ""}${!job.singleSided && doubleSupported ? " is-selected" : ""}`}>
                 <input
                   type="radio"
                   name="printing-side"
                   value="double"
-                  checked={!job.singleSided}
+                  disabled={!doubleSupported}
+                  checked={!job.singleSided && doubleSupported}
                   onChange={() => {
+                    if (!doubleSupported) return;
                     setActivePresetId(null);
                     updateJob({ singleSided: false, sideSurcharge: 0 });
                   }}
                   className="sr-only"
                 />
                 <span className="settings-radio-circle" aria-hidden="true">
-                  {!job.singleSided && <span className="settings-radio-dot" />}
+                  {!job.singleSided && doubleSupported && <span className="settings-radio-dot" />}
                 </span>
                 <span className="settings-card-content">
                   <span className="settings-card-header">
                     <span className="settings-card-title">Double-Sided</span>
-                    <span className="settings-card-tag">Standard (+₹0.00) · Eco-Friendly</span>
+                    <span className="settings-card-tag">
+                      {doubleSupported ? `₹${doublePricePerSheet} / sheet · Eco-Friendly` : "Not Available"}
+                    </span>
                   </span>
-                  <p className="settings-card-desc">Save paper by printing on both sides of each sheet.</p>
+                  <p className="settings-card-desc">
+                    {doubleSupported
+                      ? "Save paper by printing on both sides of each sheet."
+                      : `Double-sided printing is not available on heavy or specialty ${activeStockName}.`}
+                  </p>
                 </span>
               </label>
-              <label className={`settings-radio-card${job.singleSided ? " is-selected" : ""}`}>
+
+              <label className={`settings-radio-card${job.singleSided || !doubleSupported ? " is-selected" : ""}`}>
                 <input
                   type="radio"
                   name="printing-side"
                   value="single"
-                  checked={job.singleSided}
+                  checked={job.singleSided || !doubleSupported}
                   onChange={() => {
                     setActivePresetId(null);
                     updateJob({ singleSided: true, sideSurcharge: 0 });
@@ -2276,12 +2427,12 @@ function Document({
                   className="sr-only"
                 />
                 <span className="settings-radio-circle" aria-hidden="true">
-                  {job.singleSided && <span className="settings-radio-dot" />}
+                  {(job.singleSided || !doubleSupported) && <span className="settings-radio-dot" />}
                 </span>
                 <span className="settings-card-content">
                   <span className="settings-card-header">
                     <span className="settings-card-title">Single-Sided</span>
-                    <span className="settings-card-tag">Standard (+₹0.00)</span>
+                    <span className="settings-card-tag">₹{singlePricePerSheet} / sheet</span>
                   </span>
                   <p className="settings-card-desc">Print on one side of each sheet. Ideal for resumes and official forms.</p>
                 </span>
@@ -2293,13 +2444,9 @@ function Document({
           <section className="settings-section" aria-labelledby="heading-paper-size">
             <h2 id="heading-paper-size" className="settings-section-title">Paper Size</h2>
             <div className="settings-grid-2col" role="radiogroup" aria-labelledby="heading-paper-size">
-              {[
-                { size: "A4", dim: "210 × 297 mm", priceTag: "Standard (+₹0.00)", surcharge: 0 },
-                { size: "A3", dim: "297 × 420 mm", priceTag: "+₹2.00 / page", surcharge: 2 },
-                { size: "A2", dim: "420 × 594 mm", priceTag: "+₹4.00 / page", surcharge: 4 },
-                { size: "A1", dim: "594 × 841 mm", priceTag: "+₹8.00 / page", surcharge: 8 },
-              ].map(({ size, dim, priceTag, surcharge }) => {
+              {PAPER_SIZE_CONFIG.map(({ size, dim, isLargeFormat, note }) => {
                 const isSelected = (job.paper ?? "A4") === size;
+                const sizeRate = getPricePerSheet(activeStockName, size, job.singleSided || !doubleSupported);
                 return (
                   <label
                     key={size}
@@ -2312,14 +2459,21 @@ function Document({
                       checked={isSelected}
                       onChange={() => {
                         setActivePresetId(null);
-                        updateJob({ paper: size, paperSurcharge: surcharge });
+                        updateJob({ paper: size, paperSurcharge: 0 });
                       }}
                       className="sr-only"
                     />
                     <span className="settings-paper-content">
                       <strong className="settings-card-title">{size}</strong>
                       <small className="settings-card-desc">{dim}</small>
-                      <span className="settings-card-price" style={{ fontSize: "11px", marginTop: "2px" }}>{priceTag}</span>
+                      <span className="settings-card-price" style={{ fontSize: "11px", marginTop: "2px" }}>
+                        ₹{sizeRate} / sheet
+                      </span>
+                      {isLargeFormat && (
+                        <span className="settings-large-format-note">
+                          {note}
+                        </span>
+                      )}
                     </span>
                   </label>
                 );
@@ -2331,8 +2485,9 @@ function Document({
           <section className="settings-section" aria-labelledby="heading-paper-type">
             <h2 id="heading-paper-type" className="settings-section-title">Paper Type</h2>
             <div className="settings-cards-stack" role="radiogroup" aria-labelledby="heading-paper-type">
-              {PAPER_STOCK_CONFIG.map(({ name, detail, priceLabel, surcharge }) => {
-                const isSelected = (job.paperStock ?? "Regular") === name;
+              {PAPER_STOCK_CONFIG.map(({ name, gsm, detail, doubleAllowed }) => {
+                const isSelected = activeStockName === name;
+                const stockRate = getPricePerSheet(name, job.paper || "A4", job.singleSided || !doubleAllowed);
                 return (
                   <label
                     key={name}
@@ -2345,7 +2500,12 @@ function Document({
                       checked={isSelected}
                       onChange={() => {
                         setActivePresetId(null);
-                        updateJob({ paperStock: name, stockSurcharge: surcharge });
+                        const willBeSingle = !doubleAllowed ? true : job.singleSided;
+                        updateJob({
+                          paperStock: name,
+                          singleSided: willBeSingle,
+                          stockSurcharge: 0,
+                        });
                       }}
                       className="sr-only"
                     />
@@ -2354,8 +2514,13 @@ function Document({
                     </span>
                     <span className="settings-card-content">
                       <span className="settings-card-header">
-                        <span className="settings-card-title">{name}</span>
-                        <span className="settings-card-price">{priceLabel}</span>
+                        <span className="settings-card-title">
+                          {name}
+                          <span style={{ display: "block", fontSize: "11.5px", fontWeight: "normal", color: "var(--text-muted)", marginTop: "1px" }}>
+                            {gsm} {!doubleAllowed && "· Single-side only"}
+                          </span>
+                        </span>
+                        <span className="settings-card-price">₹{stockRate} / sheet</span>
                       </span>
                       <p className="settings-card-desc">{detail}</p>
                     </span>
@@ -2522,27 +2687,46 @@ function Document({
 
           {/* Section 17: Price Summary Breakdown & Sticky Bottom Bar */}
           <div className="settings-summary-box" role="region" aria-label="Price summary breakdown">
+            {/* Live Formula Banner */}
+            <div className="settings-formula-banner">
+              <div className="settings-formula-spec">{currentPricing.formulaSummary}</div>
+              <div className="settings-formula-calc">
+                <span>₹{currentPricing.unitRate} per sheet × {currentPricing.totalSheets} {currentPricing.totalSheets === 1 ? "sheet" : "sheets"}</span>
+                <strong>₹{currentPricing.printSubtotal.toFixed(2)}</strong>
+              </div>
+              {currentPricing.bindingSubtotal > 0 && (
+                <div className="settings-formula-calc settings-formula-binding">
+                  <span>+ Binding ({job.copies} {job.copies > 1 ? "sets" : "set"})</span>
+                  <strong>+₹{currentPricing.bindingSubtotal.toFixed(2)}</strong>
+                </div>
+              )}
+            </div>
+
             <div className="settings-summary-header">
               <span className="settings-summary-title">Price Summary</span>
-              <span className="settings-summary-pages-tag">{totalPages} total pages</span>
+              <span className="settings-summary-pages-tag">{currentPricing.totalSheets} {currentPricing.totalSheets === 1 ? "sheet" : "sheets"}</span>
             </div>
 
             <div className="settings-summary-lines">
               <div className="settings-summary-row">
-                <span>Print type ({job.colour ? "Full Colour" : "Black & White"}):</span>
-                <span>₹{baseRate.toFixed(2)} / sheet</span>
+                <span>Paper Type:</span>
+                <span>{currentPricing.stock} (₹{currentPricing.unitRate} / sheet)</span>
+              </div>
+              <div className="settings-summary-row">
+                <span>Paper Size:</span>
+                <span>{currentPricing.size}</span>
+              </div>
+              <div className="settings-summary-row">
+                <span>Printing Side:</span>
+                <span>{currentPricing.sideLabel}</span>
               </div>
               <div className="settings-summary-row">
                 <span>Orientation:</span>
                 <span>{job.orientation ?? "Portrait"}</span>
               </div>
               <div className="settings-summary-row">
-                <span>Paper size ({job.paper ?? "A4"}):</span>
-                <span>{paperSurcharge > 0 ? `+₹${paperSurcharge.toFixed(2)} / sheet` : "Standard (₹0.00)"}</span>
-              </div>
-              <div className="settings-summary-row">
-                <span>Paper type ({job.paperStock ?? "Regular"}):</span>
-                <span>{stockSurcharge > 0 ? `+₹${stockSurcharge.toFixed(2)} / sheet` : "Included (₹0.00)"}</span>
+                <span>Colour Mode:</span>
+                <span>{job.colour ? "Full Colour" : "Black & White"}</span>
               </div>
               {pagesPerSheet > 1 && (
                 <div className="settings-summary-row">
@@ -2550,29 +2734,35 @@ function Document({
                   <span style={{ color: "var(--success)" }}>50% less paper</span>
                 </div>
               )}
-              {bindingTotal > 0 && (
+              {currentPricing.bindingSubtotal > 0 && (
                 <div className="settings-summary-row">
                   <span>Binding ({job.bindingOption === "spiral" ? "Spiral Binding" : "Staple"}):</span>
-                  <span>+₹{bindingTotal.toFixed(2)} ({job.copies} {job.copies > 1 ? "sets" : "set"})</span>
+                  <span>+₹{currentPricing.bindingSubtotal.toFixed(2)}</span>
                 </div>
               )}
               <div className="settings-summary-row settings-summary-rate-row">
-                <span>Unit rate per sheet:</span>
-                <strong>₹{unitPageRate.toFixed(2)}</strong>
+                <span>Rate per sheet:</span>
+                <strong>₹{currentPricing.unitRate.toFixed(2)}</strong>
               </div>
               <div className="settings-summary-row">
-                <span>Sheets per copy ({job.singleSided ? "Single-Sided" : "Double-Sided"}):</span>
-                <span>{sidesCount} {sidesCount === 1 ? "sheet" : "sheets"}</span>
+                <span>Sheets per copy:</span>
+                <span>{currentPricing.sheetsPerFile} {currentPricing.sheetsPerFile === 1 ? "sheet" : "sheets"}</span>
               </div>
               <div className="settings-summary-row">
                 <span>Number of copies:</span>
                 <span>× {job.copies} {job.copies > 1 ? "copies" : "copy"}</span>
               </div>
+              {uploadedFiles.length > 1 && (
+                <div className="settings-summary-row">
+                  <span>Total uploaded files:</span>
+                  <span>× {uploadedFiles.length} files</span>
+                </div>
+              )}
             </div>
 
             <div className="settings-summary-total">
               <span>Total Amount</span>
-              <strong>₹{calculatedTotal.toFixed(2)}</strong>
+              <strong>₹{currentPricing.grandTotal.toFixed(2)}</strong>
             </div>
 
             <span className="settings-summary-note">
@@ -2784,17 +2974,17 @@ function Checkout({
   const totalPages = effectivePages;
   const pagesPerSheet = Math.max(1, job.pagesPerSheet || 1);
   const printableSides = Math.ceil(effectivePages / pagesPerSheet);
-  const sheetsCount = job.singleSided ? printableSides : Math.ceil(printableSides / 2);
 
-  const basePricePerPage = job.colour ? 8 : 2;
-  const paperSurcharge = job.paperSurcharge || 0;
-  const activeStock = PAPER_STOCK_CONFIG.find((opt) => opt.name === (job.paperStock ?? "Regular")) ?? PAPER_STOCK_CONFIG[0];
-  const stockSurcharge = activeStock.surcharge;
-  const unitRate = basePricePerPage + paperSurcharge + stockSurcharge;
-  const copiesCount = Math.max(1, job.copies || 1);
-  const printSubtotal = sheetsCount * unitRate * copiesCount;
-  const bindingTotal = (job.bindingSurcharge || 0) * copiesCount;
-  const grandTotal = printSubtotal + bindingTotal;
+  const pricing = calculateJobPricing(
+    { ...job, pages: effectivePages },
+    uploadedFiles.length || 1
+  );
+  const unitRate = pricing.unitRate;
+  const sheetsCount = pricing.sheetsPerFile;
+  const copiesCount = pricing.copies;
+  const printSubtotal = pricing.printSubtotal;
+  const bindingTotal = pricing.bindingSubtotal;
+  const grandTotal = pricing.grandTotal;
 
   const checkoutEstimate = calculateEstimatedReadyTime({
     pages: totalPages,
@@ -3003,31 +3193,23 @@ function Checkout({
         </div>
         <div className="bill-line-rows">
           <div className="bill-line-row">
-            <span>Base Printing ({job.colour ? "Colour ₹8/sheet" : "B&W ₹2/sheet"} × {sheetsCount} {sheetsCount === 1 ? "sheet" : "sheets"})</span>
-            <span>₹{(basePricePerPage * sheetsCount * copiesCount).toFixed(2)}</span>
+            <span>{pricing.stock} ({pricing.size} · {pricing.sideLabel})</span>
+            <span>₹{pricing.unitRate} / sheet</span>
           </div>
-          {paperSurcharge > 0 && (
-            <div className="bill-line-row">
-              <span>Paper Size ({job.paper} +₹{paperSurcharge}/sheet)</span>
-              <span>₹{(paperSurcharge * sheetsCount * copiesCount).toFixed(2)}</span>
-            </div>
-          )}
-          {stockSurcharge > 0 && (
-            <div className="bill-line-row">
-              <span>Paper Material ({job.paperStock} +₹{stockSurcharge}/sheet)</span>
-              <span>₹{(stockSurcharge * sheetsCount * copiesCount).toFixed(2)}</span>
-            </div>
-          )}
+          <div className="bill-line-row">
+            <span>Sheets: {pricing.totalSheets} {pricing.totalSheets === 1 ? "sheet" : "sheets"} (× {copiesCount} {copiesCount > 1 ? "copies" : "copy"})</span>
+            <span>₹{printSubtotal.toFixed(2)}</span>
+          </div>
           {bindingTotal > 0 && (
             <div className="bill-line-row">
               <span>Finishing ({job.bindingOption === "spiral" ? "Spiral Binding" : "Staple"} × {copiesCount} {copiesCount > 1 ? "sets" : "set"})</span>
               <span>₹{bindingTotal.toFixed(2)}</span>
             </div>
           )}
-          {copiesCount > 1 && (
+          {uploadedFiles.length > 1 && (
             <div className="bill-line-row">
-              <span>Copies Multiplier</span>
-              <span>× {copiesCount}</span>
+              <span>Files count</span>
+              <span>× {uploadedFiles.length} files</span>
             </div>
           )}
           <div className="bill-line-row">
@@ -3117,9 +3299,8 @@ function PaymentSuccess({
 
   const totalPages = order?.job ? order.job.pages : 1;
   const copies = order?.job ? order.job.copies : 1;
-  const baseRate = order?.job.colour ? 10 : 2;
-  const surcharge = order?.job.paperSurcharge || 0;
-  const totalAmount = ((baseRate + surcharge) * totalPages) * copies;
+  const orderPricing = order?.job ? calculateJobPricing(order.job, 1) : null;
+  const totalAmount = orderPricing ? orderPricing.grandTotal : 0;
 
   const [secondsLeft, setSecondsLeft] = useState(7);
   const timerRef = useRef<number | null>(null);
@@ -3887,10 +4068,79 @@ export default function App() {
   const [headerPanel, setHeaderPanel] = useState<"search" | "notifications" | null>(null);
   const [authSession, setAuthSession] = useState<AuthUser | null>(() => readStoredAuthSession());
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(() => readStoredValue(activeOrderStorageKey, isDemoDataDisabled() ? null : demoActiveOrder));
-  const [profile, setProfile] = useState<ProfileDetails>(() => readStoredValue(profileStorageKey, isDemoDataDisabled() ? emptyProfile : demoProfile));
-  const [printHistory, setPrintHistory] = useState<PrintHistoryRecord[]>(() => readStoredValue(printHistoryStorageKey, isDemoDataDisabled() ? [] : demoOldDocuments));
-  const [notificationItems, setNotificationItems] = useState<AppNotification[]>(readNotifications);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem("onboardingCompleted") !== "true";
+    } catch {
+      return false;
+    }
+  });
+  const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(() => {
+    const session = readStoredAuthSession();
+    if (!session) return null;
+    securityEngine.setAuthenticatedUser(session.id);
+    const userOrders = securityEngine.getOrdersForCurrentUser();
+    const active = userOrders.find((o) => o.status !== "completed" && o.status !== "cancelled");
+    if (active) {
+      return {
+        recordId: active.id,
+        token: active.token,
+        job: active.job as PrintJob,
+        status: active.status,
+        createdAt: active.createdAt,
+      };
+    }
+    return null;
+  });
+  const [profile, setProfile] = useState<ProfileDetails>(() => {
+    const session = readStoredAuthSession();
+    if (session) {
+      return {
+        name: session.name,
+        email: session.email,
+        phone: session.phone || "",
+        photo: session.photo || demoProfile.photo,
+      };
+    }
+    return emptyProfile;
+  });
+  const [printHistory, setPrintHistory] = useState<PrintHistoryRecord[]>(() => {
+    const session = readStoredAuthSession();
+    if (!session) return [];
+    securityEngine.setAuthenticatedUser(session.id);
+    const userOrders = securityEngine.getOrdersForCurrentUser();
+    if (userOrders.length > 0) {
+      return userOrders.map((o) => ({
+        id: o.id,
+        token: o.token,
+        job: o.job as PrintJob,
+        submittedAt: new Date(o.createdAt).toISOString(),
+        status: o.status,
+        createdAt: o.createdAt,
+      }));
+    }
+    return [];
+  });
+  const [notificationItems, setNotificationItems] = useState<AppNotification[]>(() => {
+    const session = readStoredAuthSession();
+    if (!session) return [];
+    securityEngine.setAuthenticatedUser(session.id);
+    const userNotifs = securityEngine.getNotificationsForCurrentUser();
+    if (userNotifs.length > 0) {
+      return userNotifs.map((n) => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        timestamp: n.timestamp,
+        orderToken: n.orderToken,
+        recordId: n.recordId,
+        read: n.read,
+        iconType: n.iconType as any,
+      }));
+    }
+    return [];
+  });
   const visibleNotificationCount = Math.min(notificationItems.length, 3);
   const [showPreview, setShowPreview] = useState(false);
   const [hasOpenedPreview, setHasOpenedPreview] = useState(false);
@@ -3938,12 +4188,16 @@ export default function App() {
   }, [autoOpenSettings]);
   useEffect(() => {
     if (authSession) {
+      securityEngine.setAuthenticatedUser(authSession.id);
       setProfile({
         name: authSession.name,
         email: authSession.email,
         phone: authSession.phone || "",
         photo: authSession.photo || demoProfile.photo,
       });
+    } else {
+      securityEngine.setAuthenticatedUser(null);
+      setProfile(emptyProfile);
     }
   }, [authSession]);
   const confirmOrder = useCallback((assignedToken?: string) => {
@@ -4230,6 +4484,20 @@ export default function App() {
     screen === "settings";
 
   const go = useCallback((next: Screen, explicitDir?: "forward" | "backward") => {
+    if (next === "login") {
+      clearAuthSession();
+      securityEngine.setAuthenticatedUser(null);
+      securityEngine.endAdminSession();
+      setAuthSession(null);
+      setProfile(emptyProfile);
+      setActiveOrder(null);
+      setPrintHistory([]);
+      setNotificationItems([]);
+      setScreen("home");
+      setIsAuthModalOpen(true);
+      window.scrollTo(0, 0);
+      return;
+    }
     if (next === "home") {
       setHasDocument(false);
     }
@@ -4445,16 +4713,80 @@ export default function App() {
       }}
       onAuthSuccess={(user) => {
         setAuthSession(user);
+        securityEngine.setAuthenticatedUser(user.id);
         setProfile({
           name: user.name,
           email: user.email,
           phone: user.phone || "",
           photo: user.photo || demoProfile.photo,
         });
+
+        const userOrders = securityEngine.getOrdersForCurrentUser();
+        if (userOrders.length > 0) {
+          const mappedHistory: PrintHistoryRecord[] = userOrders.map((o) => ({
+            id: o.id,
+            token: o.token,
+            job: o.job as PrintJob,
+            submittedAt: new Date(o.createdAt).toISOString(),
+            status: o.status,
+            createdAt: o.createdAt,
+          }));
+          setPrintHistory(mappedHistory);
+          const active = userOrders.find((o) => o.status !== "completed" && o.status !== "cancelled");
+          if (active) {
+            setActiveOrder({
+              recordId: active.id,
+              token: active.token,
+              job: active.job as PrintJob,
+              status: active.status,
+              createdAt: active.createdAt,
+            });
+          } else {
+            setActiveOrder(null);
+          }
+        } else {
+          setActiveOrder(null);
+          setPrintHistory([]);
+        }
+
+        const userNotifs = securityEngine.getNotificationsForCurrentUser();
+        if (userNotifs.length > 0) {
+          setNotificationItems(userNotifs.map((n) => ({
+            id: n.id,
+            type: n.type,
+            title: n.title,
+            message: n.message,
+            timestamp: n.timestamp,
+            orderToken: n.orderToken,
+            recordId: n.recordId,
+            read: n.read,
+            iconType: n.iconType as any,
+          })));
+        } else {
+          setNotificationItems([]);
+        }
+
         setIsAuthModalOpen(false);
       }}
     />
   );
+
+  if (isOnboardingOpen) {
+    return (
+      <OnboardingFlow
+        onComplete={() => {
+          setIsOnboardingOpen(false);
+          setScreen("home");
+          try {
+            window.localStorage.setItem("onboardingCompleted", "true");
+          } catch {}
+          if (!authSession) {
+            setIsAuthModalOpen(true);
+          }
+        }}
+      />
+    );
+  }
 
   if (screen === "admin") {
     return (
@@ -4734,10 +5066,14 @@ export default function App() {
                 className="settings-profile-action-btn"
                 onClick={() => {
                   clearAuthSession();
+                  securityEngine.setAuthenticatedUser(null);
+                  securityEngine.endAdminSession();
                   setAuthSession(null);
+                  setProfile(emptyProfile);
                   setActiveOrder(null);
                   setPrintHistory([]);
                   setNotificationItems([]);
+                  setIsAuthModalOpen(true);
                 }}
               >
                 Sign Out
@@ -4975,42 +5311,7 @@ export default function App() {
             </button>
           </section>
 
-          {/* 5. Pricing Rates */}
-          <section className="bill-card settings-section-card">
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: "0 0 8px" }}>Standard Rates</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, color: "var(--text-secondary)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Black & White</span>
-                <strong style={{ color: "var(--text)" }}>₹2.00 / page</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Full Colour</span>
-                <strong style={{ color: "var(--text)" }}>₹8.00 / page</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Double-Sided (Duplex)</span>
-                <strong style={{ color: "var(--status-ready)" }}>Standard (+₹0.00)</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Standard 75 GSM</span>
-                <span style={{ color: "var(--text)" }}>+₹0.00 / page</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Bond Paper 85 GSM</span>
-                <span style={{ color: "var(--text)" }}>+₹1.00 / page</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Glossy Paper 130 GSM</span>
-                <span style={{ color: "var(--text)" }}>+₹3.00 / page</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Cardstock 220 GSM</span>
-                <span style={{ color: "var(--text)" }}>+₹5.00 / page</span>
-              </div>
-            </div>
-          </section>
-
-          {/* 6. Help & FAQs Accordion */}
+          {/* 5. Help & FAQs Accordion */}
           <section className="bill-card settings-section-card">
             <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: "0 0 8px" }}>Help & Guidelines</h2>
             <div>
@@ -5038,7 +5339,7 @@ export default function App() {
             </div>
           </section>
 
-          {/* 7. Data Actions & Version */}
+          {/* 6. Data Actions & Version */}
           <section className="bill-card settings-section-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 12px" }}>
               <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: 0 }}>Data & Reset</h2>
@@ -5054,6 +5355,18 @@ export default function App() {
                   Clear Demo Orders
                 </button>
               )}
+              <button
+                type="button"
+                className="track-action-btn"
+                onClick={() => {
+                  try {
+                    window.localStorage.removeItem("onboardingCompleted");
+                  } catch {}
+                  setIsOnboardingOpen(true);
+                }}
+              >
+                Replay Onboarding Tour
+              </button>
               <button
                 type="button"
                 className="track-action-btn"
