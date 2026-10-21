@@ -78,6 +78,7 @@ export interface AdminAuditLogEntry {
   adminEmail: string;
   action: 
     | "ADMIN_LOGIN_SUCCESS"
+    | "ADMIN_LOGIN_FAILED"
     | "ORDER_STATUS_CHANGED"
     | "ORDER_CANCELLED"
     | "USER_SUSPENDED"
@@ -121,9 +122,27 @@ const PROVISIONED_ADMINS: Array<{ uid: string; email: string }> = [
   { uid: "admin-vipul-khunti-02", email: "vipul.khunti@gmail.com" },
 ];
 
+// Secure Master Key cryptographic hash (SHA-256).
+// The plaintext master key is NEVER stored in code, bundle, DOM, or storage.
+const MASTER_KEY_SHA256 = "4d4a9bc9f7aff90036e174542b454c88b61eae66cd44c4e1bac4cd4e04fb6df0";
+
+async function computeSha256Hex(input: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  if (typeof crypto !== "undefined" && crypto.subtle) {
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+  return "";
+}
+
 class SecurityEngine {
   private activeUid: string | null = null;
   private activeToken: AdminSessionToken | null = null;
+  private failedAdminAttempts = 0;
+  private adminLockoutUntil = 0;
 
   constructor() {
     this.ensureProvisionedAdminRoles();
@@ -463,8 +482,15 @@ class SecurityEngine {
   /**
    * Verifies the administrator's secondary authentication factor (Step-Up 2FA).
    * Generates a cryptographically signed, short-lived AdminSessionToken.
+   * Validates Master Key via cryptographic SHA-256 hash or 6-digit TOTP format.
+   * Enforces 5 failed attempts lockout for 60 seconds.
    */
   public async verifyAdminStepUp(passkeyOrTotp: string): Promise<AdminSessionToken> {
+    if (Date.now() < this.adminLockoutUntil) {
+      const waitSeconds = Math.ceil((this.adminLockoutUntil - Date.now()) / 1000);
+      throw new Error(`Too many failed attempts. Access locked for ${waitSeconds}s.`);
+    }
+
     if (!this.activeUid) {
       throw new Error("Authentication Required: Must be logged in to request admin access.");
     }
@@ -472,19 +498,28 @@ class SecurityEngine {
       throw new Error("Access Denied: This account is not provisioned in admin_roles.");
     }
 
-    // Secondary Factor Verification:
-    // In production, checked against TOTP authenticator or hardware key.
-    // Master passkey: "PRINTQ-MASTER-77" or any valid 6-digit TOTP format (e.g. 770099).
     const clean = passkeyOrTotp.trim();
-    const isValidKey = clean === "PRINTQ-MASTER-77" || (clean.length === 6 && /^\d{6}$/.test(clean));
+    const digest = await computeSha256Hex(clean);
+    const isMasterKey = digest === MASTER_KEY_SHA256;
+    const isTotp = clean.length === 6 && /^\d{6}$/.test(clean);
+    const isValidKey = isMasterKey || isTotp;
 
     if (!isValidKey) {
+      this.failedAdminAttempts += 1;
+      if (this.failedAdminAttempts >= 5) {
+        this.adminLockoutUntil = Date.now() + 60 * 1000;
+        this.failedAdminAttempts = 0;
+      }
       this.appendAuditLog({
-        action: "ADMIN_LOGIN_SUCCESS",
-        details: `Failed step-up 2FA attempt for UID ${this.activeUid}`,
+        action: "ADMIN_LOGIN_FAILED",
+        details: `Failed step-up 2FA attempt for UID ${this.activeUid}.`,
       });
       throw new Error("Invalid Administrator 2FA verification key.");
     }
+
+    // Reset attempt counter on success
+    this.failedAdminAttempts = 0;
+    this.adminLockoutUntil = 0;
 
     const tokenString = `adm_token_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     const sessionToken: AdminSessionToken = {
