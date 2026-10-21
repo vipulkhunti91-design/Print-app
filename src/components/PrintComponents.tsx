@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
 import AppIcon from "./AppIcon";
+import type { ReactNode } from "react";
 
 function Asset({ name }: { name: string }) {
   return <AppIcon name={name} />;
@@ -9,15 +9,20 @@ export function ContinueButton({
   label = "Continue",
   active = false,
   disabled = false,
+  className = "",
+  icon,
   onClick,
 }: {
   label?: string;
   active?: boolean;
   disabled?: boolean;
+  className?: string;
+  icon?: ReactNode;
   onClick: () => void;
 }) {
   return (
-    <button className={`continue-component ${active ? "active" : ""}`} onClick={onClick} disabled={disabled}>
+    <button className={`continue-component ${className} ${active ? "active" : ""}`} onClick={onClick} disabled={disabled}>
+      {icon}
       {label}
     </button>
   );
@@ -174,7 +179,7 @@ export function SelectionCard({
 const stocks = [
   { title: "Regular", detail: "75 GSM Standard", price: "+₹2/page", surcharge: 2 },
   { title: "Premium", detail: "100 GSM Bright White", price: "+₹5/page", surcharge: 5 },
-  { title: "Glossy", detail: "Glossy Photo Finish", price: "+₹10/page", surcharge: 10 },
+  { title: "Glossy", detail: "Glossy Photo Surface", price: "+₹10/page", surcharge: 10 },
   { title: "Matte", detail: "Elegant non-glare", price: "+₹10/page", surcharge: 10 },
   { title: "Photo", detail: "250 GSM Ultra Photo", price: "+₹15/page", surcharge: 15 },
   { title: "Premium", detail: "Certificate Cardstock", price: "+₹8/page", surcharge: 8 },
@@ -231,6 +236,7 @@ export function TokenCard({
   pages = 0,
   colour = false,
   status = "In queue",
+  estimatedReady = "",
 }: {
   dark?: boolean;
   onClick?: () => void;
@@ -239,6 +245,7 @@ export function TokenCard({
   pages?: number;
   colour?: boolean;
   status?: string;
+  estimatedReady?: string;
 }) {
   return (
     <button className={`token-component ${dark ? "dark" : ""}`} onClick={onClick} aria-label={`View pickup token ${token}`}>
@@ -246,6 +253,7 @@ export function TokenCard({
       <strong>Token {token}</strong>
       <b>{status}</b>
       <small>{fileName} · {pages} pages ({colour ? "Colour" : "B&W"})</small>
+      {estimatedReady && <span className="token-card-eta">{estimatedReady}</span>}
     </button>
   );
 }

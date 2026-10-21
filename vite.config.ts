@@ -194,8 +194,8 @@ function figmaSiteConfiguration(config: FigmaSiteConfiguration, publicBaseUrl: s
     z-index: 2147483647;
     transform: translateY(-150%);
     border-radius: 6px;
-    background: #111827;
-    color: #fff;
+    background: var(--surface-raised);
+    color: var(--text);
     padding: 8px 12px;
     font: 600 14px/1.2 system-ui, sans-serif;
     text-decoration: none;

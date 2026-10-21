@@ -1,13 +1,14 @@
 /**
- * Campus Print Shop schedule. These hours match the existing Help screen.
+ * Campus Print Shop schedule.
+ * Operates Monday to Friday, 9:30 AM to 5:00 PM. Saturday & Sunday closed.
  * Times are interpreted in the configured shop timezone.
  */
 export const shopHours = {
   timeZone: "Asia/Kolkata",
-  openWeekdays: [1, 2, 3, 4, 5, 6], // Monday through Saturday
-  openingTime: "08:00",
-  closingTime: "19:00",
-  closingWarningMinutes: 60,
+  openWeekdays: [1, 2, 3, 4, 5] as readonly number[], // Monday through Friday (1 to 5)
+  openingTime: "09:30", // 9:30 AM
+  closingTime: "17:00", // 5:00 PM
+  closingWarningMinutes: 45,
 } as const;
 
 export type ShopStatus = {
@@ -15,7 +16,9 @@ export type ShopStatus = {
   dateKey?: string;
   closingTime?: string;
   remainingMs?: number;
+  nextOpeningText?: string;
 };
+
 
 const getShopTimeParts = (date: Date) => {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -68,8 +71,22 @@ export function getShopStatus(now: Date = new Date()): ShopStatus {
   const clockHour = closingHour % 12 || 12;
   const closingTime = `${clockHour}:${String(closingMinute).padStart(2, "0")} ${closingHour < 12 ? "AM" : "PM"}`;
 
-  if (!shopHours.openWeekdays.some((openWeekday) => openWeekday === weekday) || currentMinutes < openingMinutes || remainingMs <= 0) {
-    return { state: "closed", dateKey, closingTime };
+  const isWeekday = weekday >= 1 && weekday <= 5;
+  const isBeforeOpenToday = isWeekday && currentMinutes < openingMinutes;
+  const isFridayAfterClose = weekday === 5 && (currentMinutes >= closingMinutes || remainingMs <= 0);
+  const isWeekend = weekday === 6 || weekday === 7;
+
+  let nextOpeningText = "Opens Monday at 9:30 AM";
+  if (isBeforeOpenToday) {
+    nextOpeningText = "Opens today at 9:30 AM";
+  } else if (isWeekday && !isFridayAfterClose && (currentMinutes >= closingMinutes || remainingMs <= 0)) {
+    nextOpeningText = "Opens tomorrow at 9:30 AM";
+  } else if (isFridayAfterClose || isWeekend) {
+    nextOpeningText = "Opens Monday at 9:30 AM";
+  }
+
+  if (!isWeekday || currentMinutes < openingMinutes || remainingMs <= 0) {
+    return { state: "closed", dateKey, closingTime, nextOpeningText };
   }
 
   return {
@@ -77,8 +94,10 @@ export function getShopStatus(now: Date = new Date()): ShopStatus {
     dateKey,
     closingTime,
     remainingMs,
+    nextOpeningText,
   };
 }
+
 
 export function formatTimeRemaining(milliseconds: number): string {
   const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));

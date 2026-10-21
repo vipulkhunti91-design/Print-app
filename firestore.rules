@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // HELPER FUNCTIONS & ROLE VERIFICATION
+    // =========================================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Admin role checked via custom token claim or verified admin_roles collection record
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        exists(/databases/$(database)/documents/admin_roles/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/admin_roles/$(request.auth.uid)).data.role == 'admin' &&
+        get(/databases/$(database)/documents/admin_roles/$(request.auth.uid)).data.active == true
+      );
+    }
+
+    // =========================================================================
+    // 1. USER PROFILES
+    // =========================================================================
+    // Users can read/update their own profile. Admin can inspect all users.
+    // Impersonation prevention: uid and email are immutable once created.
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      
+      allow create: if isOwner(userId) 
+        && request.resource.data.uid == userId
+        && !('isAdmin' in request.resource.data)
+        && !('role' in request.resource.data);
+
+      allow update: if isOwner(userId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && !('isAdmin' in request.resource.data)
+        && !('role' in request.resource.data);
+
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 2. PRINT ORDERS
+    // =========================================================================
+    // Strict isolation: users can only see their own orders.
+    // Admin can view, query, and update order statuses (e.g. queue, printing, ready).
+    match /orders/{orderId} {
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+
+      allow create: if isAuthenticated() 
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.token != null;
+
+      allow update: if isAdmin() 
+        || (isOwner(resource.data.userId) 
+            && request.resource.data.userId == resource.data.userId
+            && (request.resource.data.status == 'cancelled' && resource.data.status in ['confirmed', 'queued']));
+
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 3. NOTIFICATIONS
+    // =========================================================================
+    // Notifications are private per user. Admin can send alerts.
+    match /notifications/{notifId} {
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+
+      allow create: if isAdmin() 
+        || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
+
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+
+      allow delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+    }
+
+    // =========================================================================
+    // 4. PRIVATE UPLOADED DOCUMENTS METADATA
+    // =========================================================================
+    match /documents/{docId} {
+      allow read: if (isAuthenticated() && resource.data.ownerUid == request.auth.uid) || isAdmin();
+
+      allow create: if isAuthenticated() 
+        && request.resource.data.ownerUid == request.auth.uid;
+
+      allow update: if isAuthenticated() 
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+
+      allow delete: if (isAuthenticated() && resource.data.ownerUid == request.auth.uid) || isAdmin();
+    }
+
+    // =========================================================================
+    // 5. ADMINISTRATIVE AUDIT LOGS (IMMUTABLE)
+    // =========================================================================
+    // Only verified administrators can view or append audit logs. Cannot be modified or deleted.
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false; // Append-only audit integrity
+    }
+
+    // =========================================================================
+    // 6. ADMIN ROLES DIRECTORY
+    // =========================================================================
+    // Managed solely via privileged backend credentials
+    match /admin_roles/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if false; // Provisioned via Firebase Admin SDK only
+    }
+  }
+}
+
