@@ -3763,29 +3763,6 @@ function Help({ go }: { go: (screen: Screen) => void }) {
   );
 }
 
-function SplashScreen() {
-  return (
-    <main className="splash-screen" role="status" aria-label="Phopy Print is starting">
-      <div className="splash-brand">
-        <div className="splash-logo" aria-hidden="true">
-          <svg viewBox="0 0 96 96" fill="none">
-            <path className="splash-ticket" d="M58 9h23v19a5 5 0 0 0 0 10v12H58V9Z" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" />
-            <path d="M66 19h8M66 25h8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-            <path d="M24 39V28a4 4 0 0 1 4-4h21v15" stroke="currentColor" strokeWidth="3.5" strokeLinejoin="round" />
-            <path d="M23 41h50a7 7 0 0 1 7 7v17H66v12H30V65H16V48a7 7 0 0 1 7-7Z" stroke="currentColor" strokeWidth="3.5" strokeLinejoin="round" />
-            <path className="splash-page-sheet" d="M36 56h24v29H36V56Z" fill="var(--text-secondary)" stroke="currentColor" strokeWidth="2.5" strokeLinejoin="round" />
-            <path d="M41 64h14M41 70h14" stroke="var(--cool-support)" strokeWidth="2" strokeLinecap="round" />
-            <circle cx="69" cy="51" r="2.5" fill="currentColor" />
-          </svg>
-        </div>
-        <h1 className="splash-title">Phopy Print</h1>
-        <p className="splash-tagline">Print. Track. Pickup.</p>
-      </div>
-      <div className="splash-loader" aria-hidden="true"><span /></div>
-    </main>
-  );
-}
-
 export default function App() {
   useEffect(() => {
     document.title = "PrintQ | Campus Print Ordering and Notifications";
@@ -3908,10 +3885,8 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [searchQuery, setSearchQuery] = useState("");
   const [headerPanel, setHeaderPanel] = useState<"search" | "notifications" | null>(null);
-  const [showSplash, setShowSplash] = useState(true);
   const [authSession, setAuthSession] = useState<AuthUser | null>(() => readStoredAuthSession());
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [hasPromptedAuthOnOpen, setHasPromptedAuthOnOpen] = useState(false);
   const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(() => readStoredValue(activeOrderStorageKey, isDemoDataDisabled() ? null : demoActiveOrder));
   const [profile, setProfile] = useState<ProfileDetails>(() => readStoredValue(profileStorageKey, isDemoDataDisabled() ? emptyProfile : demoProfile));
   const [printHistory, setPrintHistory] = useState<PrintHistoryRecord[]>(() => readStoredValue(printHistoryStorageKey, isDemoDataDisabled() ? [] : demoOldDocuments));
@@ -3961,22 +3936,6 @@ export default function App() {
   useEffect(() => {
     try { window.localStorage.setItem("printq_auto_open_settings", JSON.stringify(autoOpenSettings)); } catch {}
   }, [autoOpenSettings]);
-  useEffect(() => {
-    const splashTimer = window.setTimeout(() => setShowSplash(false), 2600);
-    return () => window.clearTimeout(splashTimer);
-  }, []);
-
-  useEffect(() => {
-    // If not authenticated and not yet prompted, offer Google Sign-In after splash
-    if (!authSession && !hasPromptedAuthOnOpen && !showSplash) {
-      setHasPromptedAuthOnOpen(true);
-      const wasDismissed = window.sessionStorage.getItem("printq-auth-dismissed") === "true";
-      if (!wasDismissed) {
-        setIsAuthModalOpen(true);
-      }
-    }
-  }, [authSession, hasPromptedAuthOnOpen, showSplash]);
-
   useEffect(() => {
     if (authSession) {
       setProfile({

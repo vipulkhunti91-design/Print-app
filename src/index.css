@@ -30,29 +30,8 @@ body { margin: 0; min-width: 320px; min-height: 100vh; min-height: 100dvh; overf
 button { color: inherit; font: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: var(--transparent); }
 button:focus-visible { outline: 3px solid var(--border); outline-offset: 2px; }
 .app-shell { width: min(100%, var(--app-max-width)); min-height: 100dvh; margin-inline: auto; background: var(--surface); box-shadow: none; container-type: inline-size; }
-.screen-transition { min-height: 100dvh; animation: screen-fade var(--motion-standard) ease-out both; }
-.splash-screen { position: fixed; z-index: 10000; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; min-height: 100dvh; padding: max(24px, env(safe-area-inset-top, 0px)) 24px max(24px, env(safe-area-inset-bottom, 0px)); overflow: hidden; color: var(--text-secondary); background: none; }
-.splash-logo { width: 78px; height: 78px; opacity: 0; animation: splash-logo-in 600ms cubic-bezier(.2,.8,.2,1) 80ms forwards; }
-@media (max-width: 480px) {
-  .splash-logo { width: 68px; height: 68px; }
-}
-.splash-logo svg { display: block; width: 100%; height: 100%; }
-.splash-page-sheet { transform-box: fill-box; transform-origin: center; animation: splash-page-print 850ms cubic-bezier(.2,.8,.2,1) 360ms both; }
-.splash-title { margin-top: 20px; color: var(--text-secondary); font: 700 27px/1.2 "Roboto:Bold", Arial, sans-serif; opacity: 0; animation: splash-title-in 520ms cubic-bezier(.2,.8,.2,1) 620ms forwards; }
-.splash-tagline { margin-top: 8px; color: var(--text); font: 400 14px/1.4 "Roboto:Regular", Arial, sans-serif; letter-spacing: .04em; opacity: 0; animation: splash-title-in 520ms cubic-bezier(.2,.8,.2,1) 760ms forwards; }
-.splash-loader { position: absolute; right: 28px; bottom: max(30px, calc(env(safe-area-inset-bottom, 0px) + 18px)); left: 28px; width: min(180px, calc(100% - 56px)); height: 3px; margin-inline: auto; overflow: hidden; border-radius: 999px; background: var(--background); }
-.splash-loader span { display: block; width: 100%; height: 100%; border-radius: inherit; background: var(--surface); transform: scaleX(0); transform-origin: left center; animation: splash-progress 2600ms linear both; }
-@keyframes splash-logo-in { from { opacity: 0; transform: scale(.82); } to { opacity: 1; transform: scale(1); } }
-@keyframes splash-page-print { from { opacity: 0; transform: translateY(13px); } to { opacity: 1; transform: translateY(-8px); } }
-@keyframes splash-title-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes splash-progress { to { transform: scaleX(1); } }
 .page { width: 100%; max-width: var(--app-max-width); min-height: 100vh; min-height: 100dvh; margin-inline: auto; padding: calc(66px + env(safe-area-inset-top, 0px)) var(--app-gutter) 46px; }
 h1, h2, h3, p { margin: 0; }
-
-@keyframes screen-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
 
 @keyframes content-rise {
   from { opacity: 0; transform: translateY(12px); }
@@ -96,8 +75,7 @@ button {
 }
 button:hover, button:active { transform: none; }
 @media (prefers-reduced-motion: reduce) {
-  .splash-logo, .splash-page-sheet, .splash-title, .splash-tagline { animation-duration: 1ms; animation-delay: 0ms; }
-  .splash-loader span { animation-duration: 2600ms; }
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
 }
 .app-icon { display: block; flex: 0 0 auto; width: 24px; height: 24px; object-fit: contain; }
 
@@ -1093,10 +1071,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline-color:
 .social-buttons button { color: var(--theme-ink); }
 .auth-skip { border-color: var(--border); }
 .auth-skip:hover, .auth-skip:active { background: var(--background); }
-.splash-screen { color: var(--theme-ink); background: none; }
-.splash-title, .splash-tagline { color: var(--theme-ink); }
-.splash-loader { background: var(--background); }
-.splash-loader span { background: var(--theme-accent); }
 .hero, .token-component.dark, .profile-summary, .help-hero, .receipt-handle { background: none; color: var(--theme-ink); }
 .hero > .start-printing { background: var(--surface); color: var(--theme-ink); }
 .quick-print-component { background: var(--theme-lavender); color: var(--theme-ink); }
@@ -1165,9 +1139,6 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline-color:
 .uploaded-files-component progress::-webkit-progress-bar { background: var(--surface); }
 .menu-row.danger, .file-action-button.delete, .token-actions .danger { color: var(--error); }
 .cancel-order-dialog-actions .danger, .delete-data-dialog .cancel-order-dialog-actions .danger:not(:disabled) { color: var(--error); }
-.splash-page-sheet { fill: var(--theme-lavender); }
-.splash-logo svg path:not(.splash-page-sheet) { stroke: currentColor; }
-.splash-logo svg path[stroke] { stroke: var(--cool-support); }
 
 /* Simpler, flatter card treatment to match the reference UI. */
 body { background: var(--surface); }
@@ -1176,7 +1147,6 @@ body { background: var(--surface); }
 .auth-page::before, .auth-page::after { border-color: var(--border); }
 .auth-logo { height: 100px; border-radius: 28px; box-shadow: none; }
 .auth-panel { background: var(--surface); border-radius: 24px 24px 0 0; }
-.splash-screen { background: var(--surface); }
 .hero, .token-component.dark, .profile-summary, .help-hero, .receipt-handle {
   background: var(--theme-lavender);
   box-shadow: none;
