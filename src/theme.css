@@ -6701,6 +6701,281 @@ button, [role="button"] {
   height: 32px;
 }
 
+/* Modal Backdrops & Dialogs UI System */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  animation: fadeInModal 180ms ease-out;
+}
+
+@keyframes fadeInModal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleInModal {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes scaleOutModal {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.95); }
+}
+
+.cancel-order-dialog {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 22px 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: scaleInModal 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cancel-order-dialog h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.cancel-order-dialog p {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.cancel-order-dialog label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+.cancel-order-dialog input {
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.cancel-order-dialog input:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.cancel-order-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cancel-order-dialog-actions button {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+  transition: all 140ms ease;
+}
+
+.cancel-order-dialog-actions button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+}
+
+.cancel-order-dialog-actions button.primary {
+  background: var(--accent);
+  color: #0A0A0A;
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+.cancel-order-dialog-actions button.primary:hover {
+  background: var(--accent-pressed);
+  border-color: var(--accent-pressed);
+}
+
+.cancel-order-dialog-actions button.danger {
+  background: var(--error);
+  color: #FFFFFF;
+  border-color: var(--error);
+  font-weight: 700;
+}
+
+.cancel-order-dialog-actions button.danger:hover {
+  filter: brightness(0.9);
+}
+
+.cancel-order-dialog-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Document Full Preview Modal */
+.preview-modal {
+  width: 100%;
+  max-width: 410px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px 16px 20px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: scaleInModal 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.preview-modal.is-closing {
+  animation: scaleOutModal 150ms ease-in forwards;
+}
+
+.preview-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.preview-modal-header h2 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text);
+}
+
+.preview-close-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+  transition: all 140ms ease;
+}
+
+.preview-close-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+}
+
+.preview-version-switch {
+  display: flex;
+  background: var(--surface-raised);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 4px;
+}
+
+.preview-version-switch button {
+  flex: 1;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.preview-version-switch button.active {
+  background: var(--accent);
+  color: #0A0A0A;
+  font-weight: 700;
+}
+
+.preview-version-caption {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0;
+}
+
+.modal-file-preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 280px;
+  padding: 12px 0;
+  background: #0D0D0D;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.page-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 6px;
+}
+
+.page-controls button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.page-controls button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+}
+
+.page-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-controls b {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+
 
 
 

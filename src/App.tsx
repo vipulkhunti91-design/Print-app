@@ -4884,6 +4884,28 @@ export default function App() {
     />
   );
 
+  const renderDocumentPreviewModal = () => {
+    if (!showPreview) return null;
+    const activeFile = uploadedFiles[0] ? {
+      name: uploadedFiles[0].name,
+      size: uploadedFiles[0].size,
+      type: uploadedFiles[0].type,
+      raw: uploadedFiles[0],
+    } : filePreview;
+    return (
+      <DocumentPreview
+        close={() => setShowPreview(false)}
+        totalPages={printJob.pages || 1}
+        previewData={activeFile}
+        fileName={printJob.fileName || "Document"}
+        originalJob={originalPrintJob}
+        updatedJob={printJob}
+        hasChanges={hasPreviewChanges}
+        initialVersion={previewVersion}
+      />
+    );
+  };
+
   if (isOnboardingOpen) {
     return (
       <OnboardingFlow
@@ -4950,6 +4972,7 @@ export default function App() {
           uploadedFiles={uploadedFiles}
           onOrderConfirmed={(assignedToken) => confirmOrder(assignedToken)}
         />
+        {renderDocumentPreviewModal()}
       </div>
     );
   }
@@ -5011,6 +5034,7 @@ export default function App() {
           />
         </MainSwipeContainer>
         <PrintQNavigation active="notifications" go={go} unreadCount={unreadCount} />
+        {renderDocumentPreviewModal()}
         {renderAuthModal()}
       </div>
     );
@@ -5091,6 +5115,7 @@ export default function App() {
           </main>
         </MainSwipeContainer>
         <PrintQNavigation active="history" go={go} unreadCount={unreadCount} />
+        {renderDocumentPreviewModal()}
         {renderAuthModal()}
       </div>
     );
@@ -5492,6 +5517,7 @@ export default function App() {
         </main>
         </MainSwipeContainer>
         <PrintQNavigation active="settings" go={go} unreadCount={unreadCount} />
+        {renderDocumentPreviewModal()}
         {renderAuthModal()}
       </div>
     );
@@ -5551,6 +5577,7 @@ export default function App() {
             }}
           />
         )}
+        {renderDocumentPreviewModal()}
         {renderAuthModal()}
       </div>
     );
@@ -5655,6 +5682,7 @@ export default function App() {
       {!isLoginOpen && screen === "home" && (
         <PrintQNavigation active="home" go={go} unreadCount={unreadCount} />
       )}
+      {renderDocumentPreviewModal()}
       {renderAuthModal()}
     </div>
   );
