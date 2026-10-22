@@ -366,16 +366,14 @@ export default function AuthModal({
           <div className="auth-brand-badge">
             <span className="auth-brand-text">Print<span style={{ color: "var(--accent)" }}>Q</span></span>
           </div>
-          {!requiredForAction && (
-            <button
-              type="button"
-              className="auth-modal-close-btn"
-              onClick={onClose}
-              aria-label="Close authentication modal"
-            >
-              ✕
-            </button>
-          )}
+          <button
+            type="button"
+            className="auth-modal-close-btn"
+            onClick={onClose}
+            aria-label="Close authentication modal"
+          >
+            ✕
+          </button>
         </div>
 
         {/* =========================================================================
@@ -469,6 +467,26 @@ export default function AuthModal({
                 className="real-google-next-btn"
               >
                 Next
+              </button>
+            </div>
+
+            <div style={{ marginTop: 14, textAlign: "center" }}>
+              <button
+                type="button"
+                className="auth-guest-link"
+                onClick={onClose}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  fontSize: 13,
+                  cursor: "pointer",
+                  padding: "6px 12px",
+                  textDecoration: "underline",
+                  textUnderlineOffset: "3px",
+                }}
+              >
+                Continue without signing in
               </button>
             </div>
           </form>
@@ -586,6 +604,26 @@ export default function AuthModal({
                 Next
               </button>
             </div>
+
+            <div style={{ marginTop: 14, textAlign: "center" }}>
+              <button
+                type="button"
+                className="auth-guest-link"
+                onClick={onClose}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  fontSize: 13,
+                  cursor: "pointer",
+                  padding: "6px 12px",
+                  textDecoration: "underline",
+                  textUnderlineOffset: "3px",
+                }}
+              >
+                Continue without signing in
+              </button>
+            </div>
           </form>
         )}
 
@@ -644,6 +682,26 @@ export default function AuthModal({
               }}
             >
               ← Back to Google Sign-In
+            </button>
+
+            <button
+              type="button"
+              className="auth-guest-link"
+              onClick={onClose}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--text-muted)",
+                fontSize: 13,
+                cursor: "pointer",
+                padding: "8px 12px",
+                textDecoration: "underline",
+                textUnderlineOffset: "3px",
+                width: "100%",
+                marginTop: 6,
+              }}
+            >
+              Continue without signing in
             </button>
           </form>
         )}
@@ -724,6 +782,26 @@ export default function AuthModal({
               }}
             >
               Change phone number
+            </button>
+
+            <button
+              type="button"
+              className="auth-guest-link"
+              onClick={onClose}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--text-muted)",
+                fontSize: 13,
+                cursor: "pointer",
+                padding: "8px 12px",
+                textDecoration: "underline",
+                textUnderlineOffset: "3px",
+                width: "100%",
+                marginTop: 4,
+              }}
+            >
+              Continue without signing in
             </button>
           </div>
         )}

@@ -4893,9 +4893,6 @@ export default function App() {
           try {
             window.localStorage.setItem("onboardingCompleted", "true");
           } catch {}
-          if (!authSession) {
-            setIsAuthModalOpen(true);
-          }
         }}
       />
     );
