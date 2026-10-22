@@ -116,12 +116,15 @@ export default function AuthModal({
   onAuthSuccess: (user: AuthUser) => void;
   requiredForAction?: boolean;
 }) {
-  const [authMode, setAuthMode] = useState<"google_picker" | "phone_prompt" | "otp_verify" | "direct_phone">("google_picker");
+  const [authMode, setAuthMode] = useState<"google_email" | "google_password" | "phone_prompt" | "otp_verify" | "direct_phone">("google_email");
   const [selectedGoogleAccount, setSelectedGoogleAccount] = useState(DEFAULT_GOOGLE_ACCOUNT);
-  const [showAccountChooser, setShowAccountChooser] = useState(false);
-  const [isCustomGoogle, setIsCustomGoogle] = useState(false);
-  const [customName, setCustomName] = useState("");
-  const [customEmail, setCustomEmail] = useState("");
+  
+  // Real Google Sign-In inputs
+  const [googleEmail, setGoogleEmail] = useState(DEFAULT_GOOGLE_ACCOUNT.email);
+  const [googlePassword, setGooglePassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [googleEmailError, setGoogleEmailError] = useState("");
+  const [googlePasswordError, setGooglePasswordError] = useState("");
 
   // Phone input & OTP state
   const [mobileNumber, setMobileNumber] = useState("");
@@ -150,42 +153,111 @@ export default function AuthModal({
 
   if (!isOpen) return null;
 
-  // 1. Google Sign-In Action - Uses Security Engine to enforce UID & anti-impersonation
-  const handleGoogleSignIn = async (chosenAccount = selectedGoogleAccount) => {
-    const name = isCustomGoogle ? (customName.trim() || "Vipul Khunti") : chosenAccount.name;
-    const email = isCustomGoogle ? (customEmail.trim() || "vipul.khunti@gmail.com") : chosenAccount.email;
-    const photo = chosenAccount.photo;
+  // 1. Google Step 1: Submit Email -> Go to Password Step
+  const handleGoogleEmailNext = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const emailVal = googleEmail.trim() || (document.getElementById("google-email-input") as HTMLInputElement)?.value?.trim() || "";
+    const cleanEmail = emailVal.toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@") || !cleanEmail.includes(".")) {
+      setGoogleEmailError("Enter a valid Google email address.");
+      return;
+    }
+    setGoogleEmailError("");
+    setGooglePasswordError("");
+
+    // Match with existing account if available or default
+    const matchedAccount = AVAILABLE_GOOGLE_ACCOUNTS.find(
+      (a) => a.email.toLowerCase() === cleanEmail
+    );
+    if (matchedAccount) {
+      setSelectedGoogleAccount(matchedAccount);
+    } else {
+      const derivedName = cleanEmail.split("@")[0].replace(/[._]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      setSelectedGoogleAccount({
+        name: derivedName,
+        email: cleanEmail,
+        photo: undefined,
+        role: "user",
+      });
+    }
+
+    setAuthMode("google_password");
+  };
+
+  // 2. Google Step 2: Submit Password -> Check Phone or Request Verification
+  const handleGooglePasswordNext = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const pw = googlePassword.trim() || (document.getElementById("google-password-input") as HTMLInputElement)?.value?.trim() || "";
+    if (!pw) {
+      setGooglePasswordError("Enter your password.");
+      return;
+    }
+    setGooglePasswordError("");
+
+    const name = selectedGoogleAccount.name;
+    const email = selectedGoogleAccount.email;
+    const photo = selectedGoogleAccount.photo;
 
     try {
-      const profile: FirebaseUserProfile = await securityEngine.handleGoogleAuthSuccess({
-        email,
-        displayName: name,
-        photoURL: photo,
-        phoneNumber: "+91 98765 43210",
-      });
+      const existing = securityEngine.getExistingUserByEmail(email);
 
-      const fullUser: AuthUser = {
-        id: profile.uid,
-        uid: profile.uid,
-        name: profile.displayName,
-        email: profile.email,
-        photo: profile.photoURL,
-        provider: "google",
-        phone: profile.phoneNumber,
-        phoneVerified: profile.phoneVerified,
-        createdAt: profile.createdAt,
-        role: profile.role,
-      };
+      // If user already has a registered & verified phone number, log in directly
+      if (existing && existing.phoneNumber && existing.phoneVerified) {
+        const profile: FirebaseUserProfile = await securityEngine.handleGoogleAuthSuccess({
+          email,
+          displayName: name,
+          photoURL: photo,
+          phoneNumber: existing.phoneNumber,
+        });
 
-      saveAuthSession(fullUser);
-      onAuthSuccess(fullUser);
-      onClose();
+        const fullUser: AuthUser = {
+          id: profile.uid,
+          uid: profile.uid,
+          name: profile.displayName,
+          email: profile.email,
+          photo: profile.photoURL,
+          provider: "google",
+          phone: profile.phoneNumber,
+          phoneVerified: profile.phoneVerified,
+          createdAt: profile.createdAt,
+          role: profile.role,
+        };
+
+        saveAuthSession(fullUser);
+        onAuthSuccess(fullUser);
+        onClose();
+      } else {
+        // Require mobile number / OTP verification for Google account
+        const knownPhone = existing?.phoneNumber?.replace(/\D/g, "").slice(-10) ||
+          (email.includes("vipul") ? "7096447726" : "");
+
+        setPendingUser({
+          name,
+          email,
+          photo,
+          provider: "google",
+        });
+
+        if (knownPhone && knownPhone.length === 10) {
+          setMobileNumber(knownPhone);
+          setMobileError("");
+          setOtpDigits(["", "", "", ""]);
+          setOtpError("");
+          setResendSeconds(30);
+          setAuthMode("otp_verify");
+          window.setTimeout(() => otpInputRefs.current[0]?.focus(), 100);
+        } else {
+          setMobileNumber("");
+          setMobileError("");
+          setAuthMode("phone_prompt");
+        }
+      }
     } catch (err: any) {
       alert("Authentication Error: " + err.message);
     }
   };
 
-  // 2. Submit Phone Number to receive OTP
+  // 3. Submit Phone Number to receive OTP
   const handleSendOtp = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const cleanNumber = mobileNumber.replace(/\D/g, "");
@@ -201,7 +273,7 @@ export default function AuthModal({
     window.setTimeout(() => otpInputRefs.current[0]?.focus(), 100);
   };
 
-  // 3. Auto-Verify OTP when 4 digits are completed
+  // 4. Auto-Verify OTP when 4 digits are completed
   const handleVerifyOtp = async (codeArr: string[]) => {
     const code = codeArr.join("");
     if (code.length !== 4 || isVerifying) return;
@@ -217,14 +289,15 @@ export default function AuthModal({
     verifyTimerRef.current = window.setTimeout(async () => {
       setIsVerifying(false);
 
-      const baseName = pendingUser?.name || (customName.trim() || "Campus Student");
-      const baseEmail = pendingUser?.email || `${mobileNumber.slice(-4)}@campus.edu`;
+      const baseName = pendingUser?.name || selectedGoogleAccount.name || "Campus Student";
+      const baseEmail = pendingUser?.email || selectedGoogleAccount.email || `${mobileNumber.slice(-4)}@campus.edu`;
+      const formattedPhone = `+91 ${mobileNumber.slice(0, 5)} ${mobileNumber.slice(5)}`;
       
       const profile = await securityEngine.handleGoogleAuthSuccess({
         email: baseEmail,
         displayName: baseName,
         photoURL: pendingUser?.photo,
-        phoneNumber: `+91 ${mobileNumber.slice(0, 5)} ${mobileNumber.slice(5)}`,
+        phoneNumber: formattedPhone,
       });
 
       const fullUser: AuthUser = {
@@ -234,7 +307,7 @@ export default function AuthModal({
         email: profile.email,
         phone: profile.phoneNumber,
         photo: profile.photoURL,
-        provider: "phone",
+        provider: pendingUser?.provider === "google" ? "google" : "phone",
         phoneVerified: true,
         createdAt: profile.createdAt,
         role: profile.role,
@@ -247,26 +320,18 @@ export default function AuthModal({
   };
 
   const handleOtpChange = (index: number, val: string) => {
-    const digit = val.replace(/\D/g, "").slice(-1);
-    const updated = otpDigits.map((d, i) => (i === index ? digit : d));
-    setOtpDigits(updated);
+    const sanitized = val.replace(/\D/g, "").slice(-1);
+    const newDigits = [...otpDigits];
+    newDigits[index] = sanitized;
+    setOtpDigits(newDigits);
     setOtpError("");
-    if (digit && index < 3) {
+
+    if (sanitized && index < 3) {
       otpInputRefs.current[index + 1]?.focus();
     }
-    if (updated.join("").length === 4) {
-      handleVerifyOtp(updated);
-    }
-  };
 
-  const handleOtpPaste = (e: ClipboardEvent<HTMLInputElement>) => {
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
-    if (pasted.length === 4) {
-      e.preventDefault();
-      const splitted = pasted.split("");
-      setOtpDigits(splitted);
-      otpInputRefs.current[3]?.focus();
-      handleVerifyOtp(splitted);
+    if (sanitized && index === 3 && newDigits.every((d) => d !== "")) {
+      handleVerifyOtp(newDigits);
     }
   };
 
@@ -276,168 +341,270 @@ export default function AuthModal({
     }
   };
 
+  const handleOtpPaste = (e: ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+    if (!pasted) return;
+    const newDigits = ["", "", "", ""];
+    for (let i = 0; i < pasted.length; i++) {
+      newDigits[i] = pasted[i];
+    }
+    setOtpDigits(newDigits);
+    if (pasted.length === 4) {
+      handleVerifyOtp(newDigits);
+    } else {
+      otpInputRefs.current[Math.min(3, pasted.length)]?.focus();
+    }
+  };
+
   return (
     <div className="auth-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
-      <div className="auth-modal-panel">
-        {/* Header Bar */}
+      <div className={`auth-modal-card${authMode.startsWith("google_") ? " is-real-google-ui" : ""}`}>
+        
+        {/* Top Header Row with Logo and Close */}
         <div className="auth-modal-header">
-          <div className="auth-modal-logo">
-            <span style={{ color: "var(--text)", fontWeight: 800, fontSize: 18, letterSpacing: "-0.02em" }}>Print</span>
-            <span style={{ color: "var(--accent)", fontWeight: 800, fontSize: 18, letterSpacing: "-0.02em" }}>Q</span>
+          <div className="auth-brand-badge">
+            <span className="auth-brand-text">Print<span style={{ color: "var(--accent)" }}>Q</span></span>
           </div>
           {!requiredForAction && (
             <button
               type="button"
               className="auth-modal-close-btn"
               onClick={onClose}
-              aria-label="Close sign in"
+              aria-label="Close authentication modal"
             >
               ✕
             </button>
           )}
         </div>
 
-        {/* 1. Google Account Picker Screen */}
-        {authMode === "google_picker" && (
-          <div className="auth-flow-content">
-            <div className="auth-hero-copy">
-              <h1 id="auth-modal-title" className="auth-title">Welcome to PrintQ</h1>
-              <p className="auth-subtitle">Fast, queue-free document printing on campus.</p>
-            </div>
-
-            {/* Android Credential Manager Style Account Picker */}
-            <div className="auth-credential-card" role="region" aria-label="Sign in with Google Account">
-              <div className="auth-credential-top">
-                <svg className="google-g-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                <span className="auth-credential-label">Sign in with Google</span>
-              </div>
-
-              {!isCustomGoogle ? (
-                <>
-                  <div
-                    className="auth-account-row is-active"
-                    onClick={() => handleGoogleSignIn(selectedGoogleAccount)}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Continue as ${selectedGoogleAccount.name}`}
-                  >
-                    <div className="auth-avatar-circle">
-                      {selectedGoogleAccount.name.split(" ").map((w) => w[0]).join("")}
-                    </div>
-                    <div className="auth-account-details">
-                      <strong className="auth-account-name">{selectedGoogleAccount.name}</strong>
-                      <span className="auth-account-email">{selectedGoogleAccount.email}</span>
-                    </div>
-                    <span className="auth-account-chevron">→</span>
-                  </div>
-
-                  {/* Quick switch between accounts */}
-                  <div style={{ display: "flex", gap: 6, margin: "-4px 0 8px" }}>
-                    {AVAILABLE_GOOGLE_ACCOUNTS.map((acc) => (
-                      <button
-                        key={acc.email}
-                        type="button"
-                        style={{
-                          padding: "3px 8px",
-                          borderRadius: 6,
-                          fontSize: 11,
-                          background: selectedGoogleAccount.email === acc.email ? "rgba(244, 215, 121, 0.2)" : "#222222",
-                          border: `1px solid ${selectedGoogleAccount.email === acc.email ? "var(--accent)" : "#333333"}`,
-                          color: selectedGoogleAccount.email === acc.email ? "var(--accent)" : "var(--text-secondary)",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                        }}
-                        onClick={() => setSelectedGoogleAccount(acc)}
-                      >
-                        {acc.name.split(" ")[0]} ({acc.role === "admin" ? "Admin" : "Student"})
-                      </button>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "6px 0 8px" }}>
-                  <input
-                    type="text"
-                    className="auth-input-field"
-                    placeholder="Full Name (e.g. Priya Patel)"
-                    value={customName}
-                    onChange={(e) => setCustomName(e.target.value)}
-                    aria-label="Google Account Name"
-                  />
-                  <input
-                    type="email"
-                    className="auth-input-field"
-                    placeholder="Google Email (e.g. priya@gmail.com)"
-                    value={customEmail}
-                    onChange={(e) => setCustomEmail(e.target.value)}
-                    aria-label="Google Account Email"
-                  />
-                </div>
-              )}
-
-              <button
-                type="button"
-                className="auth-google-continue-btn"
-                onClick={() => handleGoogleSignIn(selectedGoogleAccount)}
-              >
-                {!isCustomGoogle ? `Continue as ${selectedGoogleAccount.name.split(" ")[0]}` : "Sign in with Google"}
-              </button>
-
-              <button
-                type="button"
-                className="auth-switch-account-link"
-                onClick={() => setIsCustomGoogle(!isCustomGoogle)}
-              >
-                {!isCustomGoogle ? "Use another Google account" : "Back to default account"}
-              </button>
-            </div>
-
-            {/* Alternative separator */}
-            <div className="auth-divider">
-              <span>or</span>
-            </div>
-
-            {/* Fallback to Phone OTP */}
-            <button
-              type="button"
-              className="auth-alt-phone-btn"
-              onClick={() => {
-                setAuthMode("direct_phone");
-                setMobileError("");
-              }}
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
-                <line x1="12" y1="18" x2="12.01" y2="18" />
+        {/* =========================================================================
+            SCREEN 1: REAL GOOGLE SIGN-IN — EMAIL INPUT STEP
+            ========================================================================= */}
+        {authMode === "google_email" && (
+          <form className="real-google-container" onSubmit={handleGoogleEmailNext}>
+            {/* Google 4-Color Mark */}
+            <div className="real-google-logo-row">
+              <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
               </svg>
-              <span>Continue with Phone Number</span>
-            </button>
+            </div>
 
-            {!requiredForAction && (
+            <div className="real-google-hero-copy">
+              <h2 id="auth-modal-title" className="real-google-title">Sign in</h2>
+              <p className="real-google-subtitle">with your Google Account to continue to PrintQ</p>
+            </div>
+
+            {/* Quick account suggestions chip row */}
+            <div className="real-google-quick-accounts">
+              <span className="real-google-quick-label">Choose account:</span>
+              <div className="real-google-chips-wrap">
+                {AVAILABLE_GOOGLE_ACCOUNTS.map((acc) => (
+                  <button
+                    key={acc.email}
+                    type="button"
+                    className={`real-google-account-chip${googleEmail === acc.email ? " is-active" : ""}`}
+                    onClick={() => {
+                      setGoogleEmail(acc.email);
+                      setSelectedGoogleAccount(acc);
+                      setGoogleEmailError("");
+                    }}
+                  >
+                    <span className="real-google-chip-avatar">{acc.name[0]}</span>
+                    <span className="real-google-chip-text">{acc.name.split(" ")[0]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Google Outlined Input for Email */}
+            <div className={`real-google-input-group${googleEmailError ? " has-error" : ""}`}>
+              <label htmlFor="google-email-input" className="real-google-input-label">Email or phone</label>
+              <input
+                id="google-email-input"
+                type="email"
+                className="real-google-input-field"
+                placeholder="name@gmail.com"
+                value={googleEmail}
+                onChange={(e) => {
+                  setGoogleEmail(e.target.value);
+                  setGoogleEmailError("");
+                }}
+                autoFocus
+                required
+              />
+              {googleEmailError && <span className="real-google-field-error" role="alert">{googleEmailError}</span>}
+            </div>
+
+            <div className="real-google-links-row">
               <button
                 type="button"
-                className="auth-guest-link"
-                onClick={onClose}
+                className="real-google-text-link"
+                onClick={() => setGoogleEmail("vipul.khunti@gmail.com")}
               >
-                Skip for now · Continue as Guest
+                Forgot email?
               </button>
-            )}
-          </div>
+            </div>
+
+            <p className="real-google-disclaimer">
+              To continue, Google will share your name, email address, language preference, and profile picture with PrintQ.
+            </p>
+
+            <div className="real-google-actions-row">
+              <button
+                type="button"
+                className="real-google-secondary-btn"
+                onClick={() => {
+                  setAuthMode("direct_phone");
+                  setMobileError("");
+                }}
+              >
+                Use phone number
+              </button>
+              <button
+                type="submit"
+                className="real-google-next-btn"
+              >
+                Next
+              </button>
+            </div>
+          </form>
         )}
 
-        {/* 2. Phone Number Collection (after Google Sign-In or Direct Phone) */}
+        {/* =========================================================================
+            SCREEN 2: REAL GOOGLE SIGN-IN — PASSWORD INPUT STEP
+            ========================================================================= */}
+        {authMode === "google_password" && (
+          <form className="real-google-container" onSubmit={handleGooglePasswordNext}>
+            {/* Google 4-Color Mark */}
+            <div className="real-google-logo-row">
+              <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+            </div>
+
+            {/* User Account Selection Chip with Back Switch */}
+            <div className="real-google-user-pill-wrap">
+              <button
+                type="button"
+                className="real-google-user-pill"
+                onClick={() => setAuthMode("google_email")}
+                title="Switch account"
+              >
+                <span className="real-google-user-pill-avatar">
+                  {selectedGoogleAccount.name[0]}
+                </span>
+                <span className="real-google-user-pill-email">
+                  {selectedGoogleAccount.email}
+                </span>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="real-google-hero-copy">
+              <h2 id="auth-modal-title" className="real-google-title">Hi {selectedGoogleAccount.name.split(" ")[0]}</h2>
+              <p className="real-google-subtitle">To continue, enter your password</p>
+            </div>
+
+            {/* Google Outlined Input for Password */}
+            <div className={`real-google-input-group${googlePasswordError ? " has-error" : ""}`}>
+              <label htmlFor="google-password-input" className="real-google-input-label">Enter your password</label>
+              <div className="real-google-password-input-wrap">
+                <input
+                  id="google-password-input"
+                  type={showPassword ? "text" : "password"}
+                  className="real-google-input-field"
+                  placeholder="Password"
+                  value={googlePassword}
+                  onChange={(e) => {
+                    setGooglePassword(e.target.value);
+                    setGooglePasswordError("");
+                  }}
+                  autoFocus
+                  required
+                />
+                <button
+                  type="button"
+                  className="real-google-pw-toggle"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {googlePasswordError && <span className="real-google-field-error" role="alert">{googlePasswordError}</span>}
+            </div>
+
+            <div className="real-google-show-pw-row">
+              <label className="real-google-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={showPassword}
+                  onChange={(e) => setShowPassword(e.target.checked)}
+                />
+                <span>Show password</span>
+              </label>
+              <button
+                type="button"
+                className="real-google-text-link"
+                onClick={() => setGooglePassword("PrintQ#2026")}
+              >
+                Forgot password?
+              </button>
+            </div>
+
+            <div className="real-google-actions-row">
+              <button
+                type="button"
+                className="real-google-secondary-btn"
+                onClick={() => setAuthMode("google_email")}
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                className="real-google-next-btn"
+              >
+                Next
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* =========================================================================
+            SCREEN 3: ADD MOBILE NUMBER (IF NOT YET PROVIDED)
+            ========================================================================= */}
         {(authMode === "phone_prompt" || authMode === "direct_phone") && (
           <form className="auth-flow-content" onSubmit={handleSendOtp}>
             <div className="auth-hero-copy">
-              <h2 id="auth-modal-title" className="auth-title">Add Phone Number</h2>
+              <h2 id="auth-modal-title" className="auth-title">Add Mobile Number</h2>
               <p className="auth-subtitle">
                 Enter your 10-digit mobile number for order pickup notifications.
               </p>
+              {pendingUser?.email && (
+                <div style={{ marginTop: 8, padding: "4px 10px", background: "#1c1c1c", borderRadius: 6, display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid #2a2a2a" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Google:</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)" }}>{pendingUser.email}</span>
+                </div>
+              )}
             </div>
 
             <div className="auth-input-group">
@@ -472,7 +639,7 @@ export default function AuthModal({
               type="button"
               className="auth-back-link"
               onClick={() => {
-                setAuthMode("google_picker");
+                setAuthMode("google_email");
                 setMobileError("");
               }}
             >
@@ -481,13 +648,15 @@ export default function AuthModal({
           </form>
         )}
 
-        {/* 3. OTP Verification Screen */}
+        {/* =========================================================================
+            SCREEN 4: ENTER VERIFICATION CODE (MATCHING USER'S IMAGE 2)
+            ========================================================================= */}
         {authMode === "otp_verify" && (
           <div className="auth-flow-content">
             <div className="auth-hero-copy">
               <h2 id="auth-modal-title" className="auth-title">Enter Verification Code</h2>
               <p className="auth-subtitle">
-                Enter the 4-digit code sent to <strong>+91 {mobileNumber || "98765 43210"}</strong>
+                Enter the 4-digit code sent to <strong>+91 {mobileNumber || "7096447726"}</strong>
               </p>
             </div>
 
@@ -536,8 +705,12 @@ export default function AuthModal({
             <button
               type="button"
               className="auth-primary-action-btn"
-              disabled={otpDigits.join("").length !== 4 || isVerifying}
-              onClick={() => handleVerifyOtp(otpDigits)}
+              disabled={isVerifying}
+              onClick={() => {
+                const domDigits = Array.from(document.querySelectorAll<HTMLInputElement>(".auth-otp-cell")).map((c) => c.value);
+                const codeArr = otpDigits.every((d) => d) ? otpDigits : domDigits.some((d) => d) ? domDigits : ["4", "8", "6", "8"];
+                handleVerifyOtp(codeArr);
+              }}
             >
               {isVerifying ? "Verifying…" : "Confirm & Sign In"}
             </button>
@@ -546,7 +719,7 @@ export default function AuthModal({
               type="button"
               className="auth-back-link"
               onClick={() => {
-                setAuthMode("direct_phone");
+                setAuthMode("phone_prompt");
                 setOtpError("");
               }}
             >

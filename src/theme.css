@@ -1553,7 +1553,7 @@ select:focus-visible, textarea:focus-visible {
 
 .settings-preview-viewport {
   width: 100%;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
   border: 1px solid var(--border);
   background: var(--surface-raised);
@@ -1562,17 +1562,18 @@ select:focus-visible, textarea:focus-visible {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-height: 236px;
-  padding: 16px;
+  min-height: 350px;
+  padding: 16px 12px;
   transition: min-height 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;
 }
 
 /* Document Preview Page Orientation: Portrait & Landscape */
 .paper {
   background: var(--surface) !important;
   border: 1px solid var(--border) !important;
-  border-radius: 4px !important;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5) !important;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -1582,12 +1583,12 @@ select:focus-visible, textarea:focus-visible {
 .paper .paper-title {
   background: rgba(255, 255, 255, 0.08) !important;
   color: var(--text) !important;
-  font-size: 10px !important;
+  font-size: 13px !important;
   font-weight: 700 !important;
-  padding: 4px 8px !important;
-  border-radius: 3px !important;
-  line-height: 1.3 !important;
-  margin-bottom: 8px;
+  padding: 6px 12px !important;
+  border-radius: 4px !important;
+  line-height: 1.35 !important;
+  margin-bottom: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1595,42 +1596,44 @@ select:focus-visible, textarea:focus-visible {
 
 .paper i {
   display: block !important;
-  width: 90% !important;
-  background: rgba(255, 255, 255, 0.12) !important;
-  height: 2px !important;
-  margin: 9px 0 0 !important;
-  border-radius: 1px !important;
+  width: 92% !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  height: 3px !important;
+  margin: 12px 0 0 !important;
+  border-radius: 1.5px !important;
 }
 
 .paper i:nth-of-type(4) {
-  width: 65% !important;
+  width: 68% !important;
 }
 
 .paper small {
   position: absolute !important;
-  bottom: 14px !important;
+  bottom: 16px !important;
   color: var(--text-muted) !important;
-  font-size: 8.5px !important;
+  font-size: 10.5px !important;
   font-weight: 600 !important;
   letter-spacing: 0.3px !important;
 }
 
 .paper small:last-child {
-  right: 12px !important;
+  right: 16px !important;
   color: var(--accent) !important;
 }
 
 .paper.is-portrait {
-  width: 154px;
-  height: 204px;
-  padding: 15px 14px;
+  width: 240px;
+  max-width: 92%;
+  height: 320px;
+  padding: 22px 18px;
   transition: width 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .paper.is-landscape {
-  width: 224px;
-  height: 154px;
-  padding: 12px 14px;
+  width: 320px;
+  max-width: 95%;
+  height: 225px;
+  padding: 16px 18px;
   transition: width 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -1638,23 +1641,25 @@ select:focus-visible, textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--surface);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   overflow: hidden;
   transition: width 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
   box-sizing: border-box;
 }
 
 .uploaded-preview-frame.is-portrait {
-  width: 154px;
-  height: 204px;
+  width: 240px;
+  max-width: 92%;
+  height: 320px;
 }
 
 .uploaded-preview-frame.is-landscape {
-  width: 224px;
-  height: 154px;
+  width: 320px;
+  max-width: 95%;
+  height: 225px;
 }
 
 .uploaded-preview-frame .uploaded-preview-image {
@@ -1665,14 +1670,16 @@ select:focus-visible, textarea:focus-visible {
 }
 
 .uploaded-preview-document.is-portrait {
-  width: 154px;
-  height: 204px;
+  width: 240px;
+  max-width: 92%;
+  height: 320px;
   transition: width 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .uploaded-preview-document.is-landscape {
-  width: 224px;
-  height: 154px;
+  width: 320px;
+  max-width: 95%;
+  height: 225px;
   transition: width 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -5531,6 +5538,338 @@ button, [role="button"] {
   border-radius: 50%;
   animation: login-sheet-spin 0.8s linear infinite;
   margin-right: 6px;
+}
+
+/* ==========================================================================
+   Real Google Sign-In Dark Theme Aesthetics
+   ========================================================================== */
+.auth-modal-card.is-real-google-ui {
+  background: #1f1f1f;
+  border: 1px solid #3c4043;
+  border-radius: 24px;
+}
+
+.real-google-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.real-google-logo-row {
+  display: flex;
+  justify-content: center;
+  margin: 2px 0 6px;
+}
+
+.real-google-hero-copy {
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.real-google-title {
+  color: #e8eaed;
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+
+.real-google-subtitle {
+  color: #9aa0a6;
+  font-size: 13.5px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.real-google-quick-accounts {
+  margin: 4px 0 6px;
+  text-align: left;
+}
+
+.real-google-quick-label {
+  font-size: 11px;
+  color: #9aa0a6;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.real-google-chips-wrap {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.real-google-account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 16px;
+  background: #28292a;
+  border: 1px solid #3c4043;
+  color: #e8eaed;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: all 120ms ease;
+  white-space: nowrap;
+}
+
+.real-google-account-chip:hover {
+  background: #35363a;
+}
+
+.real-google-account-chip.is-active {
+  border-color: #8ab4f8;
+  background: rgba(138, 180, 248, 0.12);
+  color: #8ab4f8;
+}
+
+.real-google-chip-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #4285f4;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.real-google-user-pill-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.real-google-user-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 6px;
+  border-radius: 20px;
+  background: #28292a;
+  border: 1px solid #3c4043;
+  color: #e8eaed;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 150ms ease;
+}
+
+.real-google-user-pill:hover {
+  background: #35363a;
+}
+
+.real-google-user-pill-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #4285f4;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.real-google-input-group {
+  position: relative;
+  margin: 6px 0 4px;
+  text-align: left;
+}
+
+.real-google-input-label {
+  display: block;
+  font-size: 12px;
+  color: #9aa0a6;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.real-google-input-field {
+  width: 100%;
+  height: 48px;
+  border: 1px solid #5f6368;
+  border-radius: 8px;
+  background: transparent;
+  color: #e8eaed;
+  font-size: 15px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.real-google-input-field:focus {
+  border-color: #8ab4f8;
+  box-shadow: 0 0 0 1px #8ab4f8;
+}
+
+.real-google-input-group.has-error .real-google-input-field {
+  border-color: #f28b82;
+  box-shadow: 0 0 0 1px #f28b82;
+}
+
+.real-google-field-error {
+  display: block;
+  color: #f28b82;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.real-google-password-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.real-google-pw-toggle {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: 0;
+  color: #9aa0a6;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+}
+
+.real-google-pw-toggle:hover {
+  color: #e8eaed;
+}
+
+.real-google-links-row {
+  display: flex;
+  justify-content: flex-start;
+  margin: 2px 0 6px;
+}
+
+.real-google-show-pw-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 4px 0 10px;
+  font-size: 12.5px;
+}
+
+.real-google-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #9aa0a6;
+  cursor: pointer;
+}
+
+.real-google-text-link {
+  background: transparent;
+  border: 0;
+  color: #8ab4f8;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.real-google-text-link:hover {
+  text-decoration: underline;
+}
+
+.real-google-disclaimer {
+  font-size: 11.5px;
+  color: #9aa0a6;
+  line-height: 1.45;
+  margin: 6px 0 12px;
+  text-align: left;
+}
+
+.real-google-actions-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.real-google-secondary-btn {
+  background: transparent;
+  border: 0;
+  color: #8ab4f8;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 12px;
+}
+
+.real-google-secondary-btn:hover {
+  text-decoration: underline;
+}
+
+.real-google-next-btn {
+  background: #8ab4f8;
+  color: #041e49;
+  border: 0;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 24px;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.real-google-next-btn:hover {
+  opacity: 0.92;
+}
+
+/* Home Screen Google Sign-In Banner */
+.home-google-signin-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #171717;
+  border: 1px solid var(--border);
+  margin-bottom: 18px;
+}
+
+.home-google-signin-copy h3 {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 2px;
+}
+
+.home-google-signin-copy p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.home-google-signin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 15px;
+  border-radius: 20px;
+  background: #202124;
+  border: 1px solid #3c4043;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease, border-color 150ms ease;
+  flex-shrink: 0;
+}
+
+.home-google-signin-btn:hover {
+  background: #2a2b2e;
+  border-color: var(--accent);
 }
 
 /* Profile in Settings */

@@ -363,22 +363,28 @@ export function isDoubleSidedAvailable(paperStock?: string): boolean {
   return a4Entry?.double !== null && a4Entry?.double !== undefined;
 }
 
-export function getPricePerSheet(paperStock: string, paperSize: string, singleSided: boolean): number {
+export function getPricePerSheet(paperStock: string, paperSize: string, singleSided: boolean, colour = false): number {
   const stock = normalizePaperStock(paperStock);
   const stockEntry = PAPER_PRICES[stock] ?? PAPER_PRICES["Regular Paper"];
   const sizeEntry = stockEntry[paperSize] ?? stockEntry["A4"];
-  if (singleSided || sizeEntry.double === null) {
-    return sizeEntry.single;
+  const baseRate = (singleSided || sizeEntry.double === null) ? sizeEntry.single : sizeEntry.double;
+  if (!colour) {
+    return baseRate;
   }
-  return sizeEntry.double;
+  // Print Option: Full Colour rate adds +₹6.00 per side
+  const colourAddon = singleSided ? 6 : 11;
+  return baseRate + colourAddon;
 }
 
 export function calculateJobPricing(job: PrintJob, uploadedFilesCount = 1) {
   const stock = normalizePaperStock(job.paperStock);
   const size = job.paper || "A4";
   const isSingle = job.singleSided || !isDoubleSidedAvailable(stock);
+  const isColour = Boolean(job.colour);
 
-  const unitRate = getPricePerSheet(stock, size, isSingle);
+  const unitRate = getPricePerSheet(stock, size, isSingle, isColour);
+  const optionCost = isColour ? 8 : 2;
+  const sideCost = isSingle ? getPricePerSheet(stock, size, true, isColour) : getPricePerSheet(stock, size, false, isColour);
 
   const rawPages = Math.max(1, job.pages || 1);
   const pagesPerSheet = Math.max(1, job.pagesPerSheet || 1);
@@ -397,7 +403,11 @@ export function calculateJobPricing(job: PrintJob, uploadedFilesCount = 1) {
     stock,
     size,
     isSingle,
-    sideLabel: isSingle ? "Single-sided" : "Double-sided",
+    isColour,
+    optionLabel: isColour ? "Full Colour" : "Black & White",
+    optionRate: optionCost,
+    sideLabel: isSingle ? "Single-Sided" : "Double-Sided",
+    sideRate: sideCost,
     unitRate,
     sheetsPerFile,
     totalSheets,
@@ -406,8 +416,8 @@ export function calculateJobPricing(job: PrintJob, uploadedFilesCount = 1) {
     printSubtotal,
     bindingSubtotal,
     grandTotal,
-    formulaSummary: `${stock} · ${size} · ${isSingle ? "Single-sided" : "Double-sided"}`,
-    formulaDetail: `₹${unitRate} per sheet × ${totalSheets} ${totalSheets === 1 ? "sheet" : "sheets"} = ₹${printSubtotal.toFixed(2)}`,
+    formulaSummary: `${isColour ? "Full Colour" : "B&W"} · ${isSingle ? "Single-sided" : "Double-sided"} · ${size} · ${stock}`,
+    formulaDetail: `₹${unitRate.toFixed(2)} per sheet × ${totalSheets} ${totalSheets === 1 ? "sheet" : "sheets"} = ₹${printSubtotal.toFixed(2)}`,
   };
 }
 
@@ -574,12 +584,21 @@ function validatePageRange(value: string, totalPages: number) {
   return parsePageRangeInput(value, totalPages).valid;
 }
 
+function isImageFile(fileName?: string, fileType?: string): boolean {
+  if (fileType && fileType.startsWith("image/")) return true;
+  if (fileName && /\.(jpe?g|png|webp|gif|svg|bmp|tiff|heic)$/i.test(fileName)) return true;
+  return false;
+}
+
 function countPdfPages(buffer: ArrayBuffer) {
   const text = new TextDecoder("latin1").decode(buffer);
   return (text.match(/\/Type\s*\/Page\b/g) ?? []).length;
 }
 
-function estimatedPageCount(fileSize: number) {
+function estimatedPageCount(fileSize: number, fileName?: string, fileType?: string) {
+  if (isImageFile(fileName, fileType)) {
+    return 1;
+  }
   return Math.max(1, Math.round((fileSize / 1024) / 50));
 }
 
@@ -1395,6 +1414,8 @@ function Document({
   searchQuery,
   onNotifications,
   unreadCount = 0,
+  authSession = null,
+  onOpenAuth,
 }: {
   onBack: () => void;
   onPay: (summary: LoginSummary) => void;
@@ -1416,6 +1437,8 @@ function Document({
   searchQuery: string;
   onNotifications?: () => void;
   unreadCount?: number;
+  authSession?: AuthUser | null;
+  onOpenAuth?: () => void;
 }) {
   const [uploadComplete, setUploadComplete] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -1591,9 +1614,10 @@ function Document({
       reader.onload = () => {
         if (runId !== uploadRunIdRef.current) return reject(new DOMException("Upload cancelled", "AbortError"));
         const buffer = reader.result instanceof ArrayBuffer ? reader.result : new ArrayBuffer(0);
-        const isPdf = selected.name.toLowerCase().endsWith(".pdf");
-        const detectedPages = isPdf ? countPdfPages(buffer) : 0;
-        const pages = detectedPages || estimatedPageCount(selected.size);
+        const isPdf = selected.name.toLowerCase().endsWith(".pdf") || selected.type === "application/pdf";
+        const isImage = isImageFile(selected.name, selected.type);
+        const detectedPages = isPdf ? countPdfPages(buffer) : isImage ? 1 : 0;
+        const pages = isImage ? 1 : (detectedPages || estimatedPageCount(selected.size, selected.name, selected.type));
         const url = URL.createObjectURL(selected);
         objectUrlsRef.current.push(url);
         resolve({
@@ -1604,7 +1628,7 @@ function Document({
             ? `${Math.max(1, Math.round(selected.size / 1024))} KB`
             : `${(selected.size / 1024 / 1024).toFixed(1)} MB`,
           pages,
-          pagesEstimated: !detectedPages,
+          pagesEstimated: !detectedPages && !isImage,
         });
       };
       reader.onerror = () => reject(reader.error ?? new Error("Unable to read file"));
@@ -1634,6 +1658,10 @@ function Document({
     const totalPages = combinedFiles.reduce((sum, f) => sum + (f.pages || 1), 0);
     const uploadedJob = {
       ...job,
+      paper: job.paper || "A4",
+      paperStock: job.paperStock || "Regular Paper",
+      paperSurcharge: 0,
+      stockSurcharge: 0,
       title: combinedFiles.length > 1 ? "Uploaded Documents" : latestFile.name.replace(/\.[^.]+$/, ""),
       fileName: latestFile.name,
       fileSize: latestFile.size,
@@ -1906,8 +1934,8 @@ function Document({
   });
   const activeStockName = normalizePaperStock(job.paperStock);
   const doubleSupported = isDoubleSidedAvailable(activeStockName);
-  const singlePricePerSheet = getPricePerSheet(activeStockName, job.paper || "A4", true);
-  const doublePricePerSheet = doubleSupported ? getPricePerSheet(activeStockName, job.paper || "A4", false) : null;
+  const singlePricePerSheet = getPricePerSheet(activeStockName, job.paper || "A4", true, job.colour);
+  const doublePricePerSheet = doubleSupported ? getPricePerSheet(activeStockName, job.paper || "A4", false, job.colour) : null;
 
   useEffect(() => {
     if (!doubleSupported && !job.singleSided) {
@@ -1925,6 +1953,29 @@ function Document({
           <header className="upload-screen-header">
             <h1>Upload Files</h1>
           </header>
+
+          {!authSession && (
+            <div className="home-google-signin-banner" role="region" aria-label="Sign in with Google">
+              <div className="home-google-signin-copy">
+                <h3>Sign in with Google</h3>
+                <p>Track print queue &amp; get instant pickup tokens</p>
+              </div>
+              <button
+                type="button"
+                className="home-google-signin-btn"
+                onClick={onOpenAuth}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>Sign in with Google</span>
+              </button>
+            </div>
+          )}
+
           <UploadIllustration />
           <div className="upload-screen-intro">
             <h2 className="upload-heading">Upload your files</h2>
@@ -2099,12 +2150,55 @@ function Document({
                   </span>
                 </div>
               </div>
-              <span className="settings-files-counter-badge">
-                {uploadedFiles.length}/4 Files
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button
+                  type="button"
+                  className="preview-expand-badge-btn"
+                  onClick={preview}
+                  title="Expand to Full Document Preview"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "4px 8px",
+                    borderRadius: 8,
+                    background: "rgba(244, 215, 121, 0.12)",
+                    border: "1px solid rgba(244, 215, 121, 0.3)",
+                    color: "var(--accent)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 3 21 3 21 9" />
+                    <polyline points="9 21 3 21 3 15" />
+                    <line x1="21" y1="3" x2="14" y2="10" />
+                    <line x1="3" y1="21" x2="10" y2="14" />
+                  </svg>
+                  <span>Expand</span>
+                </button>
+                <span className="settings-files-counter-badge">
+                  {uploadedFiles.length}/4 Files
+                </span>
+              </div>
             </div>
 
-            <div className={`settings-preview-viewport${(job.orientation ?? "Portrait") === "Landscape" ? " is-landscape" : " is-portrait"}`}>
+            <div
+              className={`settings-preview-viewport${(job.orientation ?? "Portrait") === "Landscape" ? " is-landscape" : " is-portrait"}`}
+              onClick={preview}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  preview();
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Tap to view full page preview"
+              style={{ cursor: "pointer" }}
+              title="Click to view full screen preview"
+            >
               <FilePreview
                 previewData={activeFile}
                 page={previewCurrentPage}
@@ -2382,6 +2476,30 @@ function Document({
             )}
 
             <div className="settings-cards-stack" role="radiogroup" aria-labelledby="heading-printing-side">
+              <label className={`settings-radio-card${job.singleSided || !doubleSupported ? " is-selected" : ""}`}>
+                <input
+                  type="radio"
+                  name="printing-side"
+                  value="single"
+                  checked={job.singleSided || !doubleSupported}
+                  onChange={() => {
+                    setActivePresetId(null);
+                    updateJob({ singleSided: true, sideSurcharge: 0 });
+                  }}
+                  className="sr-only"
+                />
+                <span className="settings-radio-circle" aria-hidden="true">
+                  {(job.singleSided || !doubleSupported) && <span className="settings-radio-dot" />}
+                </span>
+                <span className="settings-card-content">
+                  <span className="settings-card-header">
+                    <span className="settings-card-title">Single-Sided</span>
+                    <span className="settings-card-price">₹{singlePricePerSheet.toFixed(2)} / sheet</span>
+                  </span>
+                  <p className="settings-card-desc">Print on one side of each sheet. Ideal for resumes and official forms.</p>
+                </span>
+              </label>
+
               <label className={`settings-radio-card${!doubleSupported ? " is-disabled" : ""}${!job.singleSided && doubleSupported ? " is-selected" : ""}`}>
                 <input
                   type="radio"
@@ -2402,39 +2520,15 @@ function Document({
                 <span className="settings-card-content">
                   <span className="settings-card-header">
                     <span className="settings-card-title">Double-Sided</span>
-                    <span className="settings-card-tag">
-                      {doubleSupported ? `₹${doublePricePerSheet} / sheet · Eco-Friendly` : "Not Available"}
+                    <span className="settings-card-price">
+                      {doubleSupported ? `₹${doublePricePerSheet?.toFixed(2)} / sheet` : "Not Available"}
                     </span>
                   </span>
                   <p className="settings-card-desc">
                     {doubleSupported
-                      ? "Save paper by printing on both sides of each sheet."
+                      ? "Save paper by printing on both sides of each sheet (Eco-Friendly)."
                       : `Double-sided printing is not available on heavy or specialty ${activeStockName}.`}
                   </p>
-                </span>
-              </label>
-
-              <label className={`settings-radio-card${job.singleSided || !doubleSupported ? " is-selected" : ""}`}>
-                <input
-                  type="radio"
-                  name="printing-side"
-                  value="single"
-                  checked={job.singleSided || !doubleSupported}
-                  onChange={() => {
-                    setActivePresetId(null);
-                    updateJob({ singleSided: true, sideSurcharge: 0 });
-                  }}
-                  className="sr-only"
-                />
-                <span className="settings-radio-circle" aria-hidden="true">
-                  {(job.singleSided || !doubleSupported) && <span className="settings-radio-dot" />}
-                </span>
-                <span className="settings-card-content">
-                  <span className="settings-card-header">
-                    <span className="settings-card-title">Single-Sided</span>
-                    <span className="settings-card-tag">₹{singlePricePerSheet} / sheet</span>
-                  </span>
-                  <p className="settings-card-desc">Print on one side of each sheet. Ideal for resumes and official forms.</p>
                 </span>
               </label>
             </div>
@@ -2446,7 +2540,7 @@ function Document({
             <div className="settings-grid-2col" role="radiogroup" aria-labelledby="heading-paper-size">
               {PAPER_SIZE_CONFIG.map(({ size, dim, isLargeFormat, note }) => {
                 const isSelected = (job.paper ?? "A4") === size;
-                const sizeRate = getPricePerSheet(activeStockName, size, job.singleSided || !doubleSupported);
+                const sizeRate = getPricePerSheet(activeStockName, size, job.singleSided || !doubleSupported, job.colour);
                 return (
                   <label
                     key={size}
@@ -2467,7 +2561,7 @@ function Document({
                       <strong className="settings-card-title">{size}</strong>
                       <small className="settings-card-desc">{dim}</small>
                       <span className="settings-card-price" style={{ fontSize: "11px", marginTop: "2px" }}>
-                        ₹{sizeRate} / sheet
+                        ₹{sizeRate.toFixed(2)} / sheet
                       </span>
                       {isLargeFormat && (
                         <span className="settings-large-format-note">
@@ -2487,7 +2581,7 @@ function Document({
             <div className="settings-cards-stack" role="radiogroup" aria-labelledby="heading-paper-type">
               {PAPER_STOCK_CONFIG.map(({ name, gsm, detail, doubleAllowed }) => {
                 const isSelected = activeStockName === name;
-                const stockRate = getPricePerSheet(name, job.paper || "A4", job.singleSided || !doubleAllowed);
+                const stockRate = getPricePerSheet(name, job.paper || "A4", job.singleSided || !doubleAllowed, job.colour);
                 return (
                   <label
                     key={name}
@@ -2709,24 +2803,24 @@ function Document({
 
             <div className="settings-summary-lines">
               <div className="settings-summary-row">
-                <span>Paper Type:</span>
-                <span>{currentPricing.stock} (₹{currentPricing.unitRate} / sheet)</span>
+                <span>Print Option:</span>
+                <span>{job.colour ? "Full Colour (₹8.00 / page)" : "Black & White (₹2.00 / page)"}</span>
+              </div>
+              <div className="settings-summary-row">
+                <span>Print Side:</span>
+                <span>{currentPricing.sideLabel} (₹{currentPricing.unitRate.toFixed(2)} / sheet)</span>
               </div>
               <div className="settings-summary-row">
                 <span>Paper Size:</span>
                 <span>{currentPricing.size}</span>
               </div>
               <div className="settings-summary-row">
-                <span>Printing Side:</span>
-                <span>{currentPricing.sideLabel}</span>
+                <span>Paper Type:</span>
+                <span>{currentPricing.stock}</span>
               </div>
               <div className="settings-summary-row">
                 <span>Orientation:</span>
                 <span>{job.orientation ?? "Portrait"}</span>
-              </div>
-              <div className="settings-summary-row">
-                <span>Colour Mode:</span>
-                <span>{job.colour ? "Full Colour" : "Black & White"}</span>
               </div>
               {pagesPerSheet > 1 && (
                 <div className="settings-summary-row">
@@ -2861,8 +2955,22 @@ function Setup({
       </fieldset>
       <h2 id="print-side-label">Printing Side</h2>
       <fieldset className="printq-radio-group" aria-labelledby="print-side-label">
-        <RadioChoiceCard group="print-side" title="Double Sided (Duplex)" detail="Eco-Friendly (Save 50% Paper)" checked={!job.singleSided} onChange={() => setJob({ ...job, singleSided: false, sideSurcharge: 0 })} />
-        <RadioChoiceCard group="print-side" title="Single Sided" detail={"Clean Document (+₹1/page)"} checked={job.singleSided} onChange={() => setJob({ ...job, singleSided: true, sideSurcharge: 1 })} />
+        <RadioChoiceCard
+          group="print-side"
+          title="Single Sided"
+          price={`₹${getPricePerSheet(job.paperStock || "Regular Paper", job.paper || "A4", true, job.colour).toFixed(2)} / sheet`}
+          detail="Standard print on one side of each sheet"
+          checked={job.singleSided}
+          onChange={() => setJob({ ...job, singleSided: true, sideSurcharge: 0 })}
+        />
+        <RadioChoiceCard
+          group="print-side"
+          title="Double Sided (Duplex)"
+          price={`₹${getPricePerSheet(job.paperStock || "Regular Paper", job.paper || "A4", false, job.colour).toFixed(2)} / sheet`}
+          detail="Eco-Friendly (Save 50% Paper)"
+          checked={!job.singleSided}
+          onChange={() => setJob({ ...job, singleSided: false, sideSurcharge: 0 })}
+        />
       </fieldset>
       <fieldset className="printq-radio-group is-inline">
         <legend>Paper Size</legend>
@@ -2915,15 +3023,16 @@ function Finishing({
 }
 
 function PrintPriceSummary({ job }: { job: PrintJob }) {
+  const pricing = calculateJobPricing(job, 1);
   return (
     <section className="printq-price-summary" aria-labelledby="printq-price-title">
       <h2 id="printq-price-title">Price summary</h2>
       <dl>
         <dt>Selected pages</dt><dd>{job.pageRange?.trim() || "All pages"} ({getSelectedPageCount(job)})</dd>
         <dt>Copies</dt><dd>{job.copies}</dd>
-        <dt>Print</dt><dd>{job.colour ? "Colour" : "Black & white"}</dd>
-        <dt>Sides</dt><dd>{job.singleSided ? "Single-sided" : "Double-sided"}</dd>
-        <dt>Paper</dt><dd>{job.paper} · {job.orientation ?? "Portrait"}</dd>
+        <dt>Print Option</dt><dd>{pricing.optionLabel} (₹{pricing.optionRate.toFixed(2)} / page)</dd>
+        <dt>Print Side</dt><dd>{pricing.sideLabel} (₹{pricing.unitRate.toFixed(2)} / sheet)</dd>
+        <dt>Paper</dt><dd>{pricing.stock} · {pricing.size} · {job.orientation ?? "Portrait"}</dd>
         <dt>Estimated ready</dt><dd>{job.readyMinutes ?? 10} minutes</dd>
         <dt className="printq-price-total-label">Total</dt><dd className="printq-price-total">{formatPrice(job)}</dd>
       </dl>
@@ -3152,12 +3261,12 @@ function Checkout({
 
         <div className="bill-spec-grid">
           <div className="bill-spec-box">
-            <span className="bill-spec-label">Print Mode</span>
-            <span className="bill-spec-val">{job.colour ? "Full Colour" : "Black & White"}</span>
+            <span className="bill-spec-label">Print Option</span>
+            <span className="bill-spec-val">{pricing.optionLabel} (₹{pricing.optionRate.toFixed(2)} / page)</span>
           </div>
           <div className="bill-spec-box">
-            <span className="bill-spec-label">Print Sides</span>
-            <span className="bill-spec-val">{job.singleSided ? "Single-Sided" : "Double-Sided (Duplex)"}</span>
+            <span className="bill-spec-label">Print Side</span>
+            <span className="bill-spec-val">{pricing.sideLabel} (₹{pricing.unitRate.toFixed(2)} / sheet)</span>
           </div>
           <div className="bill-spec-box">
             <span className="bill-spec-label">Paper &amp; Orientation</span>
@@ -3193,8 +3302,12 @@ function Checkout({
         </div>
         <div className="bill-line-rows">
           <div className="bill-line-row">
-            <span>{pricing.stock} ({pricing.size} · {pricing.sideLabel})</span>
-            <span>₹{pricing.unitRate} / sheet</span>
+            <span>Print Option</span>
+            <span>{pricing.optionLabel} (₹{pricing.optionRate.toFixed(2)} / page)</span>
+          </div>
+          <div className="bill-line-row">
+            <span>Print Side &amp; Paper ({pricing.stock} {pricing.size})</span>
+            <span>{pricing.sideLabel} · ₹{pricing.unitRate.toFixed(2)} / sheet</span>
           </div>
           <div className="bill-line-row">
             <span>Sheets: {pricing.totalSheets} {pricing.totalSheets === 1 ? "sheet" : "sheets"} (× {copiesCount} {copiesCount > 1 ? "copies" : "copy"})</span>
@@ -4227,8 +4340,8 @@ export default function App() {
     setNotificationItems((items) => [notif, ...items.filter((it) => it.id !== notif.id)]);
 
     try {
-      const basePrice = job.colour ? 8 : 2;
-      const amount = (basePrice + (job.paperSurcharge || 0)) * job.pages * (job.copies || 1);
+      const pricing = calculateJobPricing(job, 1);
+      const amount = pricing.grandTotal;
       securityEngine.createOrder({
         userEmail: authSession?.email || "vipul.khunti@gmail.com",
         userName: authSession?.name || "Vipul Khunti",
@@ -4494,7 +4607,7 @@ export default function App() {
       setPrintHistory([]);
       setNotificationItems([]);
       setScreen("home");
-      setIsAuthModalOpen(true);
+      setIsAuthModalOpen(false);
       window.scrollTo(0, 0);
       return;
     }
@@ -5073,7 +5186,9 @@ export default function App() {
                   setActiveOrder(null);
                   setPrintHistory([]);
                   setNotificationItems([]);
-                  setIsAuthModalOpen(true);
+                  setIsAuthModalOpen(false);
+                  setScreen("home");
+                  window.scrollTo(0, 0);
                 }}
               >
                 Sign Out
@@ -5085,7 +5200,7 @@ export default function App() {
                 style={{ color: "var(--accent)", borderColor: "var(--accent)" }}
                 onClick={() => setIsAuthModalOpen(true)}
               >
-                Sign In
+                Sign in with Google
               </button>
             )}
           </section>
@@ -5421,6 +5536,8 @@ export default function App() {
             initialFiles={pendingHomeFiles}
             onInitialFilesConsumed={() => setPendingHomeFiles([])}
             searchQuery={searchQuery}
+            authSession={authSession}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
           />
         </main>
 
@@ -5518,6 +5635,8 @@ export default function App() {
             initialFiles={pendingHomeFiles}
             onInitialFilesConsumed={() => setPendingHomeFiles([])}
             searchQuery={searchQuery}
+            authSession={authSession}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
           />
         </main>
       </MainSwipeContainer>

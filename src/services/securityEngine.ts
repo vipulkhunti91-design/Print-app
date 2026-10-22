@@ -300,6 +300,13 @@ class SecurityEngine {
     return existing;
   }
 
+  public getExistingUserByEmail(email: string): FirebaseUserProfile | null {
+    const users = this.getAllUsersMap();
+    const clean = email.trim().toLowerCase();
+    const target = Object.values(users).find((u) => u.email.toLowerCase() === clean);
+    return target || null;
+  }
+
   public getUserProfile(uid: string): FirebaseUserProfile | null {
     // Security Rule: allow read if isOwner(userId) || isAdmin()
     if (!this.isOwner(uid) && !this.hasVerifiedAdminSession()) {
