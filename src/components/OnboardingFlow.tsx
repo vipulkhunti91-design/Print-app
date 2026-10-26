@@ -25,7 +25,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   }, []);
 
   const handleNext = () => {
-    if (currentStep < 2) {
+    if (currentStep < 3) {
       setDirection("forward");
       setCurrentStep((prev) => prev + 1);
     } else {
@@ -37,8 +37,6 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     if (currentStep > 0) {
       setDirection("backward");
       setCurrentStep((prev) => prev - 1);
-    } else {
-      handleFinish();
     }
   };
 
@@ -71,7 +69,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
     if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
       if (deltaX < 0) {
         // Swiped Left -> Next
-        if (currentStep < 2) {
+        if (currentStep < 3) {
           handleNext();
         } else {
           handleFinish();
@@ -102,7 +100,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
           <div className="onboarding-illustration-container">
             {currentStep === 0 && <IllustrationQueue />}
             {currentStep === 1 && <IllustrationSettings />}
-            {currentStep === 2 && <IllustrationToken />}
+            {currentStep === 2 && <IllustrationMultipleFiles />}
+            {currentStep === 3 && <IllustrationToken />}
           </div>
 
           {/* 2. Text Copy Area */}
@@ -125,6 +124,14 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             )}
             {currentStep === 2 && (
               <>
+                <h1 className="onboarding-heading">Each file, your way.</h1>
+                <p className="onboarding-subtext">
+                  Upload multiple files and set different print settings for each one separately.
+                </p>
+              </>
+            )}
+            {currentStep === 3 && (
+              <>
                 <h1 className="onboarding-heading">Your token, your time.</h1>
                 <p className="onboarding-subtext">
                   Get a token instantly after placing your order. We&apos;ll notify you when your print is ready.
@@ -136,9 +143,9 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
 
         {/* 3. Bottom Controls */}
         <div className="onboarding-bottom-bar">
-          {/* Dots Indicator */}
+          {/* Dots Indicator: 4 dots */}
           <div className="onboarding-dots" role="tablist" aria-label="Onboarding screens">
-            {[0, 1, 2].map((idx) => (
+            {[0, 1, 2, 3].map((idx) => (
               <button
                 key={idx}
                 type="button"
@@ -151,8 +158,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             ))}
           </div>
 
-          {/* Action Button */}
-          {currentStep < 2 ? (
+          {/* Action Button: Next → for 0, 1, 2; Get Started for 3 */}
+          {currentStep < 3 ? (
             <button
               type="button"
               className="onboarding-primary-btn"
@@ -172,8 +179,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             </button>
           )}
 
-          {/* Skip Button (Only on Screen 1 & Screen 2) */}
-          {currentStep < 2 ? (
+          {/* Skip Button: Only on Screens 1, 2, 3 (indices 0, 1, 2) */}
+          {currentStep < 3 ? (
             <button
               type="button"
               className="onboarding-skip-btn"
@@ -250,7 +257,7 @@ function IllustrationQueue() {
 }
 
 // ============================================================================
-// Screen 2 Illustration: Settings panel, Sliders, Paper Size & Mode
+// Screen 2 Illustration: Settings panel, Sliders, Paper Size & Mode (Kept as is)
 // ============================================================================
 function IllustrationSettings() {
   return (
@@ -307,7 +314,105 @@ function IllustrationSettings() {
 }
 
 // ============================================================================
-// Screen 3 Illustration: Token card with verified checkmark & collection
+// Screen 3 Illustration: 3 stacked file cards with settings badges (NEW)
+// ============================================================================
+function IllustrationMultipleFiles() {
+  return (
+    <div className="onboarding-art" aria-hidden="true">
+      <svg viewBox="0 0 280 200" fill="none" className="onboarding-svg">
+        <defs>
+          <radialGradient id="art-glow-multi" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#F4D779" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#0A0A0A" stopOpacity="0" />
+          </radialGradient>
+          <filter id="card-shadow-1" x="-10%" y="-10%" width="125%" height="135%">
+            <feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#000000" floodOpacity="0.45" />
+          </filter>
+          <filter id="card-shadow-2" x="-10%" y="-10%" width="125%" height="135%">
+            <feDropShadow dx="0" dy="8" stdDeviation="8" floodColor="#000000" floodOpacity="0.55" />
+          </filter>
+          <filter id="card-shadow-3" x="-10%" y="-10%" width="125%" height="135%">
+            <feDropShadow dx="0" dy="10" stdDeviation="9" floodColor="#000000" floodOpacity="0.65" />
+          </filter>
+        </defs>
+
+        {/* Ambient Glow */}
+        <circle cx="140" cy="100" r="90" fill="url(#art-glow-multi)" />
+
+        {/* Card 1: assignment.pdf · Colour · 3 copies (Top / Back-left) */}
+        <g filter="url(#card-shadow-1)">
+          <rect x="22" y="18" width="186" height="48" rx="12" fill="#171717" stroke="#2B2B2B" strokeWidth="1.2" />
+          {/* File Document Icon */}
+          <g transform="translate(34, 27)">
+            <path d="M2 1h7l4 4v9a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z" fill="#222" stroke="#F4D779" strokeWidth="1.2" strokeLinejoin="round" />
+            <polyline points="9 1 9 5 13 5" fill="none" stroke="#F4D779" strokeWidth="1.2" strokeLinejoin="round" />
+            <line x1="4" y1="8" x2="10" y2="8" stroke="#888" strokeWidth="1" strokeLinecap="round" />
+            <line x1="4" y1="11" x2="8" y2="11" stroke="#888" strokeWidth="1" strokeLinecap="round" />
+          </g>
+          {/* Filename */}
+          <text x="56" y="37" fill="#FFFFFF" fontSize="12" fontWeight="700" fontFamily="sans-serif">
+            assignment.pdf
+          </text>
+          {/* Checkmark tick pill */}
+          <circle cx="62" cy="51" r="5" fill="rgba(244, 215, 121, 0.16)" />
+          <polyline points="59.5,51 61.2,52.8 64.5,49.5" fill="none" stroke="#F4D779" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Settings Badge text */}
+          <text x="72" y="54.5" fill="#A3A9B8" fontSize="10" fontWeight="600" fontFamily="sans-serif">
+            Colour · 3 copies
+          </text>
+        </g>
+
+        {/* Card 2: resume.pdf · B&W · 2 copies (Middle / Center) */}
+        <g filter="url(#card-shadow-2)">
+          <rect x="48" y="74" width="186" height="48" rx="12" fill="#171717" stroke="#363636" strokeWidth="1.2" />
+          {/* File Document Icon */}
+          <g transform="translate(60, 83)">
+            <path d="M2 1h7l4 4v9a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z" fill="#222" stroke="#8FA3FF" strokeWidth="1.2" strokeLinejoin="round" />
+            <polyline points="9 1 9 5 13 5" fill="none" stroke="#8FA3FF" strokeWidth="1.2" strokeLinejoin="round" />
+            <line x1="4" y1="8" x2="10" y2="8" stroke="#888" strokeWidth="1" strokeLinecap="round" />
+            <line x1="4" y1="11" x2="8" y2="11" stroke="#888" strokeWidth="1" strokeLinecap="round" />
+          </g>
+          {/* Filename */}
+          <text x="82" y="93" fill="#FFFFFF" fontSize="12" fontWeight="700" fontFamily="sans-serif">
+            resume.pdf
+          </text>
+          {/* Checkmark tick pill */}
+          <circle cx="88" cy="107" r="5" fill="rgba(244, 215, 121, 0.16)" />
+          <polyline points="85.5,107 87.2,108.8 90.5,105.5" fill="none" stroke="#F4D779" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Settings Badge text */}
+          <text x="98" y="110.5" fill="#A3A9B8" fontSize="10" fontWeight="600" fontFamily="sans-serif">
+            B&W · 2 copies
+          </text>
+        </g>
+
+        {/* Card 3: photo.jpg · Glossy · 1 copy (Bottom / Front-right) */}
+        <g filter="url(#card-shadow-3)">
+          <rect x="74" y="130" width="186" height="48" rx="12" fill="#171717" stroke="#444444" strokeWidth="1.2" />
+          {/* Picture / Photo Icon */}
+          <g transform="translate(86, 139)">
+            <rect x="1" y="1" width="14" height="14" rx="2" fill="#222" stroke="#A7E8BD" strokeWidth="1.2" />
+            <circle cx="5" cy="5" r="1.5" fill="#A7E8BD" />
+            <path d="M2 13l4-4 3 3 2-2 3 3" fill="none" stroke="#A7E8BD" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          </g>
+          {/* Filename */}
+          <text x="108" y="149" fill="#FFFFFF" fontSize="12" fontWeight="700" fontFamily="sans-serif">
+            photo.jpg
+          </text>
+          {/* Checkmark tick pill */}
+          <circle cx="114" cy="163" r="5" fill="rgba(244, 215, 121, 0.16)" />
+          <polyline points="111.5,163 113.2,164.8 116.5,161.5" fill="none" stroke="#F4D779" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Settings Badge text */}
+          <text x="124" y="166.5" fill="#A3A9B8" fontSize="10" fontWeight="600" fontFamily="sans-serif">
+            Glossy · 1 copy
+          </text>
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+// ============================================================================
+// Screen 4 Illustration: Token card with verified checkmark & collection
 // ============================================================================
 function IllustrationToken() {
   return (

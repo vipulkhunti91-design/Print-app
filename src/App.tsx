@@ -1,3 +1,4 @@
+﻿import { printQueueManager, type QueueOrder } from "./services/printQueueService";
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent } from "react";
 import {
   BottomNavigation,
@@ -1543,12 +1544,12 @@ function Document({
     const incoming = Array.from(selectedFiles ?? []);
     if (incoming.length === 0) return;
 
-    const MAX_FILES = 4;
+    const MAX_FILES = 5;
     const currentCount = uploadedFiles.length;
     const availableSlots = MAX_FILES - currentCount;
 
     if (availableSlots <= 0) {
-      setUploadError("Maximum of 4 files reached. Delete a file to add another.");
+      setUploadError("Maximum of 5 files reached. Delete a file to add another.");
       return;
     }
 
@@ -1954,35 +1955,15 @@ function Document({
             <h1>Upload Files</h1>
           </header>
 
-          {!authSession && (
-            <div className="home-google-signin-banner" role="region" aria-label="Sign in with Google">
-              <div className="home-google-signin-copy">
-                <h3>Sign in with Google</h3>
-                <p>Track print queue &amp; get instant pickup tokens</p>
-              </div>
-              <button
-                type="button"
-                className="home-google-signin-btn"
-                onClick={onOpenAuth}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                <span>Sign in with Google</span>
-              </button>
-            </div>
-          )}
+          
 
           <UploadIllustration />
           <div className="upload-screen-intro">
             <h2 className="upload-heading">Upload your files</h2>
-            <p className="upload-helper-text">Upload up to 4 files · Max 50 MB per file</p>
+            <p className="upload-helper-text">Upload up to 5 files · Max 50 MB per file</p>
             <div className="upload-counter-pill" aria-live="polite">
               <span className={`upload-counter-dot${uploadedFiles.length > 0 ? " has-files" : ""}`} />
-              <span>{uploadedFiles.length} of 4 files uploaded</span>
+              <span>{uploadedFiles.length} of 5 files uploaded</span>
             </div>
           </div>
 
@@ -2684,100 +2665,11 @@ function Document({
             </div>
           </section>
 
-          {/* Section 14: Pickup Time */}
-          <section className="settings-section" aria-labelledby="heading-pickup-time">
-            <h2 id="heading-pickup-time" className="settings-section-title">Pickup Time</h2>
+          
 
-            <div className="settings-pickup-grid" role="radiogroup" aria-labelledby="heading-pickup-time">
-              {PICKUP_TIME_CONFIG.map(({ time, desc, minutes, badge }) => {
-                const isSelected = (job.readyMinutes ?? 30) === minutes;
-                return (
-                  <label
-                    key={time}
-                    className={`settings-pickup-card${isSelected ? " is-selected" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="pickup-time"
-                      value={minutes}
-                      checked={isSelected}
-                      onChange={() => updateJob({ readyMinutes: minutes, pickupTime: minutes })}
-                      className="sr-only"
-                    />
-                    <div className="settings-pickup-top">
-                      <strong className="settings-pickup-time">{time}</strong>
-                      <span className="settings-radio-circle" aria-hidden="true">
-                        {isSelected && <span className="settings-radio-dot" />}
-                      </span>
-                    </div>
-                    <span className="settings-pickup-desc">{desc}</span>
-                    <span className="settings-pickup-badge">{badge}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </section>
+          
 
-          {/* Section 11: Print Quality */}
-          <section className="settings-section" aria-labelledby="heading-print-quality">
-            <div className="settings-section-header-row">
-              <h2 id="heading-print-quality" className="settings-section-title">Print Quality</h2>
-              <span className="settings-copies-badge">{job.printQuality ?? "Standard"}</span>
-            </div>
-            <div className="settings-quality-grid" role="radiogroup" aria-labelledby="heading-print-quality">
-              {PRINT_QUALITY_CONFIG.map((opt) => {
-                const isSelected = (job.printQuality ?? "Standard") === opt.id;
-                return (
-                  <label
-                    key={opt.id}
-                    className={`settings-quality-card${isSelected ? " is-selected" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="print-quality"
-                      value={opt.id}
-                      checked={isSelected}
-                      onChange={() => updateJob({ printQuality: opt.id as "Draft" | "Standard" | "High" })}
-                      className="sr-only"
-                    />
-                    <div className="settings-quality-top">
-                      <strong className="settings-quality-name">{opt.title}</strong>
-                      <span className={`settings-quality-indicator is-${opt.indicator}`} />
-                    </div>
-                    <span className="settings-quality-badge">{opt.speedBadge}</span>
-                    <p className="settings-quality-desc">{opt.detail}</p>
-                  </label>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Detailed Ready Time Info Card */}
-          <section className="settings-section" aria-labelledby="heading-eta-card">
-            <div className="settings-eta-card" role="status" aria-live="polite">
-              <div className="settings-eta-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
-                </svg>
-              </div>
-              <div className="settings-eta-content">
-                <div className="settings-eta-top">
-                  <span className="settings-eta-label">Estimated Ready Time</span>
-                  <span className="settings-eta-badge">
-                    {currentEstimate.isQueueAvailable && <span className="live-radar-dot" aria-hidden="true" />}
-                    {currentEstimate.isQueueAvailable ? "Live Queue" : "Approx. Estimate"}
-                  </span>
-                </div>
-                <strong className="settings-eta-value">
-                  {currentEstimate.primaryText}
-                </strong>
-                <p className="settings-eta-desc">
-                  {currentEstimate.subText} · {uploadedFiles.length > 1 ? `${uploadedFiles.length} files` : "1 file"} ({effectivePagesPerSet} pages per copy), {job.copies} {job.copies > 1 ? "copies" : "copy"} ({job.colour ? "Full Colour" : "Black & White"}, {job.paperStock || "Regular"})
-                </p>
-              </div>
-            </div>
-          </section>
+          
 
           {/* Section 17: Price Summary Breakdown & Sticky Bottom Bar */}
           <div className="settings-summary-box" role="region" aria-label="Price summary breakdown">
@@ -2860,7 +2752,7 @@ function Document({
             </div>
 
             <span className="settings-summary-note">
-              Pickup slot: {job.readyMinutes ?? 30} mins · Final price confirmed at checkout.
+              Final price confirmed at checkout.
             </span>
           </div>
 
@@ -3062,6 +2954,14 @@ function Checkout({
   const [isProcessingModalOpen, setIsProcessingModalOpen] = useState(false);
   const [processStatus, setProcessStatus] = useState<PaymentProcessStatus>("idle");
   const [assignedToken, setAssignedToken] = useState("");
+  const [queueMetrics, setQueueMetrics] = useState(() => printQueueManager.getQueueMetricsForToken());
+
+  useEffect(() => {
+    const unsub = printQueueManager.subscribe(() => {
+      setQueueMetrics(printQueueManager.getQueueMetricsForToken());
+    });
+    return unsub;
+  }, []);
   const [failErrorMessage, setFailErrorMessage] = useState("");
   const isSubmittingRef = useRef(false);
   const paymentTimerRef = useRef<number | null>(null);
@@ -3167,7 +3067,7 @@ function Checkout({
         <button
           type="button"
           className="bill-back-button"
-          onClick={() => go("home")}
+          onClick={() => go("setup")}
           aria-label="Back to Print Settings"
         >
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -3180,24 +3080,6 @@ function Checkout({
       <div className="bill-shop-notice">
         <span className="bill-shop-dot" />
         <span>Campus Central Shop · Open 9:30 AM – 5:00 PM (Mon–Fri)</span>
-      </div>
-
-      {/* Large ETA Card at top */}
-      <div className="checkout-eta-large-card" role="status" style={{ marginBottom: 14 }}>
-        <div className="checkout-eta-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-        </div>
-        <div className="checkout-eta-content">
-          <div className="checkout-eta-top">
-            <span className="checkout-eta-label">Estimated Ready Time</span>
-            <span className="checkout-eta-badge">{checkoutEstimate.isQueueAvailable ? "Based on queue" : "Approx. Estimate"}</span>
-          </div>
-          <strong className="checkout-eta-value">{checkoutEstimate.primaryText}</strong>
-          <p className="checkout-eta-desc">{checkoutEstimate.subText} · {totalPages} pages × {job.copies} {job.copies > 1 ? "copies" : "copy"}</p>
-        </div>
       </div>
 
       {/* 1. Payment Method Selector (near top) */}
@@ -3236,66 +3118,8 @@ function Checkout({
         </div>
       </div>
 
-      {/* 2. Document Details */}
-      <section className="bill-card" aria-labelledby="bill-details-heading">
-        <div className="bill-card-title">
-          <span id="bill-details-heading">Document Details</span>
-          <span style={{ fontSize: 12, color: "var(--accent)" }}>{uploadedFiles.length || 1} {uploadedFiles.length === 1 ? "file" : "files"}</span>
-        </div>
-
-        <div className="bill-file-list">
-          {uploadedFiles.length > 0 ? (
-            uploadedFiles.map((f, i) => (
-              <div key={i} className="bill-file-item">
-                <span className="bill-file-name">{f.name}</span>
-                <span className="bill-file-meta">{f.pages || 1} {f.pages === 1 ? "pg" : "pgs"}</span>
-              </div>
-            ))
-          ) : (
-            <div className="bill-file-item">
-              <span className="bill-file-name">{job.fileName}</span>
-              <span className="bill-file-meta">{job.pages} pgs</span>
-            </div>
-          )}
-        </div>
-
-        <div className="bill-spec-grid">
-          <div className="bill-spec-box">
-            <span className="bill-spec-label">Print Option</span>
-            <span className="bill-spec-val">{pricing.optionLabel} (₹{pricing.optionRate.toFixed(2)} / page)</span>
-          </div>
-          <div className="bill-spec-box">
-            <span className="bill-spec-label">Print Side</span>
-            <span className="bill-spec-val">{pricing.sideLabel} (₹{pricing.unitRate.toFixed(2)} / sheet)</span>
-          </div>
-          <div className="bill-spec-box">
-            <span className="bill-spec-label">Paper &amp; Orientation</span>
-            <span className="bill-spec-val">{job.paper} ({job.paperStock || "Regular"}) · {job.orientation ?? "Portrait"}</span>
-          </div>
-          <div className="bill-spec-box">
-            <span className="bill-spec-label">Print Quality</span>
-            <span className="bill-spec-val">{job.printQuality || "Standard"}</span>
-          </div>
-          <div className="bill-spec-box">
-            <span className="bill-spec-label">Number of Copies</span>
-            <span className="bill-spec-val">{job.copies} {job.copies === 1 ? "copy" : "copies"}</span>
-          </div>
-          <div className="bill-spec-box">
-            <span className="bill-spec-label">Finishing / Binding</span>
-            <span className="bill-spec-val">{job.bindingOption === "spiral" ? "Spiral Binding" : job.bindingOption === "staple-left" ? "Staple (Top Left)" : job.bindingOption === "staple-right" ? "Staple (Top Right)" : "No Binding"}</span>
-          </div>
-        </div>
-
-        {job.specialInstructions && (
-          <div style={{ marginTop: 10, padding: "8px 12px", background: "rgba(244, 215, 121, 0.06)", borderRadius: 8, fontSize: 12, border: "1px dashed rgba(244, 215, 121, 0.25)" }}>
-            <strong style={{ color: "var(--accent)" }}>Special Instructions: </strong>
-            <span style={{ color: "var(--text-secondary)" }}>{job.specialInstructions}</span>
-          </div>
-        )}
-      </section>
-
-      {/* 3. Complete Bill Breakdown & 4. Final Payable Amount */}
-      <section className="bill-card" aria-labelledby="bill-breakdown-heading" style={{ marginBottom: 20 }}>
+      {/* 1. Bill Breakdown */}
+      <section className="bill-card" aria-labelledby="bill-breakdown-heading" style={{ marginBottom: 16 }}>
         <div className="bill-card-title">
           <span id="bill-breakdown-heading">Bill Breakdown</span>
           <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Taxes Included</span>
@@ -3334,6 +3158,109 @@ function Checkout({
             <span className="bill-total-price">₹{grandTotal.toFixed(2)}</span>
           </div>
         </div>
+      </section>
+
+      
+
+{/* 2. Document Details */}
+      <section className="bill-card" aria-labelledby="bill-details-heading" style={{ marginBottom: 16 }}>
+        <div className="bill-card-title">
+          <span id="bill-details-heading">Document Details</span>
+          <span style={{ fontSize: 12, color: "var(--accent)" }}>{uploadedFiles.length || 1} {uploadedFiles.length === 1 ? "file" : "files"}</span>
+        </div>
+
+        <div className="bill-file-list">
+          {uploadedFiles.length > 0 ? (
+            uploadedFiles.map((f, i) => (
+              <div key={i} className="bill-file-item">
+                <span className="bill-file-name">{f.name}</span>
+                <span className="bill-file-meta">{f.pages || 1} {f.pages === 1 ? "pg" : "pgs"}</span>
+              </div>
+            ))
+          ) : (
+            <div className="bill-file-item">
+              <span className="bill-file-name">{job.fileName}</span>
+              <span className="bill-file-meta">{job.pages} pgs</span>
+            </div>
+          )}
+        </div>
+
+        <div className="bill-spec-grid">
+          <div className="bill-spec-box">
+            <span className="bill-spec-label">Print Option</span>
+            <span className="bill-spec-val">{pricing.optionLabel} (₹{pricing.optionRate.toFixed(2)} / page)</span>
+          </div>
+          <div className="bill-spec-box">
+            <span className="bill-spec-label">Print Side</span>
+            <span className="bill-spec-val">{pricing.sideLabel} (₹{pricing.unitRate.toFixed(2)} / sheet)</span>
+          </div>
+          <div className="bill-spec-box">
+            <span className="bill-spec-label">Paper &amp; Orientation</span>
+            <span className="bill-spec-val">{job.paper} ({job.paperStock || "Regular"}) · {job.orientation ?? "Portrait"}</span>
+          </div>
+          <div className="bill-spec-box">
+            <span className="bill-spec-label">Number of Copies</span>
+            <span className="bill-spec-val">{job.copies} {job.copies === 1 ? "copy" : "copies"}</span>
+          </div>
+          <div className="bill-spec-box">
+            <span className="bill-spec-label">Finishing / Binding</span>
+            <span className="bill-spec-val">{job.bindingOption === "spiral" ? "Spiral Binding" : job.bindingOption === "staple-left" ? "Staple (Top Left)" : job.bindingOption === "staple-right" ? "Staple (Top Right)" : "No Binding"}</span>
+          </div>
+        </div>
+
+        {job.specialInstructions && (
+          <div style={{ marginTop: 10, padding: "8px 12px", background: "rgba(244, 215, 121, 0.06)", borderRadius: 8, fontSize: 12, border: "1px dashed rgba(244, 215, 121, 0.25)" }}>
+            <strong style={{ color: "var(--accent)" }}>Special Instructions: </strong>
+            <span style={{ color: "var(--text-secondary)" }}>{job.specialInstructions}</span>
+          </div>
+        )}
+      </section>
+
+      
+
+      {/* 3. Live Print Queue Status */}
+      <section className="bill-card" aria-labelledby="bill-queue-heading" style={{ marginBottom: 20 }}>
+        <div className="bill-card-title">
+          <span id="bill-queue-heading">Live Print Queue Status</span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>
+            {queueMetrics.isPrinterActive ? "Printer Active (FIFO)" : "Printer Idle"}
+          </span>
+        </div>
+        <div className="bill-line-rows">
+          <div className="bill-line-row">
+            <span style={{ color: "var(--text-secondary)" }}>Currently Printing</span>
+            <span style={{ color: "var(--accent)", fontWeight: 700 }}>
+              {queueMetrics.currentlyPrinting ? `Token ${queueMetrics.currentlyPrinting.token}` : "None (Printer Ready)"}
+            </span>
+          </div>
+          {queueMetrics.currentlyPrinting && (
+            <div className="bill-line-row">
+              <span style={{ color: "var(--text-secondary)" }}>Current Order Details</span>
+              <span style={{ color: "var(--text)", fontSize: 12 }}>
+                {queueMetrics.currentlyPrinting.fileName} ({queueMetrics.currentlyPrinting.details})
+              </span>
+            </div>
+          )}
+          <div className="bill-line-row">
+            <span style={{ color: "var(--text-secondary)" }}>Your Token (Upon Confirmation)</span>
+            <span style={{ color: "var(--text)", fontWeight: 700 }}>Next Available</span>
+          </div>
+          <div className="bill-line-row">
+            <span style={{ color: "var(--text-secondary)" }}>Orders Ahead of You</span>
+            <span style={{ color: "var(--text)" }}>{queueMetrics.ordersAhead} {queueMetrics.ordersAhead === 1 ? "order" : "orders"}</span>
+          </div>
+          <div className="bill-line-row">
+            <span style={{ color: "var(--text-secondary)" }}>Estimated Waiting Time</span>
+            <span style={{ color: "var(--accent)", fontWeight: 600 }}>{queueMetrics.waitFormatted}</span>
+          </div>
+          <div className="bill-line-row">
+            <span style={{ color: "var(--text-secondary)" }}>Current Order Progress</span>
+            <span style={{ color: "var(--status-ready)", fontWeight: 600 }}>Ready to Queue</span>
+          </div>
+        </div>
+        <p style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic", margin: "10px 0 0", lineHeight: 1.5 }}>
+          Estimated wait calculated dynamically based on queue depth & page volume. Not a guaranteed time.
+        </p>
       </section>
 
       {paymentState === "processing" && (
@@ -3537,14 +3464,14 @@ function Token({
   onCancelOrder: () => boolean;
   onSetStage?: (status: ActiveOrder["status"]) => void;
 }) {
-  const [now, setNow] = useState(() => Date.now());
+  const [queueMetrics, setQueueMetrics] = useState(() => printQueueManager.getQueueMetricsForToken(order?.token));
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
-    return () => window.clearInterval(interval);
-  }, []);
+    const unsub = printQueueManager.subscribe(() => {
+      setQueueMetrics(printQueueManager.getQueueMetricsForToken(order?.token));
+    });
+    return unsub;
+  }, [order?.token]);
 
   if (!order) {
     return (
@@ -3560,33 +3487,37 @@ function Token({
   const job = order.job;
   const isCancelled = order.status === "cancelled";
 
-  // Automatic prototype progress animation every 5.5s (5500ms) without restarting on revisit
-  const elapsed = Math.max(0, now - (order.createdAt || now));
-  const autoStageIndex = Math.min(4, Math.floor(elapsed / 5500));
-  const currentStageIndex = isCancelled ? -1 : autoStageIndex;
+  // Derive order status directly from shared FIFO Queue Engine
+  const queueStatus = queueMetrics.userOrderStatus || (isCancelled ? "cancelled" : "waiting");
+  
+  // Map queue status to ActiveOrder status stages:
+  // "waiting" -> "queued", "printing" -> "printing", "ready" -> "ready", "completed" -> "completed"
+  const mappedStatus: ActiveOrder["status"] = isCancelled
+    ? "cancelled"
+    : queueStatus === "waiting"
+    ? "queued"
+    : queueStatus === "printing"
+    ? "printing"
+    : queueStatus === "ready"
+    ? "ready"
+    : queueStatus === "completed"
+    ? "completed"
+    : "queued";
+
+  // Automatically sync to parent state if updated in queue
+  useEffect(() => {
+    if (!isCancelled && onSetStage && order.status !== mappedStatus) {
+      onSetStage(mappedStatus);
+    }
+  }, [mappedStatus, isCancelled, onSetStage, order.status]);
 
   const stageKeys: ActiveOrder["status"][] = ["confirmed", "queued", "printing", "ready", "completed"];
-  const derivedStatus = isCancelled ? "cancelled" : stageKeys[currentStageIndex];
+  const currentStageIndex = isCancelled ? -1 : stageKeys.indexOf(mappedStatus);
 
-  // Sync stage to parent if changed
-  useEffect(() => {
-    if (!isCancelled && onSetStage && order.status !== derivedStatus) {
-      onSetStage(derivedStatus);
-    }
-  }, [derivedStatus, isCancelled, onSetStage, order.status]);
-
-  const isCompleted = currentStageIndex === 4;
-  const isReady = currentStageIndex === 3;
-  const canCancel = !isCancelled && currentStageIndex < 2;
-
-  const orderEstimate = calculateEstimatedReadyTime({
-    pages: job.pages,
-    copies: job.copies,
-    colour: job.colour,
-    singleSided: job.singleSided,
-    paper: job.paper,
-    paperStock: job.paperStock,
-  });
+  const isCompleted = mappedStatus === "completed";
+  const isReady = mappedStatus === "ready";
+  const isPrinting = mappedStatus === "printing";
+  const canCancel = !isCancelled && currentStageIndex <= 1;
 
   const stages: { key: string; title: string; desc: React.ReactNode }[] = [
     {
@@ -3596,21 +3527,23 @@ function Token({
     },
     {
       key: "queued",
-      title: "Queued",
-      desc: `Assigned to queue (Printer #2) · Est. ${orderEstimate.readyTimeFormatted}`,
+      title: "Queued (FIFO)",
+      desc: queueMetrics.ordersAhead > 0
+        ? `${queueMetrics.ordersAhead} ${queueMetrics.ordersAhead === 1 ? "order" : "orders"} ahead of you in queue`
+        : "Next in line to print",
     },
     {
       key: "printing",
       title: "Printing",
       desc: (
         <span>
-          Printing {job.pages} pages × {job.copies} copies ({job.colour ? "Colour" : "B&W"})
-          {currentStageIndex === 2 && (
-            <span className="track-printing-indicator">
+          Printing {job.pages} pages × {job.copies} {job.copies > 1 ? "copies" : "copy"} ({job.colour ? "Colour" : "B&W"})
+          {isPrinting && (
+            <span className="track-printing-indicator" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
               <span className="printing-dot-wave">
                 <span /><span /><span />
               </span>
-              <span>Printing in progress…</span>
+              <span style={{ color: "var(--accent)", fontWeight: 600 }}>Printing on Printer #1...</span>
             </span>
           )}
         </span>
@@ -3624,7 +3557,7 @@ function Token({
     {
       key: "completed",
       title: "Completed",
-      desc: "Order completed & collected from shop counter",
+      desc: "Order collected & verified from counter",
     },
   ];
 
@@ -3637,11 +3570,11 @@ function Token({
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
-        <h1 className="bill-header-title">Order Tracking</h1>
+        <h1 className="bill-header-title">Live Order & Queue Tracking</h1>
       </div>
 
       {/* Prominent Token Banner */}
-      <div className="track-token-banner">
+      <div className="track-token-banner" style={{ marginBottom: 16 }}>
         <TrackingStatusIllustration stageIndex={currentStageIndex} />
         <span className="track-token-eyebrow">Pickup Token</span>
         <strong className="track-token-code">{order.token}</strong>
@@ -3650,12 +3583,68 @@ function Token({
         </span>
       </div>
 
+      {/* Live Print Queue Status Section */}
+      <section className="bill-card" aria-labelledby="token-queue-heading" style={{ marginBottom: 16 }}>
+        <div className="bill-card-title">
+          <span id="token-queue-heading">Live Print Queue</span>
+          <span style={{ fontSize: 11, color: "var(--accent)", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }} />
+            FIFO Active
+          </span>
+        </div>
+        <div className="bill-line-rows">
+          <div className="bill-line-row">
+            <span style={{ color: "var(--text-secondary)" }}>Currently Printing</span>
+            <strong style={{ color: "var(--accent)" }}>
+              {queueMetrics.currentlyPrinting ? `Token ${queueMetrics.currentlyPrinting.token}` : "None (Idle)"}
+            </strong>
+          </div>
+          {queueMetrics.currentlyPrinting && (
+            <div className="bill-line-row">
+              <span style={{ color: "var(--text-secondary)" }}>Current Order Details</span>
+              <span style={{ color: "var(--text)", fontSize: 12 }}>
+                {queueMetrics.currentlyPrinting.fileName} ({queueMetrics.currentlyPrinting.details})
+              </span>
+            </div>
+          )}
+          <div className="bill-line-row">
+            <span style={{ color: "var(--text-secondary)" }}>Your Token Number</span>
+            <strong style={{ color: "var(--text)" }}>{order.token}</strong>
+          </div>
+          <div className="bill-line-row">
+            <span style={{ color: "var(--text-secondary)" }}>Orders Ahead of You</span>
+            <span style={{ color: "var(--text)", fontWeight: 600 }}>
+              {queueMetrics.ordersAhead} {queueMetrics.ordersAhead === 1 ? "order" : "orders"}
+            </span>
+          </div>
+          <div className="bill-line-row">
+            <span style={{ color: "var(--text-secondary)" }}>Estimated Waiting Time</span>
+            <strong style={{ color: isReady || isCompleted ? "var(--status-ready)" : "var(--accent)" }}>
+              {isCompleted ? "Completed" : isReady ? "Ready Now!" : isPrinting ? "Printing now..." : queueMetrics.waitFormatted}
+            </strong>
+          </div>
+          <div className="bill-line-row">
+            <span style={{ color: "var(--text-secondary)" }}>Current Order Progress</span>
+            <span style={{
+              color: isCompleted || isReady ? "var(--status-ready)" : isPrinting ? "var(--accent)" : "var(--text-secondary)",
+              fontWeight: 700,
+              textTransform: "capitalize"
+            }}>
+              {isCancelled ? "Cancelled" : mappedStatus === "queued" ? "Waiting" : mappedStatus === "ready" ? "Ready for Collection" : mappedStatus}
+            </span>
+          </div>
+        </div>
+        <p style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic", margin: "10px 0 0", lineHeight: 1.5 }}>
+          Queue is shared and processed strictly in FIFO order. Waiting time is an estimate calculated from total pages and color settings.
+        </p>
+      </section>
+
       {/* Callout if Ready */}
       {isReady && (
-        <div className="track-pickup-callout" role="alert">
+        <div className="track-pickup-callout" role="alert" style={{ marginBottom: 16 }}>
           <span style={{ fontSize: 20 }}>🎉</span>
           <div>
-            <strong>Ready for Pickup Now!</strong>
+            <strong>Ready for Collection Now!</strong>
             <div style={{ fontSize: 12, marginTop: 2 }}>
               Collect your prints at Campus Central Counter with Token <strong>{order.token}</strong>.
             </div>
@@ -3665,7 +3654,7 @@ function Token({
 
       {/* Callout if Completed */}
       {isCompleted && (
-        <div className="track-pickup-callout" style={{ background: "rgba(167, 232, 189, 0.2)", borderColor: "var(--status-ready)", color: "var(--text)" }}>
+        <div className="track-pickup-callout" style={{ background: "rgba(167, 232, 189, 0.2)", borderColor: "var(--status-ready)", color: "var(--text)", marginBottom: 16 }}>
           <span style={{ fontSize: 20, color: "var(--status-ready)" }}>✓</span>
           <div>
             <strong style={{ color: "var(--status-ready)" }}>Order Completed!</strong>
@@ -3678,7 +3667,7 @@ function Token({
 
       {/* Callout if Cancelled */}
       {isCancelled && (
-        <div className="track-pickup-callout" style={{ background: "rgba(244, 63, 94, 0.12)", borderColor: "#F43F5E", color: "#F43F5E" }}>
+        <div className="track-pickup-callout" style={{ background: "rgba(244, 63, 94, 0.12)", borderColor: "#F43F5E", color: "#F43F5E", marginBottom: 16 }}>
           <span style={{ fontSize: 20 }}>✕</span>
           <div>
             <strong>Order Cancelled</strong>
@@ -3687,34 +3676,10 @@ function Token({
         </div>
       )}
 
-      {/* Estimated completion card */}
-      {!isCancelled && !isCompleted && (
-        <div className="checkout-eta-large-card" style={{ marginBottom: 16 }} role="status">
-          <div className="checkout-eta-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          </div>
-          <div className="checkout-eta-content">
-            <div className="checkout-eta-top">
-              <span className="checkout-eta-label">Estimated Ready Time</span>
-              <span className="checkout-eta-badge">Shop 9:30 AM – 5:00 PM</span>
-            </div>
-            <strong className="checkout-eta-value">
-              {isReady ? "Ready Now at Shelf A-2" : orderEstimate.primaryText}
-            </strong>
-            <p className="checkout-eta-desc">
-              {isReady ? "Collect at Campus Central Counter" : `${orderEstimate.subText} · ${orderEstimate.totalPages} total pages`}
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* 5-Stage Step Card */}
       <section className="track-stages-card" aria-label="5-Stage progress tracker">
         <h2 style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", margin: "0 0 16px" }}>
-          Print Progress
+          Order Lifecycle
         </h2>
 
         {stages.map((stage, idx) => {
@@ -3747,35 +3712,36 @@ function Token({
       </section>
 
       {/* Actions */}
-      <div className="track-actions-bar">
+      <div className="track-actions-bar" style={{ marginTop: 16 }}>
         {canCancel && !isCancelled && (
           <button
             type="button"
             className="track-action-btn"
             style={{ color: "#F43F5E", borderColor: "rgba(244, 63, 94, 0.3)" }}
             onClick={() => {
-              if (window.confirm("Cancel this print order?")) {
+              if (window.confirm("Are you sure you want to cancel this print order?")) {
                 onCancelOrder();
+                try {
+                  printQueueManager.updateOrderStatus(order.recordId, "cancelled");
+                } catch {}
               }
             }}
           >
             Cancel Order
           </button>
         )}
-
         <button
           type="button"
-          className="track-action-btn primary"
+          className="bill-pay-btn"
+          style={{ width: "100%" }}
           onClick={() => go("home")}
         >
-          Return to Home
+          Back to Home
         </button>
       </div>
     </main>
   );
 }
-
-
 function Notifications({
   go,
   items,
@@ -4321,6 +4287,20 @@ export default function App() {
     const createdAt = Date.now();
     const newOrder: ActiveOrder = { recordId, token, job, status: "confirmed", createdAt };
     setActiveOrder(newOrder);
+    try {
+      const qTotalPages = uploadedFiles.length > 0 ? uploadedFiles.reduce((sum, f) => sum + (f.pages || 1), 0) : (job.pages || 1);
+      printQueueManager.addOrder({
+        id: recordId,
+        token: token,
+        fileName: job.fileName || "Document.pdf",
+        totalPages: qTotalPages,
+        copies: job.copies || 1,
+        colour: Boolean(job.colour),
+        paperStock: job.paperStock || "Regular",
+        userEmail: authSession?.email,
+        userName: authSession?.name,
+      });
+    } catch {}
     setPrintHistory((records) => [{ id: recordId, token, job, submittedAt: new Date().toISOString(), status: "confirmed", createdAt }, ...records]);
     setHasDocument(false);
     setUploadedFiles([]);

@@ -15,10 +15,15 @@ export default function AdminMasterControl({
   adminUser: { uid: string; email: string; name: string };
   onOrderUpdated?: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState<"overview" | "orders" | "users" | "controls" | "audit">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "orders" | "users" | "pricing" | "controls" | "audit">("overview");
   const [is2FAVerified, setIs2FAVerified] = useState(() => securityEngine.hasVerifiedAdminSession());
-  const [totpInput, setTotpInput] = useState("");
-  const [totpError, setTotpError] = useState("");
+  
+  // Master Control Login Inputs
+  const [adminNameInput, setAdminNameInput] = useState("Vipul");
+  const [adminMobileInput, setAdminMobileInput] = useState("7096447726");
+  const [adminPinInput, setAdminPinInput] = useState("");
+  const [showPin, setShowPin] = useState(false);
+  const [loginError, setLoginError] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
 
   // Live Admin Data
@@ -35,8 +40,12 @@ export default function AdminMasterControl({
     };
   } | null>(null);
 
+  // Paper & Pricing Management
+  const [paperPricing, setPaperPricing] = useState(() => securityEngine.getPaperPricing());
+  const [pricingEdited, setPricingEdited] = useState(false);
+
   // Filters & State
-  const [orderFilter, setOrderFilter] = useState<"all" | "active" | "ready" | "completed">("all");
+  const [orderFilter, setOrderFilter] = useState<"all" | "active" | "ready" | "completed" | "cancelled">("all");
   const [searchOrder, setSearchOrder] = useState("");
   const [delayModalOrderId, setDelayModalOrderId] = useState<string | null>(null);
   const [delayReason, setDelayReason] = useState("");
@@ -53,6 +62,7 @@ export default function AdminMasterControl({
       if (securityEngine.hasVerifiedAdminSession()) {
         const data = securityEngine.getAdminMasterData();
         setAdminData(data);
+        setPaperPricing(securityEngine.getPaperPricing());
       }
     } catch (e: any) {
       console.error("Admin data load error:", e);
@@ -65,20 +75,35 @@ export default function AdminMasterControl({
     }
   }, [is2FAVerified]);
 
-  // Handle 2FA Verification
-  const handleVerify2FA = async (e: React.FormEvent) => {
+  // Handle Master Control Login Form Submission
+  const handleMasterControlLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!totpInput.trim()) return;
+    const domName = (document.getElementById("admin-name-input") as HTMLInputElement)?.value?.trim();
+    const domMobile = (document.getElementById("admin-mobile-input") as HTMLInputElement)?.value?.trim();
+    const domPin = (document.getElementById("admin-pin-input") as HTMLInputElement)?.value?.trim();
+
+    const nameVal = domName || adminNameInput.trim() || "";
+    const mobileVal = domMobile || adminMobileInput.trim() || "";
+    const pinVal = domPin || adminPinInput.trim() || "";
+
+    if (!nameVal || !mobileVal || !pinVal) {
+      setLoginError("Please enter administrator name, mobile number, and PIN.");
+      return;
+    }
     setIsVerifying(true);
-    setTotpError("");
+    setLoginError("");
 
     try {
-      await securityEngine.verifyAdminStepUp(totpInput.trim());
+      await securityEngine.verifyMasterControlLogin(
+        nameVal,
+        mobileVal,
+        pinVal
+      );
       setIs2FAVerified(true);
       loadData();
-      showToast("✓ Administrator 2FA verified. Master session active.");
+      showToast("✓ Master Control access granted. Welcome, Vipul.");
     } catch (err: any) {
-      setTotpError(err.message || "Invalid Admin verification code.");
+      setLoginError(err.message || "Access Denied: Verification failed.");
     } finally {
       setIsVerifying(false);
     }
@@ -107,6 +132,18 @@ export default function AdminMasterControl({
     }
   };
 
+  // Save Pricing Changes
+  const handleSavePricing = () => {
+    try {
+      securityEngine.updatePaperPricing(paperPricing.stocks, paperPricing.sizes);
+      setPricingEdited(false);
+      showToast("✓ Paper rates and surcharges saved successfully.");
+      loadData();
+    } catch (err: any) {
+      showToast(`Error saving pricing: ${err.message}`);
+    }
+  };
+
   const filteredOrders = useMemo(() => {
     if (!adminData) return [];
     return adminData.orders.filter((o) => {
@@ -116,6 +153,8 @@ export default function AdminMasterControl({
         if (o.status !== "ready") return false;
       } else if (orderFilter === "completed") {
         if (o.status !== "completed") return false;
+      } else if (orderFilter === "cancelled") {
+        if (o.status !== "cancelled") return false;
       }
       if (searchOrder.trim()) {
         const q = searchOrder.toLowerCase();
@@ -131,7 +170,7 @@ export default function AdminMasterControl({
   }, [adminData, orderFilter, searchOrder]);
 
   // ===========================================================================
-  // 1. STEP-UP 2FA CHALLENGE SCREEN
+  // 1. RESTRICTED MASTER CONTROL LOGIN SCREEN
   // ===========================================================================
   if (!is2FAVerified) {
     return (
@@ -145,31 +184,89 @@ export default function AdminMasterControl({
           </div>
 
           <span className="admin-lock-eyebrow">RESTRICTED ZONE</span>
-          <h1 className="admin-lock-title">Admin Master Control</h1>
+          <h1 className="admin-lock-title">Master Control Access</h1>
           <p className="admin-lock-desc">
-            Signed in as <strong>{adminUser.email}</strong>.<br />
-            Enter your secondary verification factor (Master Key or 6-digit TOTP code) to unlock campus controls.
+            Authorized administrator credentials required. Only the registered application owner may enter.
           </p>
 
-          <form onSubmit={handleVerify2FA} className="admin-2fa-form">
-            <label htmlFor="admin-totp-input" className="admin-form-label">
-              Administrator Security Key
-            </label>
-            <input
-              id="admin-totp-input"
-              type="password"
-              className="admin-form-input"
-              placeholder="Enter Master Key or 6-digit TOTP"
-              value={totpInput}
-              onChange={(e) => setTotpInput(e.target.value)}
-              autoFocus
-              required
-            />
+          <form onSubmit={handleMasterControlLogin} className="admin-2fa-form">
+            {/* 1. Admin Name */}
+            <div style={{ marginBottom: 12 }}>
+              <label htmlFor="admin-name-input" className="admin-form-label">
+                Administrator Name
+              </label>
+              <input
+                id="admin-name-input"
+                type="text"
+                className="admin-form-input"
+                placeholder="Enter administrator name (e.g. Vipul)"
+                value={adminNameInput}
+                onChange={(e) => setAdminNameInput(e.target.value)}
+                autoComplete="name"
+                required
+              />
+            </div>
 
-            {totpError && <p className="admin-form-error" role="alert">{totpError}</p>}
+            {/* 2. Registered Mobile Number */}
+            <div style={{ marginBottom: 12 }}>
+              <label htmlFor="admin-mobile-input" className="admin-form-label">
+                Registered Mobile Number
+              </label>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-secondary)", padding: "10px 12px", background: "var(--surface-raised)", border: "1px solid var(--border)", borderRadius: 10 }}>
+                  +91
+                </span>
+                <input
+                  id="admin-mobile-input"
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  className="admin-form-input"
+                  placeholder="10-digit mobile number (e.g. 7096447726)"
+                  value={adminMobileInput}
+                  onChange={(e) => setAdminMobileInput(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  autoComplete="tel-national"
+                  required
+                />
+              </div>
+            </div>
 
-            <button type="submit" className="admin-primary-btn" disabled={isVerifying} style={{ marginTop: 12 }}>
-              {isVerifying ? "Verifying Credentials…" : "Unlock Master Control"}
+            {/* 3. Secondary Verification PIN */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <label htmlFor="admin-pin-input" className="admin-form-label" style={{ margin: 0 }}>
+                  Secondary Verification PIN
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  style={{ background: "transparent", border: "none", color: "var(--text-secondary)", fontSize: 12, cursor: "pointer" }}
+                >
+                  {showPin ? "Hide PIN" : "Show PIN"}
+                </button>
+              </div>
+              <input
+                id="admin-pin-input"
+                type={showPin ? "text" : "password"}
+                inputMode="numeric"
+                maxLength={6}
+                className="admin-form-input"
+                placeholder="Enter 4-digit PIN (demo: 0000)"
+                value={adminPinInput}
+                onChange={(e) => setAdminPinInput(e.target.value)}
+                autoFocus
+                required
+              />
+            </div>
+
+            {loginError && (
+              <div className="admin-form-error" role="alert" style={{ marginBottom: 14 }}>
+                ⚠️ {loginError}
+              </div>
+            )}
+
+            <button type="submit" className="admin-primary-btn" disabled={isVerifying}>
+              {isVerifying ? "Verifying Administrator Credentials…" : "Authenticate & Open Master Control"}
             </button>
 
             <button type="button" className="admin-secondary-btn" onClick={onBack} style={{ marginTop: 10 }}>
@@ -202,11 +299,11 @@ export default function AdminMasterControl({
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span className="admin-badge-pill">Master Control</span>
-            <span style={{ fontSize: 11, color: "var(--status-ready)", fontWeight: 700 }}>● Live Auth Active</span>
+            <span style={{ fontSize: 11, color: "var(--status-ready)", fontWeight: 700 }}>● Live Owner Session</span>
           </div>
           <h1 className="admin-title">Campus Print Operations</h1>
           <p className="admin-subtitle">
-            Admin: <strong>{adminUser.email}</strong> · UID: <code style={{ fontSize: 11 }}>{adminUser.uid}</code>
+            Admin: <strong>Vipul (7096447726)</strong> · UID: <code style={{ fontSize: 11 }}>admin-vipul-khunti-02</code>
           </p>
         </div>
 
@@ -217,7 +314,7 @@ export default function AdminMasterControl({
             onClick={() => {
               securityEngine.endAdminSession();
               setIs2FAVerified(false);
-              showToast("Admin session locked.");
+              showToast("Master Control session locked.");
             }}
             title="Lock Admin Session"
           >
@@ -265,6 +362,15 @@ export default function AdminMasterControl({
         <button
           type="button"
           role="tab"
+          aria-selected={activeTab === "pricing"}
+          className={`admin-nav-tab${activeTab === "pricing" ? " is-active" : ""}`}
+          onClick={() => setActiveTab("pricing")}
+        >
+          📜 Paper & Pricing
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={activeTab === "controls"}
           className={`admin-nav-tab${activeTab === "controls" ? " is-active" : ""}`}
           onClick={() => setActiveTab("controls")}
@@ -278,7 +384,7 @@ export default function AdminMasterControl({
           className={`admin-nav-tab${activeTab === "audit" ? " is-active" : ""}`}
           onClick={() => setActiveTab("audit")}
         >
-          📜 Audit Log
+          🛡 Audit Trail
         </button>
       </nav>
 
@@ -305,7 +411,7 @@ export default function AdminMasterControl({
               <strong className="admin-kpi-val" style={{ color: "var(--text)" }}>
                 {adminData.metrics.totalUsers}
               </strong>
-              <small className="admin-kpi-sub">Verified Google accounts</small>
+              <small className="admin-kpi-sub">Verified accounts</small>
             </div>
             <div className="admin-kpi-card">
               <span className="admin-kpi-label">Campus Revenue</span>
@@ -349,121 +455,96 @@ export default function AdminMasterControl({
         </section>
       )}
 
-      {/* TAB 2: MASTER PRINT ORDERS QUEUE */}
-      {activeTab === "orders" && (
+      {/* TAB 2: LIVE ORDERS MANAGEMENT */}
+      {activeTab === "orders" && adminData && (
         <section className="admin-tab-content">
           <div className="admin-toolbar">
-            <div className="admin-filter-pills">
-              <button
-                type="button"
-                className={`admin-filter-pill${orderFilter === "all" ? " is-active" : ""}`}
-                onClick={() => setOrderFilter("all")}
-              >
-                All Orders ({adminData?.orders.length ?? 0})
-              </button>
-              <button
-                type="button"
-                className={`admin-filter-pill${orderFilter === "active" ? " is-active" : ""}`}
-                onClick={() => setOrderFilter("active")}
-              >
-                In Progress ({adminData?.metrics.activeQueue ?? 0})
-              </button>
-              <button
-                type="button"
-                className={`admin-filter-pill${orderFilter === "ready" ? " is-active" : ""}`}
-                onClick={() => setOrderFilter("ready")}
-              >
-                Ready for Pickup
-              </button>
-              <button
-                type="button"
-                className={`admin-filter-pill${orderFilter === "completed" ? " is-active" : ""}`}
-                onClick={() => setOrderFilter("completed")}
-              >
-                Collected
-              </button>
+            <div className="admin-filter-chips">
+              {(["all", "active", "ready", "completed", "cancelled"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  className={`admin-chip${orderFilter === f ? " is-active" : ""}`}
+                  onClick={() => setOrderFilter(f)}
+                >
+                  {f.toUpperCase()}
+                </button>
+              ))}
             </div>
 
-            <input
-              type="search"
-              className="admin-search-input"
-              placeholder="Search token (e.g. K-47), student email, file…"
-              value={searchOrder}
-              onChange={(e) => setSearchOrder(e.target.value)}
-            />
+            <div className="admin-search-box">
+              <input
+                type="text"
+                placeholder="Search token, user, or file…"
+                value={searchOrder}
+                onChange={(e) => setSearchOrder(e.target.value)}
+                className="admin-search-input"
+              />
+            </div>
           </div>
 
           {filteredOrders.length === 0 ? (
-            <div className="admin-empty-state">
-              <p>No orders found matching the filter.</p>
-            </div>
+            <div className="admin-empty-state">No matching print orders found.</div>
           ) : (
-            <div className="admin-orders-list">
+            <div className="admin-orders-grid">
               {filteredOrders.map((order) => (
                 <article key={order.id} className="admin-order-card">
-                  <div className="admin-order-header">
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span className="history-token-pill">{order.token}</span>
+                  <div className="admin-order-top">
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span className="admin-order-token">{order.token}</span>
                       <div>
-                        <strong className="admin-order-name">{order.job.fileName}</strong>
-                        <div className="admin-order-meta">
-                          <span>{order.userName} ({order.userEmail})</span>
-                          <span>· UID: <code>{order.userId.slice(0, 10)}…</code></span>
-                        </div>
+                        <strong style={{ color: "var(--text)", fontSize: 13, display: "block" }}>
+                          {order.job.fileName}
+                        </strong>
+                        <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                          {order.userName} ({order.userEmail})
+                        </span>
                       </div>
                     </div>
                     <span className={`history-status-badge ${order.status}`}>{order.status}</span>
                   </div>
 
-                  <div className="admin-order-specs">
-                    <span>{order.job.pages} pgs × {order.job.copies} {order.job.copies === 1 ? "copy" : "copies"}</span>
-                    <span>{order.job.colour ? "Full Colour" : "B&W"}</span>
-                    <span>{order.job.singleSided ? "1-Sided" : "2-Sided Duplex"}</span>
-                    <span>{order.job.paperStock || "Standard Paper"}</span>
+                  <div className="admin-order-meta">
+                    <span>
+                      {order.job.pages} pgs · {order.job.copies} cp · {order.job.colour ? "Colour" : "B&W"} · {order.job.paper || "A4"}
+                    </span>
                     <strong style={{ color: "var(--accent)" }}>₹{order.totalAmount.toFixed(2)}</strong>
                   </div>
 
                   {order.delayReason && (
-                    <div className="admin-order-delay-notice">
+                    <div className="admin-order-note">
                       ⚠️ Delay Note: {order.delayReason}
                     </div>
                   )}
 
-                  {/* Master Status Controls */}
                   <div className="admin-order-actions">
-                    <span style={{ fontSize: 11, color: "var(--text-muted)", alignSelf: "center" }}>Set Status:</span>
-                    <button
-                      type="button"
-                      className="admin-btn-action"
-                      disabled={order.status === "queued"}
-                      onClick={() => handleStatusChange(order.id, "queued")}
-                    >
-                      Queued
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-btn-action"
-                      disabled={order.status === "printing"}
-                      onClick={() => handleStatusChange(order.id, "printing")}
-                    >
-                      Printing
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-btn-action ready"
-                      disabled={order.status === "ready"}
-                      onClick={() => handleStatusChange(order.id, "ready")}
-                    >
-                      ✓ Ready for Pickup
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-btn-action complete"
-                      disabled={order.status === "completed"}
-                      onClick={() => handleStatusChange(order.id, "completed")}
-                    >
-                      Collected
-                    </button>
+                    {order.status !== "printing" && order.status !== "ready" && order.status !== "completed" && order.status !== "cancelled" && (
+                      <button
+                        type="button"
+                        className="admin-btn-action printing"
+                        onClick={() => handleStatusChange(order.id, "printing")}
+                      >
+                        Print Now
+                      </button>
+                    )}
+                    {order.status !== "ready" && order.status !== "completed" && order.status !== "cancelled" && (
+                      <button
+                        type="button"
+                        className="admin-btn-action ready"
+                        onClick={() => handleStatusChange(order.id, "ready")}
+                      >
+                        Mark Ready
+                      </button>
+                    )}
+                    {order.status === "ready" && (
+                      <button
+                        type="button"
+                        className="admin-btn-action ready"
+                        onClick={() => handleStatusChange(order.id, "completed")}
+                      >
+                        Collected ✓
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="admin-btn-action delay"
@@ -500,7 +581,7 @@ export default function AdminMasterControl({
                 Verified User Directory & Access Control
               </h3>
               <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
-                Total {adminData.users.length} registered campus profiles. Passwords are never stored; access controlled via Google OAuth2 UIDs.
+                Total {adminData.users.length} registered campus profiles. User data is strictly isolated per account.
               </p>
             </div>
 
@@ -509,6 +590,7 @@ export default function AdminMasterControl({
                 <thead>
                   <tr>
                     <th>User</th>
+                    <th>Verified Phone</th>
                     <th>Firebase UID</th>
                     <th>Role</th>
                     <th>Orders</th>
@@ -533,6 +615,15 @@ export default function AdminMasterControl({
                           </div>
                         </td>
                         <td>
+                          {u.phoneNumber ? (
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)" }}>
+                              {u.phoneNumber} {u.phoneVerified && "✓"}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Not required yet</span>
+                          )}
+                        </td>
+                        <td>
                           <code style={{ fontSize: 11, color: "var(--accent)" }}>{u.uid}</code>
                         </td>
                         <td>
@@ -547,7 +638,7 @@ export default function AdminMasterControl({
                           </span>
                         </td>
                         <td>
-                          {u.uid !== adminUser.uid ? (
+                          {u.uid !== "admin-vipul-khunti-02" && u.uid !== adminUser.uid ? (
                             <button
                               type="button"
                               className={`admin-toggle-user-btn ${u.isActive ? "danger" : "activate"}`}
@@ -556,7 +647,7 @@ export default function AdminMasterControl({
                               {u.isActive ? "Suspend" : "Activate"}
                             </button>
                           ) : (
-                            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Current Session</span>
+                            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Owner / Master</span>
                           )}
                         </td>
                       </tr>
@@ -569,7 +660,162 @@ export default function AdminMasterControl({
         </section>
       )}
 
-      {/* TAB 4: PRINT SHOP MASTER HARDWARE & QUEUE CONTROLS */}
+      {/* TAB 4: PAPER TYPES, SIZES & PRICING MANAGEMENT */}
+      {activeTab === "pricing" && (
+        <section className="admin-tab-content">
+          <div className="bill-card" style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
+                  Paper Stocks & Types Pricing (7 Types)
+                </h3>
+                <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
+                  Configure base rates and per-sheet surcharges for campus paper stocks.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="admin-header-action-btn primary"
+                onClick={handleSavePricing}
+              >
+                Save Pricing Changes
+              </button>
+            </div>
+
+            <div className="admin-table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Paper Stock</th>
+                    <th>Detail / GSM</th>
+                    <th>Displayed Price</th>
+                    <th>Surcharge (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paperPricing.stocks.map((stock, idx) => (
+                    <tr key={stock.id || idx}>
+                      <td>
+                        <strong>{stock.title}</strong>
+                      </td>
+                      <td style={{ color: "var(--text-secondary)", fontSize: 12 }}>{stock.detail}</td>
+                      <td>
+                        <input
+                          type="text"
+                          value={stock.price}
+                          onChange={(e) => {
+                            const updated = [...paperPricing.stocks];
+                            updated[idx] = { ...updated[idx], price: e.target.value };
+                            setPaperPricing({ ...paperPricing, stocks: updated });
+                            setPricingEdited(true);
+                          }}
+                          style={{
+                            width: 100,
+                            padding: "4px 8px",
+                            background: "var(--surface-raised)",
+                            border: "1px solid var(--border)",
+                            color: "var(--text)",
+                            borderRadius: 6,
+                            fontSize: 12,
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          value={stock.surcharge}
+                          onChange={(e) => {
+                            const updated = [...paperPricing.stocks];
+                            updated[idx] = { ...updated[idx], surcharge: parseFloat(e.target.value) || 0 };
+                            setPaperPricing({ ...paperPricing, stocks: updated });
+                            setPricingEdited(true);
+                          }}
+                          style={{
+                            width: 70,
+                            padding: "4px 8px",
+                            background: "var(--surface-raised)",
+                            border: "1px solid var(--border)",
+                            color: "var(--accent)",
+                            fontWeight: 700,
+                            borderRadius: 6,
+                            fontSize: 12,
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Paper Sizes */}
+          <div className="bill-card">
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
+              Paper Sizing Surcharges (4 Sizes)
+            </h3>
+            <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-secondary)" }}>
+              Standard campus submission dimensions and oversized sheet surcharges.
+            </p>
+            <div className="admin-table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Size</th>
+                    <th>Dimensions</th>
+                    <th>Per-Page Surcharge (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paperPricing.sizes.map((s, idx) => (
+                    <tr key={s.size}>
+                      <td>
+                        <strong style={{ color: "var(--accent)" }}>{s.size}</strong>
+                      </td>
+                      <td style={{ color: "var(--text-secondary)", fontSize: 12 }}>{s.dimensions}</td>
+                      <td>
+                        <input
+                          type="number"
+                          value={s.surcharge}
+                          onChange={(e) => {
+                            const updated = [...paperPricing.sizes];
+                            updated[idx] = { ...updated[idx], surcharge: parseFloat(e.target.value) || 0 };
+                            setPaperPricing({ ...paperPricing, sizes: updated });
+                            setPricingEdited(true);
+                          }}
+                          style={{
+                            width: 80,
+                            padding: "4px 8px",
+                            background: "var(--surface-raised)",
+                            border: "1px solid var(--border)",
+                            color: "var(--text)",
+                            borderRadius: 6,
+                            fontSize: 12,
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {pricingEdited && (
+              <div style={{ marginTop: 14, textAlign: "right" }}>
+                <button
+                  type="button"
+                  className="admin-header-action-btn primary"
+                  onClick={handleSavePricing}
+                >
+                  ✓ Commit Pricing Updates to Database
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* TAB 5: PRINT SHOP MASTER HARDWARE & QUEUE CONTROLS */}
       {activeTab === "controls" && (
         <section className="admin-tab-content">
           <div className="bill-card" style={{ marginBottom: 16 }}>
@@ -599,57 +845,10 @@ export default function AdminMasterControl({
               </button>
             </div>
           </div>
-
-          <div className="bill-card">
-            <h3 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
-              Active Rate Card Preview
-            </h3>
-            <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--text-secondary)" }}>
-              Campus Central standardized printing rates (7 Paper Types × 4 Sizes).
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Regular Paper (70–75 GSM)</span>
-                <strong>A4: ₹2 / ₹3 · A3: ₹5 / ₹8</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Premium Paper (80–100 GSM)</span>
-                <strong>A4: ₹3 / ₹5 · A3: ₹8 / ₹12</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Matte Paper (120–170 GSM)</span>
-                <strong>A4: ₹8 / ₹12 · A3: ₹15 / ₹25</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Glossy Photo (180–260 GSM)</span>
-                <strong>A4: ₹15 · A3: ₹30 (Single only)</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Premium Photo (200–260 GSM)</span>
-                <strong>A4: ₹20 · A3: ₹40 (Single only)</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Certificate Paper (100–170 GSM)</span>
-                <strong>A4: ₹8 / ₹12 · A3: ₹15 / ₹25</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Cardstock (200–300 GSM)</span>
-                <strong>A4: ₹15 · A3: ₹30 (Single only)</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid var(--border)", paddingTop: 8 }}>
-                <span>Spiral Binding Set</span>
-                <strong>₹25.00 / book</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Staple Binding</span>
-                <strong>₹2.00 / set</strong>
-              </div>
-            </div>
-          </div>
         </section>
       )}
 
-      {/* TAB 5: IMMUTABLE AUDIT LOGS */}
+      {/* TAB 6: IMMUTABLE AUDIT LOGS */}
       {activeTab === "audit" && adminData && (
         <section className="admin-tab-content">
           <div className="bill-card" style={{ padding: 0, overflow: "hidden" }}>
@@ -722,4 +921,3 @@ export default function AdminMasterControl({
     </main>
   );
 }
-

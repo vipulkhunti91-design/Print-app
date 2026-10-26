@@ -1,11 +1,15 @@
 {
   "id": "./",
-  "name": "Phopy Print Studio",
-  "short_name": "Phopy Print",
-  "description": "Prepare and track your campus print orders.",
+  "name": "PrintQ - Campus Smart Printing",
+  "short_name": "PrintQ",
+  "description": "Instant campus printing with pickup tokens, live queue tracking, and custom print settings.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "orientation": "portrait-primary",
+  "categories": ["utilities", "productivity", "education"],
   "icons": [
     {
       "src": "pwa-icon-192.png",
@@ -18,6 +22,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

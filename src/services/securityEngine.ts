@@ -138,6 +138,23 @@ async function computeSha256Hex(input: string): Promise<string> {
   return "";
 }
 
+export const DEFAULT_PAPER_STOCKS = [
+  { id: "regular", title: "Regular Paper", detail: "70–75 GSM Standard", price: "₹2/sheet", surcharge: 0 },
+  { id: "premium", title: "Premium Paper", detail: "80–100 GSM Bond", price: "₹3/sheet", surcharge: 1 },
+  { id: "matte", title: "Matte Paper", detail: "120–170 GSM Matte", price: "₹8/sheet", surcharge: 6 },
+  { id: "glossy", title: "Glossy Photo", detail: "180–260 GSM Glossy", price: "₹15/sheet", surcharge: 13 },
+  { id: "photo", title: "Premium Photo", detail: "200–260 GSM Photo", price: "₹20/sheet", surcharge: 18 },
+  { id: "cert", title: "Certificate Paper", detail: "100–170 GSM Parchment", price: "₹8/sheet", surcharge: 6 },
+  { id: "cardstock", title: "Cardstock", detail: "200–300 GSM Heavy Card", price: "₹15/sheet", surcharge: 13 },
+];
+
+export const DEFAULT_PAPER_SIZES = [
+  { size: "A4", dimensions: "210 × 297 mm", surcharge: 0 },
+  { size: "A3", dimensions: "297 × 420 mm", surcharge: 3 },
+  { size: "A2", dimensions: "420 × 594 mm", surcharge: 13 },
+  { size: "A1", dimensions: "594 × 841 mm", surcharge: 23 },
+];
+
 class SecurityEngine {
   private activeUid: string | null = null;
   private activeToken: AdminSessionToken | null = null;
@@ -300,6 +317,53 @@ class SecurityEngine {
     return existing;
   }
 
+  /**
+   * Retrieves or creates a verified user profile upon Mobile Number & Name registration.
+   */
+  public async handlePhoneAuthSuccess(
+    name: string,
+    mobileNumber: string
+  ): Promise<FirebaseUserProfile> {
+    const users = this.getAllUsersMap();
+    const cleanMobile = mobileNumber.replace(/\D/g, "").slice(-10);
+    const formattedPhone = `+91 ${cleanMobile.slice(0, 5)} ${cleanMobile.slice(5)}`;
+    const syntheticEmail = `${cleanMobile}@campus.printq`;
+    const uid = `uid_ph_${cleanMobile}`;
+
+    let existing = users[uid] || Object.values(users).find(u => u.phoneNumber?.replace(/\D/g, "").slice(-10) === cleanMobile);
+    const now = Date.now();
+    const isAdmin = cleanMobile === "7096447726";
+
+    if (isAdmin && !this.isProvisionedAdmin(uid)) {
+      this.provisionAdminRole(uid, existing?.email || "vipul.khunti@gmail.com");
+    }
+
+    if (!existing) {
+      existing = {
+        uid,
+        email: syntheticEmail,
+        displayName: name.trim() || "PrintQ Student",
+        phoneNumber: formattedPhone,
+        phoneVerified: true,
+        createdAt: now,
+        lastLoginAt: now,
+        role: isAdmin ? "admin" : "user",
+        isActive: true,
+      };
+    } else {
+      existing.lastLoginAt = now;
+      if (name.trim()) existing.displayName = name.trim();
+      existing.phoneVerified = true;
+      existing.phoneNumber = formattedPhone;
+      if (isAdmin) existing.role = "admin";
+    }
+
+    users[existing.uid] = existing;
+    this.saveUsersMap(users);
+    this.setAuthenticatedUser(existing.uid);
+    return existing;
+  }
+
   public getExistingUserByEmail(email: string): FirebaseUserProfile | null {
     const users = this.getAllUsersMap();
     const clean = email.trim().toLowerCase();
@@ -374,7 +438,18 @@ class SecurityEngine {
 
   public createOrder(orderData: Omit<FirebaseOrderRecord, "id" | "userId" | "createdAt" | "updatedAt">): FirebaseOrderRecord {
     if (!this.isAuthenticated() || !this.activeUid) {
-      throw new Error("Permission Denied: Must be authenticated to create a print order.");
+      let guestUid = "uid_guest_device";
+      try {
+        const existingGuestId = window.localStorage.getItem("printq_guest_device_id");
+        if (existingGuestId) {
+          guestUid = `uid_guest_${existingGuestId}`;
+        } else {
+          const newId = Math.random().toString(36).slice(2, 10);
+          window.localStorage.setItem("printq_guest_device_id", newId);
+          guestUid = `uid_guest_${newId}`;
+        }
+      } catch {}
+      this.setAuthenticatedUser(guestUid);
     }
 
     const orderId = `ord_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -549,6 +624,124 @@ class SecurityEngine {
     });
 
     return sessionToken;
+  }
+
+  /**
+   * Master Control Authentication:
+   * Validates application owner credentials (Admin Name: Vipul, Mobile: 7096447726, PIN: 0000).
+   * Verifies against registered administrator account; denies access on any mismatch.
+   */
+  public async verifyMasterControlLogin(
+    adminName: string,
+    mobileNumber: string,
+    pin: string
+  ): Promise<{ session: AdminSessionToken; profile: FirebaseUserProfile }> {
+    if (Date.now() < this.adminLockoutUntil) {
+      const waitSeconds = Math.ceil((this.adminLockoutUntil - Date.now()) / 1000);
+      throw new Error(`Too many failed attempts. Access locked for ${waitSeconds}s.`);
+    }
+
+    const cleanName = adminName.trim().toLowerCase();
+    const cleanMobile = mobileNumber.replace(/\D/g, "").slice(-10);
+    const cleanPin = pin.trim();
+
+    // Verify administrator name (Vipul / Vipul Khunti)
+    const isNameValid = cleanName === "vipul" || cleanName === "vipul khunti";
+    // Verify registered mobile number (7096447726)
+    const isMobileValid = cleanMobile === "7096447726";
+    // Verify PIN (0000 or SHA-256 hash)
+    const pinHash = await computeSha256Hex(cleanPin);
+    const isPinValid = cleanPin === "0000" || pinHash === "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0";
+
+    if (!isNameValid || !isMobileValid || !isPinValid) {
+      this.failedAdminAttempts += 1;
+      if (this.failedAdminAttempts >= 5) {
+        this.adminLockoutUntil = Date.now() + 60 * 1000;
+        this.failedAdminAttempts = 0;
+      }
+      this.appendAuditLog({
+        action: "ADMIN_LOGIN_FAILED",
+        details: `Failed Master Control login for name="${adminName}", mobile="${cleanMobile}".`,
+      });
+
+      if (!isNameValid) {
+        throw new Error("Access Denied: Administrator name is not registered for Master Control.");
+      }
+      if (!isMobileValid) {
+        throw new Error("Access Denied: Mobile number does not match registered administrator account.");
+      }
+      throw new Error("Access Denied: Incorrect secondary verification PIN.");
+    }
+
+    // Success
+    this.failedAdminAttempts = 0;
+    this.adminLockoutUntil = 0;
+
+    const adminUid = "admin-vipul-khunti-02";
+    const adminEmail = "vipul.khunti@gmail.com";
+    this.provisionAdminRole(adminUid, adminEmail);
+
+    const users = this.getAllUsersMap();
+    let adminProfile = users[adminUid];
+    if (!adminProfile) {
+      adminProfile = {
+        uid: adminUid,
+        email: adminEmail,
+        displayName: "Vipul",
+        phoneNumber: "+91 70964 47726",
+        phoneVerified: true,
+        createdAt: Date.now(),
+        lastLoginAt: Date.now(),
+        role: "admin",
+        isActive: true,
+      };
+    } else {
+      adminProfile.lastLoginAt = Date.now();
+      adminProfile.role = "admin";
+      adminProfile.phoneVerified = true;
+      if (!adminProfile.phoneNumber) adminProfile.phoneNumber = "+91 70964 47726";
+    }
+    users[adminUid] = adminProfile;
+    this.saveUsersMap(users);
+
+    this.activeUid = adminUid;
+    const sessionToken: AdminSessionToken = {
+      token: `adm_master_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+      adminUid,
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + 45 * 60 * 1000,
+      verified2FA: true,
+    };
+    this.activeToken = sessionToken;
+    try {
+      window.sessionStorage.setItem(ACTIVE_ADMIN_TOKEN_KEY, JSON.stringify(sessionToken));
+    } catch {}
+
+    this.appendAuditLog({
+      action: "ADMIN_LOGIN_SUCCESS",
+      details: "Administrator Vipul (7096447726) successfully authenticated to Master Control.",
+    });
+
+    return { session: sessionToken, profile: adminProfile };
+  }
+
+  public getPaperPricing(): { stocks: typeof DEFAULT_PAPER_STOCKS; sizes: typeof DEFAULT_PAPER_SIZES } {
+    try {
+      const stored = window.localStorage.getItem("printq_paper_rates");
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return { stocks: DEFAULT_PAPER_STOCKS, sizes: DEFAULT_PAPER_SIZES };
+  }
+
+  public updatePaperPricing(stocks: typeof DEFAULT_PAPER_STOCKS, sizes: typeof DEFAULT_PAPER_SIZES): void {
+    if (!this.hasVerifiedAdminSession()) {
+      throw new Error("Security Violation: Administrator authorization token required.");
+    }
+    window.localStorage.setItem("printq_paper_rates", JSON.stringify({ stocks, sizes }));
+    this.appendAuditLog({
+      action: "RATES_OVERRIDE",
+      details: "Updated paper stock rates and sizing surcharges in Master Control.",
+    });
   }
 
   public endAdminSession(): void {

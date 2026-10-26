@@ -4,7 +4,7 @@ import App from './App'
 import './index.css'
 import './theme.css'
 
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+if ('serviceWorker' in navigator) {
   const appBase = new URL(import.meta.env.BASE_URL, window.location.href)
   if (appBase.origin === window.location.origin) {
     window.addEventListener('load', () => {

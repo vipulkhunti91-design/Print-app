@@ -21,19 +21,42 @@ const profileStorageKey = "phopy-profile";
 export function readStoredAuthSession(): AuthUser | null {
   try {
     const raw = window.localStorage.getItem(authSessionStorageKey);
-    if (!raw) return null;
+    if (!raw) {
+      // Check fallback remembered user
+      const remRaw = window.localStorage.getItem(rememberedUserKey);
+      if (remRaw) {
+        const parsedRem = JSON.parse(remRaw) as { name?: string; mobile?: string } | null;
+        if (parsedRem?.name && parsedRem?.mobile) {
+          const clean = parsedRem.mobile.replace(/\D/g, "").slice(-10);
+          const uid = `uid_ph_${clean}`;
+          securityEngine.setAuthenticatedUser(uid);
+          return {
+            id: uid,
+            uid: uid,
+            name: parsedRem.name,
+            email: `${clean}@campus.printq`,
+            phone: `+91 ${clean.slice(0, 5)} ${clean.slice(5)}`,
+            provider: "phone",
+            phoneVerified: true,
+            createdAt: Date.now(),
+            role: clean === "7096447726" ? "admin" : "user",
+          };
+        }
+      }
+      return null;
+    }
     const parsed = JSON.parse(raw) as Partial<AuthUser>;
-    if (parsed && typeof parsed.name === "string" && typeof parsed.email === "string") {
-      const uid = parsed.id || parsed.uid || `uid_google_${Math.abs(parsed.email.length * 31).toString(16)}`;
+    if (parsed && typeof parsed.name === "string") {
+      const uid = parsed.id || parsed.uid || `uid_ph_${(parsed.phone || "user").replace(/\D/g, "").slice(-10)}`;
       securityEngine.setAuthenticatedUser(uid);
       return {
         id: uid,
         uid: uid,
         name: parsed.name,
-        email: parsed.email,
+        email: parsed.email || `${(parsed.phone || "user").replace(/\D/g, "").slice(-10)}@campus.printq`,
         phone: parsed.phone || "",
         photo: parsed.photo,
-        provider: parsed.provider || "google",
+        provider: parsed.provider || "phone",
         phoneVerified: Boolean(parsed.phoneVerified),
         createdAt: parsed.createdAt || Date.now(),
         role: parsed.role || "user",
@@ -116,19 +139,24 @@ export default function AuthModal({
   onAuthSuccess: (user: AuthUser) => void;
   requiredForAction?: boolean;
 }) {
-  const [authMode, setAuthMode] = useState<"google_email" | "google_password" | "phone_prompt" | "otp_verify" | "direct_phone">("google_email");
+  // Step 2.1: Default mode is name_and_phone registration (Google temporarily disabled)
+  const [authMode, setAuthMode] = useState<"name_and_phone" | "otp_verify" | "google_email" | "google_password" | "phone_prompt" | "direct_phone">("name_and_phone");
   const [selectedGoogleAccount, setSelectedGoogleAccount] = useState(DEFAULT_GOOGLE_ACCOUNT);
+
+  // Name & Phone registration state
+  const [fullName, setFullName] = useState("");
+  const [fullNameError, setFullNameError] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [mobileError, setMobileError] = useState("");
   
-  // Real Google Sign-In inputs
+  // Real Google Sign-In inputs (retained for future re-enablement)
   const [googleEmail, setGoogleEmail] = useState(DEFAULT_GOOGLE_ACCOUNT.email);
   const [googlePassword, setGooglePassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [googleEmailError, setGoogleEmailError] = useState("");
   const [googlePasswordError, setGooglePasswordError] = useState("");
 
-  // Phone input & OTP state
-  const [mobileNumber, setMobileNumber] = useState("");
-  const [mobileError, setMobileError] = useState("");
+  // OTP state
   const [otpDigits, setOtpDigits] = useState(["", "", "", ""]);
   const [otpError, setOtpError] = useState("");
   const [resendSeconds, setResendSeconds] = useState(30);
@@ -165,7 +193,6 @@ export default function AuthModal({
     setGoogleEmailError("");
     setGooglePasswordError("");
 
-    // Match with existing account if available or default
     const matchedAccount = AVAILABLE_GOOGLE_ACCOUNTS.find(
       (a) => a.email.toLowerCase() === cleanEmail
     );
@@ -201,7 +228,6 @@ export default function AuthModal({
     try {
       const existing = securityEngine.getExistingUserByEmail(email);
 
-      // If user already has a registered & verified phone number, log in directly
       if (existing && existing.phoneNumber && existing.phoneVerified) {
         const profile: FirebaseUserProfile = await securityEngine.handleGoogleAuthSuccess({
           email,
@@ -227,7 +253,6 @@ export default function AuthModal({
         onAuthSuccess(fullUser);
         onClose();
       } else {
-        // Require mobile number / OTP verification for Google account
         const knownPhone = existing?.phoneNumber?.replace(/\D/g, "").slice(-10) ||
           (email.includes("vipul") ? "7096447726" : "");
 
@@ -249,7 +274,7 @@ export default function AuthModal({
         } else {
           setMobileNumber("");
           setMobileError("");
-          setAuthMode("phone_prompt");
+          setAuthMode("name_and_phone");
         }
       }
     } catch (err: any) {
@@ -257,15 +282,32 @@ export default function AuthModal({
     }
   };
 
-  // 3. Submit Phone Number to receive OTP
+  // 3. Submit Name & Phone Number to receive OTP
   const handleSendOtp = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const cleanNumber = mobileNumber.replace(/\D/g, "");
+    const nameVal = fullName.trim() || (document.getElementById("auth-name-input") as HTMLInputElement)?.value?.trim() || "";
+    const rawVal = mobileNumber || (document.getElementById("auth-mobile-input") as HTMLInputElement)?.value || "";
+    const cleanNumber = rawVal.replace(/\D/g, "");
+
+    let hasError = false;
+    if (!nameVal) {
+      setFullNameError("Please enter your full name.");
+      hasError = true;
+    } else {
+      setFullNameError("");
+    }
+
     if (cleanNumber.length !== 10) {
       setMobileError("Please enter a valid 10-digit mobile number.");
-      return;
+      hasError = true;
+    } else {
+      setMobileError("");
     }
-    setMobileError("");
+
+    if (hasError) return;
+
+    setFullName(nameVal);
+    setMobileNumber(cleanNumber);
     setOtpDigits(["", "", "", ""]);
     setOtpError("");
     setResendSeconds(30);
@@ -289,16 +331,10 @@ export default function AuthModal({
     verifyTimerRef.current = window.setTimeout(async () => {
       setIsVerifying(false);
 
-      const baseName = pendingUser?.name || selectedGoogleAccount.name || "Campus Student";
-      const baseEmail = pendingUser?.email || selectedGoogleAccount.email || `${mobileNumber.slice(-4)}@campus.edu`;
-      const formattedPhone = `+91 ${mobileNumber.slice(0, 5)} ${mobileNumber.slice(5)}`;
+      const nameToUse = fullName.trim() || (document.getElementById("auth-name-input") as HTMLInputElement)?.value?.trim() || pendingUser?.name || "PrintQ Student";
+      const cleanMobile = mobileNumber || (document.getElementById("auth-mobile-input") as HTMLInputElement)?.value?.replace(/\D/g, "") || "9876543210";
       
-      const profile = await securityEngine.handleGoogleAuthSuccess({
-        email: baseEmail,
-        displayName: baseName,
-        photoURL: pendingUser?.photo,
-        phoneNumber: formattedPhone,
-      });
+      const profile = await securityEngine.handlePhoneAuthSuccess(nameToUse, cleanMobile);
 
       const fullUser: AuthUser = {
         id: profile.uid,
@@ -307,7 +343,7 @@ export default function AuthModal({
         email: profile.email,
         phone: profile.phoneNumber,
         photo: profile.photoURL,
-        provider: pendingUser?.provider === "google" ? "google" : "phone",
+        provider: "phone",
         phoneVerified: true,
         createdAt: profile.createdAt,
         role: profile.role,
@@ -628,23 +664,56 @@ export default function AuthModal({
         )}
 
         {/* =========================================================================
-            SCREEN 3: ADD MOBILE NUMBER (IF NOT YET PROVIDED)
+            SCREEN: NAME & MOBILE NUMBER REGISTRATION (DEFAULT FLOW)
             ========================================================================= */}
-        {(authMode === "phone_prompt" || authMode === "direct_phone") && (
+        {(authMode === "name_and_phone" || authMode === "phone_prompt" || authMode === "direct_phone") && (
           <form className="auth-flow-content" onSubmit={handleSendOtp}>
             <div className="auth-hero-copy">
-              <h2 id="auth-modal-title" className="auth-title">Add Mobile Number</h2>
+              <h2 id="auth-modal-title" className="auth-title">Register &amp; Sign In</h2>
               <p className="auth-subtitle">
-                Enter your 10-digit mobile number for order pickup notifications.
+                Enter your full name and 10-digit mobile number for order pickup notifications.
               </p>
-              {pendingUser?.email && (
-                <div style={{ marginTop: 8, padding: "4px 10px", background: "#1c1c1c", borderRadius: 6, display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid #2a2a2a" }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Google:</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)" }}>{pendingUser.email}</span>
-                </div>
-              )}
             </div>
 
+            {/* Notice: Google Login Temporarily Offline */}
+            <div style={{
+              background: "rgba(244, 215, 121, 0.08)",
+              border: "1px solid rgba(244, 215, 121, 0.22)",
+              borderRadius: 8,
+              padding: "9px 12px",
+              marginBottom: 14,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              color: "var(--accent)",
+            }}>
+              <span style={{ fontSize: 14 }}>ℹ️</span>
+              <span>Google Sign-In is temporarily offline for maintenance. Please register with your Full Name &amp; Mobile Number.</span>
+            </div>
+
+            {/* 1. Full Name */}
+            <div className="auth-input-group">
+              <label htmlFor="auth-name-input" className="auth-input-label">Full Name</label>
+              <input
+                id="auth-name-input"
+                type="text"
+                autoComplete="name"
+                className="auth-phone-input"
+                placeholder="Enter your name (e.g. Rahul Sharma)"
+                value={fullName}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  setFullNameError("");
+                }}
+                style={{ paddingLeft: 14 }}
+                autoFocus
+                required
+              />
+              {fullNameError && <span className="auth-field-error" role="alert">{fullNameError}</span>}
+            </div>
+
+            {/* 2. Mobile Number */}
             <div className="auth-input-group">
               <label htmlFor="auth-mobile-input" className="auth-input-label">Mobile Number</label>
               <div className="auth-phone-input-wrap">
@@ -662,26 +731,14 @@ export default function AuthModal({
                     setMobileNumber(cleaned);
                     setMobileError("");
                   }}
-                  autoFocus
                   required
                 />
               </div>
               {mobileError && <span className="auth-field-error" role="alert">{mobileError}</span>}
             </div>
 
-            <button type="submit" className="auth-primary-action-btn">
+            <button type="submit" id="auth-submit-btn" className="auth-primary-action-btn">
               Send Verification Code
-            </button>
-
-            <button
-              type="button"
-              className="auth-back-link"
-              onClick={() => {
-                setAuthMode("google_email");
-                setMobileError("");
-              }}
-            >
-              ← Back to Google Sign-In
             </button>
 
             <button
@@ -777,7 +834,7 @@ export default function AuthModal({
               type="button"
               className="auth-back-link"
               onClick={() => {
-                setAuthMode("phone_prompt");
+                setAuthMode("name_and_phone");
                 setOtpError("");
               }}
             >
