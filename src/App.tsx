@@ -2148,7 +2148,7 @@ function Document({
             </div>
           )}
 
-          <HomeExtras language={language} go={go} activeOrder={activeOrder} nowServing={nowServing} />
+          <HomeExtras />
         </div>
       ) : (
         <div className="settings-screen">
