@@ -139,13 +139,13 @@ async function computeSha256Hex(input: string): Promise<string> {
 }
 
 export const DEFAULT_PAPER_STOCKS = [
-  { id: "regular", title: "Regular Paper", detail: "70–75 GSM Standard", price: "₹2/sheet", surcharge: 0 },
-  { id: "premium", title: "Premium Paper", detail: "80–100 GSM Bond", price: "₹3/sheet", surcharge: 1 },
-  { id: "matte", title: "Matte Paper", detail: "120–170 GSM Matte", price: "₹8/sheet", surcharge: 6 },
-  { id: "glossy", title: "Glossy Photo", detail: "180–260 GSM Glossy", price: "₹15/sheet", surcharge: 13 },
-  { id: "photo", title: "Premium Photo", detail: "200–260 GSM Photo", price: "₹20/sheet", surcharge: 18 },
-  { id: "cert", title: "Certificate Paper", detail: "100–170 GSM Parchment", price: "₹8/sheet", surcharge: 6 },
-  { id: "cardstock", title: "Cardstock", detail: "200–300 GSM Heavy Card", price: "₹15/sheet", surcharge: 13 },
+  { id: "regular", title: "Regular Paper", detail: "70–75 GSM Standard", price: "₹2/sheet", surcharge: 0, inStock: true },
+  { id: "premium", title: "Premium Paper", detail: "80–100 GSM Bond", price: "₹3/sheet", surcharge: 1, inStock: true },
+  { id: "matte", title: "Matte Paper", detail: "120–170 GSM Matte", price: "₹8/sheet", surcharge: 6, inStock: true },
+  { id: "glossy", title: "Glossy Photo", detail: "180–260 GSM Glossy", price: "₹15/sheet", surcharge: 13, inStock: false },
+  { id: "photo", title: "Premium Photo", detail: "200–260 GSM Photo", price: "₹20/sheet", surcharge: 18, inStock: true },
+  { id: "cert", title: "Certificate Paper", detail: "100–170 GSM Parchment", price: "₹8/sheet", surcharge: 6, inStock: true },
+  { id: "cardstock", title: "Cardstock", detail: "200–300 GSM Heavy Card", price: "₹15/sheet", surcharge: 13, inStock: true },
 ];
 
 export const DEFAULT_PAPER_SIZES = [
@@ -731,6 +731,21 @@ class SecurityEngine {
       if (stored) return JSON.parse(stored);
     } catch {}
     return { stocks: DEFAULT_PAPER_STOCKS, sizes: DEFAULT_PAPER_SIZES };
+  }
+
+  public togglePaperStockAvailability(stockId: string): { stocks: typeof DEFAULT_PAPER_STOCKS; sizes: typeof DEFAULT_PAPER_SIZES } {
+    if (!this.hasVerifiedAdminSession()) {
+      throw new Error("Security Violation: Administrator authorization token required.");
+    }
+    const current = this.getPaperPricing();
+    const updatedStocks = current.stocks.map((s) => {
+      if (s.id === stockId) {
+        return { ...s, inStock: s.inStock !== false ? false : true };
+      }
+      return s;
+    });
+    this.updatePaperPricing(updatedStocks, current.sizes);
+    return { stocks: updatedStocks, sizes: current.sizes };
   }
 
   public updatePaperPricing(stocks: typeof DEFAULT_PAPER_STOCKS, sizes: typeof DEFAULT_PAPER_SIZES): void {

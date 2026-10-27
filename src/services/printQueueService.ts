@@ -217,6 +217,50 @@ class PrintQueueManager {
     }, 1000);
   }
 
+  public getNowServing(): { token: string; status: string; fileName?: string } | null {
+    const queue = this.getQueue();
+    // 1. Prioritize currently printing order
+    const printing = queue.find((q) => q.status === "printing");
+    if (printing) {
+      return {
+        token: printing.token,
+        status: "Printing",
+        fileName: printing.fileName,
+      };
+    }
+    // 2. Next check ready for collection
+    const ready = queue.find((q) => q.status === "ready");
+    if (ready) {
+      return {
+        token: ready.token,
+        status: "Ready for Pickup",
+        fileName: ready.fileName,
+      };
+    }
+    // 3. Fallback to earliest waiting order
+    const waiting = queue.find((q) => q.status === "waiting");
+    if (waiting) {
+      return {
+        token: waiting.token,
+        status: "Waiting in Queue",
+        fileName: waiting.fileName,
+      };
+    }
+    return null;
+  }
+
+  public setNowServingToken(token: string): void {
+    const queue = this.getQueue();
+    const now = Date.now();
+    // Set matching token to printing if waiting
+    const target = queue.find((q) => q.token.toUpperCase() === token.toUpperCase());
+    if (target) {
+      target.status = "printing";
+      target.startedPrintingAt = now;
+      this.saveQueue(queue);
+    }
+  }
+
   public getQueueMetricsForToken(token?: string) {
     const queue = this.getQueue();
     const now = Date.now();

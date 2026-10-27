@@ -1,4 +1,16 @@
 ﻿import { printQueueManager, type QueueOrder } from "./services/printQueueService";
+import {
+  type SupportedLanguage,
+  getStoredLanguage,
+  saveStoredLanguage,
+  getTranslation,
+} from "./utils/i18n";
+import { HomeShortcuts } from "./components/HomeShortcuts";
+import { LegibilityChecker } from "./components/LegibilityChecker";
+import { DeadlineCheckCard } from "./components/DeadlineCheckCard";
+import { TokenQRDisplay } from "./components/TokenQRDisplay";
+import { MaterialSubstitutionModal, type MaterialSubstitutionAlert } from "./components/MaterialSubstitutionModal";
+import { GroupCostSettlement } from "./components/GroupCostSettlement";
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent } from "react";
 import {
   BottomNavigation,
@@ -36,6 +48,7 @@ import AuthModal, {
 import PaymentProcessingModal, {
   type PaymentProcessStatus,
 } from "./components/PaymentProcessingModal";
+import PaymentPage from "./components/PaymentPage";
 import AdminMasterControl from "./components/AdminMasterControl";
 import { securityEngine, type FirebaseOrderRecord } from "./services/securityEngine";
 import OnboardingFlow from "./components/OnboardingFlow";
@@ -50,6 +63,7 @@ type Screen =
   | "setup"
   | "finishing"
   | "checkout"
+  | "payment"
   | "paymentSuccess"
   | "token"
   | "notifications"
@@ -1121,27 +1135,79 @@ function FilePreview({
   onReady?: () => void;
   onError?: () => void;
 }) {
+  const [loadError, setLoadError] = useState(false);
   const isLandscape = orientation === "Landscape";
   const previewClass = `${applyChanges && !colour ? " black-and-white-preview" : ""}${isLandscape ? " is-landscape" : " is-portrait"}`;
   const isImage = previewData?.type.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(previewData?.name ?? "");
   const isPdf = previewData?.type === "application/pdf" || /\.pdf$/i.test(previewData?.name ?? "");
+
+  // Reset error state when file changes
+  useEffect(() => {
+    setLoadError(false);
+  }, [previewData?.url, previewData?.name]);
 
   useEffect(() => {
     if (!previewData || isImage || isPdf) return;
     onReady?.();
   }, [previewData, isImage, isPdf, onReady]);
 
+  const handleImageError = () => {
+    setLoadError(true);
+    onError?.();
+  };
+
+  const activeName = previewData?.name ?? fileName ?? "Document";
+  const ext = (activeName.split(".").pop() || "").toUpperCase();
+  const fileTypeLabel = /PDF/i.test(ext) ? "PDF" : /(DOC|DOCX|TXT|PPT|PPTX)/i.test(ext) ? "DOC" : /(JPG|JPEG|PNG|WEBP|SVG)/i.test(ext) ? "IMG" : "DOC";
+
+  const renderPlaceholder = () => (
+    <div
+      className={`preview-placeholder-box ${isLandscape ? "is-landscape" : "is-portrait"}`}
+      role="img"
+      aria-label={`Preview not available for ${activeName}`}
+    >
+      <div className="preview-placeholder-icon-wrap">
+        <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="9" y1="13" x2="15" y2="13" />
+          <line x1="9" y1="17" x2="13" y2="17" />
+        </svg>
+        <span className="preview-placeholder-badge">{fileTypeLabel}</span>
+      </div>
+      <strong className="preview-placeholder-name" title={activeName}>{activeName}</strong>
+      <span className="preview-placeholder-sub">Preview not available</span>
+    </div>
+  );
+
+  if (loadError) {
+    return renderPlaceholder();
+  }
+
   if (previewData && isImage) {
     return (
       <div className={`uploaded-preview-frame${isLandscape ? " is-landscape" : " is-portrait"}`}>
-        <img className={`uploaded-preview-image${previewClass}`} src={previewData.url} alt={`Preview of ${previewData.name}`} onLoad={onReady} onError={onError} />
+        <img
+          className={`uploaded-preview-image${previewClass}`}
+          src={previewData.url}
+          alt={`Preview of ${previewData.name}`}
+          onLoad={onReady}
+          onError={handleImageError}
+        />
       </div>
     );
   }
 
   if (previewData && isPdf) {
     return (
-      <object className={`uploaded-preview-document${previewClass}`} data={previewData.url} type="application/pdf" aria-label={`Preview of ${previewData.name}`} onLoad={onReady} onError={onError}>
+      <object
+        className={`uploaded-preview-document${previewClass}`}
+        data={previewData.url}
+        type="application/pdf"
+        aria-label={`Preview of ${previewData.name}`}
+        onLoad={onReady}
+        onError={handleImageError}
+      >
         <PaperPreview
           page={page}
           totalPages={totalPages}
@@ -1951,12 +2017,6 @@ function Document({
       <input ref={fileInputRef} id="printq-upload-file" className="sr-only" type="file" multiple accept=".pdf,.docx,.pptx,.jpg,.jpeg,.png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,image/jpeg,image/png" aria-label="Upload file" onChange={(event) => { startUpload(event.currentTarget.files ?? undefined); event.currentTarget.value = ""; }} />
       {!hasFile ? (
         <div className="upload-screen">
-          <header className="upload-screen-header">
-            <h1>Upload Files</h1>
-          </header>
-
-          
-
           <UploadIllustration />
           <div className="upload-screen-intro">
             <h2 className="upload-heading">Upload your files</h2>
@@ -2088,7 +2148,7 @@ function Document({
             </div>
           )}
 
-          <HomeExtras />
+          <HomeExtras language={language} go={go} activeOrder={activeOrder} nowServing={nowServing} />
         </div>
       ) : (
         <div className="settings-screen">
@@ -2132,33 +2192,7 @@ function Document({
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <button
-                  type="button"
-                  className="preview-expand-badge-btn"
-                  onClick={preview}
-                  title="Expand to Full Document Preview"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 4,
-                    padding: "4px 8px",
-                    borderRadius: 8,
-                    background: "rgba(244, 215, 121, 0.12)",
-                    border: "1px solid rgba(244, 215, 121, 0.3)",
-                    color: "var(--accent)",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="15 3 21 3 21 9" />
-                    <polyline points="9 21 3 21 3 15" />
-                    <line x1="21" y1="3" x2="14" y2="10" />
-                    <line x1="3" y1="21" x2="10" y2="14" />
-                  </svg>
-                  <span>Expand</span>
-                </button>
+                
                 <span className="settings-files-counter-badge">
                   {uploadedFiles.length}/4 Files
                 </span>
@@ -2301,6 +2335,28 @@ function Document({
               </div>
             </div>
           )}
+
+          {/* BATCH 2: Grayscale Legibility Checker (for B&W mode) */}
+          <LegibilityChecker
+            isColour={job.colour}
+            totalPages={previewTotalPages}
+            fileName={activeFile?.name ?? displayedName}
+            onSwitchToColour={() => {
+              updateJob({ colour: true });
+            }}
+            onInspectPage={(p) => {
+              setPreviewCurrentPage(p);
+              preview();
+            }}
+          />
+
+          {/* BATCH 2: Deadline Check Interface */}
+          <DeadlineCheckCard
+            currentEstimate={currentEstimate}
+            onDeadlineSelected={(mins) => {
+              updateJob({ readyMinutes: mins });
+            }}
+          />
 
           {/* Section 2: Number of Copies */}
           <section className="settings-section settings-copies-section" aria-labelledby="heading-number-of-copies">
@@ -2556,52 +2612,44 @@ function Document({
             </div>
           </section>
 
-          {/* Section 7: Paper Type */}
+          {/* Section 7: Paper Type Dropdown */}
           <section className="settings-section" aria-labelledby="heading-paper-type">
             <h2 id="heading-paper-type" className="settings-section-title">Paper Type</h2>
-            <div className="settings-cards-stack" role="radiogroup" aria-labelledby="heading-paper-type">
-              {PAPER_STOCK_CONFIG.map(({ name, gsm, detail, doubleAllowed }) => {
-                const isSelected = activeStockName === name;
-                const stockRate = getPricePerSheet(name, job.paper || "A4", job.singleSided || !doubleAllowed, job.colour);
-                return (
-                  <label
-                    key={name}
-                    className={`settings-radio-card${isSelected ? " is-selected" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="paper-type-finish"
-                      value={name}
-                      checked={isSelected}
-                      onChange={() => {
-                        setActivePresetId(null);
-                        const willBeSingle = !doubleAllowed ? true : job.singleSided;
-                        updateJob({
-                          paperStock: name,
-                          singleSided: willBeSingle,
-                          stockSurcharge: 0,
-                        });
-                      }}
-                      className="sr-only"
-                    />
-                    <span className="settings-radio-circle" aria-hidden="true">
-                      {isSelected && <span className="settings-radio-dot" />}
-                    </span>
-                    <span className="settings-card-content">
-                      <span className="settings-card-header">
-                        <span className="settings-card-title">
-                          {name}
-                          <span style={{ display: "block", fontSize: "11.5px", fontWeight: "normal", color: "var(--text-muted)", marginTop: "1px" }}>
-                            {gsm} {!doubleAllowed && "· Single-side only"}
-                          </span>
-                        </span>
-                        <span className="settings-card-price">₹{stockRate} / sheet</span>
-                      </span>
-                      <p className="settings-card-desc">{detail}</p>
-                    </span>
-                  </label>
-                );
-              })}
+            <div className="settings-paper-dropdown-wrap">
+              <label htmlFor="settings-paper-stock-select" className="sr-only">Choose Paper Type</label>
+              <div className="settings-select-container">
+                <select
+                  id="settings-paper-stock-select"
+                  className="settings-paper-select"
+                  value={activeStockName}
+                  onChange={(e) => {
+                    const newStock = e.target.value;
+                    setActivePresetId(null);
+                    const config = PAPER_STOCK_CONFIG.find((p) => p.name === newStock);
+                    const willBeSingle = config && !config.doubleAllowed ? true : job.singleSided;
+                    updateJob({
+                      paperStock: newStock,
+                      singleSided: willBeSingle,
+                      stockSurcharge: 0,
+                    });
+                  }}
+                  aria-label="Select paper type"
+                >
+                  {PAPER_STOCK_CONFIG.map(({ name, gsm }) => (
+                    <option key={name} value={name} className="settings-paper-option">
+                      {name} · {gsm}
+                    </option>
+                  ))}
+                </select>
+                <div className="settings-select-arrow" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
+              </div>
+              <p className="settings-paper-dropdown-helper" aria-live="polite">
+                Current selection: <strong style={{ color: "var(--accent)" }}>{activeStockName}</strong> ({PAPER_STOCK_CONFIG.find(p => p.name === activeStockName)?.gsm}) · ₹{singlePricePerSheet.toFixed(2)}/sheet
+              </p>
             </div>
           </section>
 
@@ -2947,6 +2995,7 @@ function Checkout({
   uploadedFiles: UploadedFileData[];
 }) {
   const [payment, setPayment] = useState<"UPI" | "Cash">("UPI");
+  const [selectedUpiApp, setSelectedUpiApp] = useState<"gpay" | "phonepe" | "paytm" | "bhim">("gpay");
   const [paymentState, setPaymentState] = useState<"idle" | "processing" | "success">("idle");
   const [paymentProgress, setPaymentProgress] = useState(0);
 
@@ -2963,6 +3012,8 @@ function Checkout({
     return unsub;
   }, []);
   const [failErrorMessage, setFailErrorMessage] = useState("");
+  const [isDocDetailsOpen, setIsDocDetailsOpen] = useState(false);
+  const [isBillBreakdownOpen, setIsBillBreakdownOpen] = useState(false);
   const isSubmittingRef = useRef(false);
   const paymentTimerRef = useRef<number | null>(null);
 
@@ -2984,26 +3035,44 @@ function Checkout({
   const pagesPerSheet = Math.max(1, job.pagesPerSheet || 1);
   const printableSides = Math.ceil(effectivePages / pagesPerSheet);
 
-  const pricing = calculateJobPricing(
-    { ...job, pages: effectivePages },
-    uploadedFiles.length || 1
-  );
-  const unitRate = pricing.unitRate;
-  const sheetsCount = pricing.sheetsPerFile;
-  const copiesCount = pricing.copies;
-  const printSubtotal = pricing.printSubtotal;
-  const bindingTotal = pricing.bindingSubtotal;
-  const grandTotal = pricing.grandTotal;
+  const effectiveUploadedFiles = uploadedFiles.length > 0
+    ? uploadedFiles
+    : [{ name: job.fileName || "Document.pdf", pages: job.pages || 1, size: job.fileSize || "1.2 MB", type: "application/pdf", url: "" }];
+
+  const fileCalculations = effectiveUploadedFiles.map((file) => {
+    const fPages = Math.max(1, file.pages || 1);
+    const fPaperStock = normalizePaperStock(job.paperStock);
+    const fPaperSize = job.paper || "A4";
+    const fIsSingle = job.singleSided || !isDoubleSidedAvailable(fPaperStock);
+    const fPricePerSheet = getPricePerSheet(fPaperStock, fPaperSize, fIsSingle, job.colour);
+    const fCopies = Math.max(1, job.copies || 1);
+    const fTotalSheets = fPages * fCopies;
+    const fSubtotal = fPricePerSheet * fTotalSheets;
+    return {
+      name: file.name,
+      pages: fPages,
+      copies: fCopies,
+      paperStock: fPaperStock,
+      paperSize: fPaperSize,
+      isSingle: fIsSingle,
+      colour: Boolean(job.colour),
+      pricePerSheet: fPricePerSheet,
+      totalSheets: fTotalSheets,
+      subtotal: fSubtotal,
+    };
+  });
+
+  const totalSheetsAllFiles = fileCalculations.reduce((sum, item) => sum + item.totalSheets, 0);
+  const grandTotal = fileCalculations.reduce((sum, item) => sum + item.subtotal, 0);
 
   const checkoutEstimate = calculateEstimatedReadyTime({
-    pages: totalPages,
+    pages: rawTotalPages,
     copies: job.copies,
     colour: job.colour,
     singleSided: job.singleSided,
     paper: job.paper,
     paperStock: job.paperStock,
   });
-
   const startPayment = (shouldFail = false) => {
     // Prevent repeated payment requests if user taps multiple times
     if (isSubmittingRef.current) return;
@@ -3118,105 +3187,150 @@ function Checkout({
         </div>
       </div>
 
-      {/* 1. Bill Breakdown */}
+      {/* BATCH 4: Group Cost Settlement */}
+      <GroupCostSettlement
+        grandTotal={grandTotal}
+        totalPages={totalPages}
+        pricePerSheet={fileCalculations[0]?.pricePerSheet || 2}
+      />
+
+      {/* 1. Bill Breakdown Accordion */}
       <section className="bill-card" aria-labelledby="bill-breakdown-heading" style={{ marginBottom: 16 }}>
-        <div className="bill-card-title">
-          <span id="bill-breakdown-heading">Bill Breakdown</span>
-          <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Taxes Included</span>
-        </div>
-        <div className="bill-line-rows">
-          <div className="bill-line-row">
-            <span>Print Option</span>
-            <span>{pricing.optionLabel} (₹{pricing.optionRate.toFixed(2)} / page)</span>
+        <button
+          type="button"
+          className="accordion-header-btn"
+          onClick={() => setIsBillBreakdownOpen(!isBillBreakdownOpen)}
+          aria-expanded={isBillBreakdownOpen}
+          aria-controls="bill-breakdown-content"
+          id="bill-breakdown-heading"
+        >
+          <div className="accordion-header-left">
+            <span className="accordion-title-text">Bill Breakdown</span>
+            <span className="accordion-badge">₹{grandTotal.toFixed(2)}</span>
           </div>
-          <div className="bill-line-row">
-            <span>Print Side &amp; Paper ({pricing.stock} {pricing.size})</span>
-            <span>{pricing.sideLabel} · ₹{pricing.unitRate.toFixed(2)} / sheet</span>
+          <div className="accordion-header-right">
+            <span className={`accordion-chevron${isBillBreakdownOpen ? " is-expanded" : ""}`} aria-hidden="true">
+              ▼
+            </span>
           </div>
-          <div className="bill-line-row">
-            <span>Sheets: {pricing.totalSheets} {pricing.totalSheets === 1 ? "sheet" : "sheets"} (× {copiesCount} {copiesCount > 1 ? "copies" : "copy"})</span>
-            <span>₹{printSubtotal.toFixed(2)}</span>
-          </div>
-          {bindingTotal > 0 && (
-            <div className="bill-line-row">
-              <span>Finishing ({job.bindingOption === "spiral" ? "Spiral Binding" : "Staple"} × {copiesCount} {copiesCount > 1 ? "sets" : "set"})</span>
-              <span>₹{bindingTotal.toFixed(2)}</span>
-            </div>
-          )}
-          {uploadedFiles.length > 1 && (
-            <div className="bill-line-row">
-              <span>Files count</span>
-              <span>× {uploadedFiles.length} files</span>
-            </div>
-          )}
-          <div className="bill-line-row">
-            <span>Handling & Desk Sorting</span>
-            <span style={{ color: "var(--status-ready)" }}>FREE (₹0.00)</span>
-          </div>
-          <div className="bill-line-row total-row">
-            <span>Final Payable Amount</span>
-            <span className="bill-total-price">₹{grandTotal.toFixed(2)}</span>
-          </div>
-        </div>
-      </section>
+        </button>
 
-      
+        <div
+          id="bill-breakdown-content"
+          className={`accordion-panel${isBillBreakdownOpen ? " is-open" : ""}`}
+          role="region"
+          aria-labelledby="bill-breakdown-heading"
+        >
+          <div className="accordion-panel-inner">
+            <div className="bill-line-rows">
+              {fileCalculations.map((file, idx) => (
+                <div key={idx} className="bill-file-breakdown-block">
+                  <div className="bill-line-row file-name-row">
+                    <strong style={{ color: "var(--text)", fontSize: 13 }}>{file.name}</strong>
+                    <span style={{ color: "var(--accent)", fontWeight: 700 }}>₹{file.subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="bill-line-row file-detail-row">
+                    <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>
+                      ₹{file.pricePerSheet.toFixed(2)} / sheet × {file.totalSheets} {file.totalSheets === 1 ? "sheet" : "sheets"} ({file.pages} {file.pages === 1 ? "pg" : "pgs"} × {file.copies} {file.copies > 1 ? "copies" : "copy"})
+                    </span>
+                    <span style={{ color: "var(--text-muted)", fontSize: 11 }}>
+                      {file.paperStock} · {file.paperSize} · {file.isSingle ? "Single" : "Double"}
+                    </span>
+                  </div>
+                </div>
+              ))}
 
-{/* 2. Document Details */}
-      <section className="bill-card" aria-labelledby="bill-details-heading" style={{ marginBottom: 16 }}>
-        <div className="bill-card-title">
-          <span id="bill-details-heading">Document Details</span>
-          <span style={{ fontSize: 12, color: "var(--accent)" }}>{uploadedFiles.length || 1} {uploadedFiles.length === 1 ? "file" : "files"}</span>
-        </div>
+              <div className="bill-divider-line" />
 
-        <div className="bill-file-list">
-          {uploadedFiles.length > 0 ? (
-            uploadedFiles.map((f, i) => (
-              <div key={i} className="bill-file-item">
-                <span className="bill-file-name">{f.name}</span>
-                <span className="bill-file-meta">{f.pages || 1} {f.pages === 1 ? "pg" : "pgs"}</span>
+              <div className="bill-line-row">
+                <span>Total Sheets (All Files)</span>
+                <span>{totalSheetsAllFiles} {totalSheetsAllFiles === 1 ? "sheet" : "sheets"}</span>
               </div>
-            ))
-          ) : (
-            <div className="bill-file-item">
-              <span className="bill-file-name">{job.fileName}</span>
-              <span className="bill-file-meta">{job.pages} pgs</span>
+              <div className="bill-line-row">
+                <span>Handling & Desk Sorting</span>
+                <span style={{ color: "var(--status-ready)" }}>FREE (₹0.00)</span>
+              </div>
+              <div className="bill-line-row total-row">
+                <span>Grand Total</span>
+                <span className="bill-total-price">₹{grandTotal.toFixed(2)}</span>
+              </div>
             </div>
-          )}
-        </div>
-
-        <div className="bill-spec-grid">
-          <div className="bill-spec-box">
-            <span className="bill-spec-label">Print Option</span>
-            <span className="bill-spec-val">{pricing.optionLabel} (₹{pricing.optionRate.toFixed(2)} / page)</span>
-          </div>
-          <div className="bill-spec-box">
-            <span className="bill-spec-label">Print Side</span>
-            <span className="bill-spec-val">{pricing.sideLabel} (₹{pricing.unitRate.toFixed(2)} / sheet)</span>
-          </div>
-          <div className="bill-spec-box">
-            <span className="bill-spec-label">Paper &amp; Orientation</span>
-            <span className="bill-spec-val">{job.paper} ({job.paperStock || "Regular"}) · {job.orientation ?? "Portrait"}</span>
-          </div>
-          <div className="bill-spec-box">
-            <span className="bill-spec-label">Number of Copies</span>
-            <span className="bill-spec-val">{job.copies} {job.copies === 1 ? "copy" : "copies"}</span>
-          </div>
-          <div className="bill-spec-box">
-            <span className="bill-spec-label">Finishing / Binding</span>
-            <span className="bill-spec-val">{job.bindingOption === "spiral" ? "Spiral Binding" : job.bindingOption === "staple-left" ? "Staple (Top Left)" : job.bindingOption === "staple-right" ? "Staple (Top Right)" : "No Binding"}</span>
           </div>
         </div>
-
-        {job.specialInstructions && (
-          <div style={{ marginTop: 10, padding: "8px 12px", background: "rgba(244, 215, 121, 0.06)", borderRadius: 8, fontSize: 12, border: "1px dashed rgba(244, 215, 121, 0.25)" }}>
-            <strong style={{ color: "var(--accent)" }}>Special Instructions: </strong>
-            <span style={{ color: "var(--text-secondary)" }}>{job.specialInstructions}</span>
-          </div>
-        )}
       </section>
 
-      
+      {/* 2. Document Details Accordion */}
+      <section className="bill-card" aria-labelledby="bill-details-heading" style={{ marginBottom: 16 }}>
+        <button
+          type="button"
+          className="accordion-header-btn"
+          onClick={() => setIsDocDetailsOpen(!isDocDetailsOpen)}
+          aria-expanded={isDocDetailsOpen}
+          aria-controls="doc-details-content"
+          id="bill-details-heading"
+        >
+          <div className="accordion-header-left">
+            <span className="accordion-title-text">Document Details</span>
+            <span className="accordion-badge" style={{ color: "var(--text-secondary)" }}>
+              {effectiveUploadedFiles.length} {effectiveUploadedFiles.length === 1 ? "file" : "files"}
+            </span>
+          </div>
+          <div className="accordion-header-right">
+            <span className={`accordion-chevron${isDocDetailsOpen ? " is-expanded" : ""}`} aria-hidden="true">
+              ▼
+            </span>
+          </div>
+        </button>
+
+        <div
+          id="doc-details-content"
+          className={`accordion-panel${isDocDetailsOpen ? " is-open" : ""}`}
+          role="region"
+          aria-labelledby="bill-details-heading"
+        >
+          <div className="accordion-panel-inner">
+            <div className="bill-doc-details-files">
+              {fileCalculations.map((file, idx) => (
+                <div key={idx} className="doc-details-file-card">
+                  <div className="doc-details-file-header">
+                    <strong className="doc-details-file-title" title={file.name}>{file.name}</strong>
+                    <span className="doc-details-file-pages">{file.pages} {file.pages === 1 ? "page" : "pages"}</span>
+                  </div>
+                  <div className="doc-details-grid">
+                    <div className="doc-detail-cell">
+                      <span className="doc-detail-lbl">Copies</span>
+                      <span className="doc-detail-val">{file.copies} {file.copies === 1 ? "copy" : "copies"}</span>
+                    </div>
+                    <div className="doc-detail-cell">
+                      <span className="doc-detail-lbl">Paper Type</span>
+                      <span className="doc-detail-val">{file.paperStock}</span>
+                    </div>
+                    <div className="doc-detail-cell">
+                      <span className="doc-detail-lbl">Paper Size</span>
+                      <span className="doc-detail-val">{file.paperSize}</span>
+                    </div>
+                    <div className="doc-detail-cell">
+                      <span className="doc-detail-lbl">Print Side</span>
+                      <span className="doc-detail-val">{file.isSingle ? "Single-Sided" : "Double-Sided"}</span>
+                    </div>
+                    <div className="doc-detail-cell">
+                      <span className="doc-detail-lbl">Colour Mode</span>
+                      <span className="doc-detail-val">{file.colour ? "Full Colour" : "Black & White"}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {job.specialInstructions && (
+              <div style={{ marginTop: 12, padding: "8px 12px", background: "rgba(244, 215, 121, 0.06)", borderRadius: 8, fontSize: 12, border: "1px dashed rgba(244, 215, 121, 0.25)" }}>
+                <strong style={{ color: "var(--accent)" }}>Special Instructions: </strong>
+                <span style={{ color: "var(--text-secondary)" }}>{job.specialInstructions}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* 3. Live Print Queue Status */}
       <section className="bill-card" aria-labelledby="bill-queue-heading" style={{ marginBottom: 20 }}>
@@ -3401,6 +3515,11 @@ function PaymentSuccess({
           <strong style={{ fontSize: 44, fontWeight: 900, color: "var(--accent)", letterSpacing: "0.06em", display: "block", lineHeight: 1, marginBottom: 8 }}>
             {token}
           </strong>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)", margin: "4px 0 8px", display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", background: "rgba(244, 215, 121, 0.08)", borderRadius: 12, border: "1px solid rgba(244, 215, 121, 0.2)" }}>
+            {readyEstimate.readyTimeFormatted && readyEstimate.readyTimeFormatted !== "--:--"
+              ? `⏱ Ready around ${readyEstimate.readyTimeFormatted}`
+              : `⏱ Ready in ~${readyEstimate.minutes || 15} minutes`}
+          </div>
           <small style={{ color: "var(--text-secondary)", fontSize: 12 }}>
             Reference: {orderRef} · Show this token at counter
           </small>
@@ -3485,6 +3604,33 @@ function Token({
   }
 
   const job = order.job;
+  const [substitutionRequest, setSubstitutionRequest] = useState<MaterialSubstitutionAlert | null>(() => {
+    // Check if operator marked this paper out-of-stock
+    if (job.paperStock && /glossy|premium photo/i.test(job.paperStock)) {
+      return {
+        originalMaterial: job.paperStock,
+        substituteMaterial: "Matte Heavyweight (170 GSM)",
+        priceDifference: 0,
+        revisedMinutes: 12,
+        reason: "Glossy paper roll depleted; operator offers Matte Heavyweight.",
+      };
+    }
+    return null;
+  });
+
+  const readyEstimate = calculateEstimatedReadyTime({
+    pages: job.pages,
+    copies: job.copies,
+    colour: job.colour,
+    singleSided: job.singleSided,
+    paper: job.paper,
+    paperStock: job.paperStock,
+    queueStatus: queueMetrics.queueStatus || 'normal',
+    queueAvailable: queueMetrics.isAvailable !== false,
+  });
+  const etaText = (queueMetrics.isAvailable !== false && readyEstimate.readyTimeFormatted && readyEstimate.readyTimeFormatted !== '--:--')
+    ? `⏱ Ready around ${readyEstimate.readyTimeFormatted}`
+    : `⏱ Ready in ~${readyEstimate.minutes || 15} minutes`;
   const isCancelled = order.status === "cancelled";
 
   // Derive order status directly from shared FIFO Queue Engine
@@ -3578,10 +3724,34 @@ function Token({
         <TrackingStatusIllustration stageIndex={currentStageIndex} />
         <span className="track-token-eyebrow">Pickup Token</span>
         <strong className="track-token-code">{order.token}</strong>
+        <div className="token-estimated-ready-time" style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)", margin: "4px 0 8px", display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", background: "rgba(244, 215, 121, 0.08)", borderRadius: 12, border: "1px solid rgba(244, 215, 121, 0.2)" }}>
+          {etaText}
+        </div>
         <span className="track-token-sub">
           {job.fileName} · {job.pages} {job.pages === 1 ? "page" : "pages"} ({job.colour ? "Colour" : "B&W"})
         </span>
       </div>
+
+      {/* BATCH 3: QR Pickup Token & Counter Verification */}
+      <TokenQRDisplay
+        token={order.token}
+        orderRef={order.recordId}
+        status={mappedStatus === "ready" ? "Ready for Pickup" : mappedStatus === "printing" ? "Printing" : mappedStatus === "completed" ? "Collected" : "Queued"}
+      />
+
+      {/* BATCH 3: Material Substitution Approval Modal */}
+      {substitutionRequest && (
+        <MaterialSubstitutionModal
+          substitution={substitutionRequest}
+          onApprove={() => {
+            setSubstitutionRequest(null);
+          }}
+          onCancelOrder={() => {
+            setSubstitutionRequest(null);
+            onCancelOrder();
+          }}
+        />
+      )}
 
       {/* Live Print Queue Status Section */}
       <section className="bill-card" aria-labelledby="token-queue-heading" style={{ marginBottom: 16 }}>
@@ -4144,12 +4314,25 @@ export default function App() {
 
   const [screen, setScreen] = useState<Screen>("home");
   const [searchQuery, setSearchQuery] = useState("");
+  const [language, setLanguage] = useState<SupportedLanguage>(() => getStoredLanguage());
+  const [nowServing, setNowServing] = useState(() => printQueueManager.getNowServing());
+
+  useEffect(() => {
+    saveStoredLanguage(language);
+  }, [language]);
+
+  useEffect(() => {
+    const unsub = printQueueManager.subscribe(() => {
+      setNowServing(printQueueManager.getNowServing());
+    });
+    return unsub;
+  }, []);
   const [headerPanel, setHeaderPanel] = useState<"search" | "notifications" | null>(null);
   const [authSession, setAuthSession] = useState<AuthUser | null>(() => readStoredAuthSession());
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
     try {
-      return window.localStorage.getItem("onboardingCompleted") !== "true";
+      return window.localStorage.getItem("onboardingCompleted") === "show";
     } catch {
       return false;
     }
@@ -4734,6 +4917,35 @@ export default function App() {
     }
   }, [go, screen]);
 
+  // Keyboard navigation for main tabs (Accessibility requirement)
+  useEffect(() => {
+    const handleMainKeyNavigation = (e: KeyboardEvent) => {
+      // Don't intercept when user is typing in forms, inputs or inside modals
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        target.closest('input, textarea, select, [contenteditable="true"], [data-no-swipe="true"], [role="dialog"]')
+      ) {
+        return;
+      }
+      if (!isMainScreen) return;
+
+      const currentIndex = MAIN_TABS.indexOf(screen as NavTab);
+      if (currentIndex === -1) return;
+
+      if (e.key === "ArrowRight" && currentIndex < MAIN_TABS.length - 1) {
+        e.preventDefault();
+        go(MAIN_TABS[currentIndex + 1], "forward");
+      } else if (e.key === "ArrowLeft" && currentIndex > 0) {
+        e.preventDefault();
+        go(MAIN_TABS[currentIndex - 1], "backward");
+      }
+    };
+
+    window.addEventListener("keydown", handleMainKeyNavigation);
+    return () => window.removeEventListener("keydown", handleMainKeyNavigation);
+  }, [isMainScreen, screen, go]);
+
   const openHomeFilePicker = (preset: PrintJob = defaultPrintJob) => {
     pendingHomePreset.current = preset;
     if (homeFileInput.current) {
@@ -4957,6 +5169,42 @@ export default function App() {
     );
   }
 
+  if (screen === "payment") {
+    const rawTotalPages = uploadedFiles.length > 0
+      ? uploadedFiles.reduce((sum, f) => sum + (f.pages || 1), 0)
+      : printJob.pages;
+    const fileCalculations = uploadedFiles.length > 0
+      ? uploadedFiles.map((file) => {
+          const fPages = Math.max(1, file.pages || 1);
+          const fPaperStock = normalizePaperStock(printJob.paperStock);
+          const fPaperSize = printJob.paper || "A4";
+          const fIsSingle = printJob.singleSided || !isDoubleSidedAvailable(fPaperStock);
+          const fPricePerSheet = getPricePerSheet(fPaperStock, fPaperSize, fIsSingle, printJob.colour);
+          const fCopies = Math.max(1, printJob.copies || 1);
+          const fTotalSheets = fPages * fCopies;
+          const fSubtotal = fPricePerSheet * fTotalSheets;
+          return { subtotal: fSubtotal };
+        })
+      : [{ subtotal: 0 }];
+    const grandTotal = fileCalculations.reduce((sum, item) => sum + item.subtotal, 0);
+    return (
+      <div className="app-shell printq-shell">
+        <PaymentPage
+          totalAmount={grandTotal}
+          orderSummary={{
+            files: uploadedFiles.length || 1,
+            pages: rawTotalPages,
+            copies: printJob.copies || 1,
+          }}
+          onPay={() => {
+            go("checkout");
+          }}
+          onBack={() => go("checkout")}
+        />
+      </div>
+    );
+  }
+
   if (screen === "paymentSuccess") {
     return (
       <div className="app-shell printq-shell">
@@ -5013,7 +5261,7 @@ export default function App() {
             onStartPrint={() => go("home")}
           />
         </MainSwipeContainer>
-        <PrintQNavigation active="notifications" go={go} unreadCount={unreadCount} />
+        <PrintQNavigation active="notifications" go={go} unreadCount={unreadCount} language={language} />
         {renderDocumentPreviewModal()}
         {renderAuthModal()}
       </div>
@@ -5094,7 +5342,7 @@ export default function App() {
             )}
           </main>
         </MainSwipeContainer>
-        <PrintQNavigation active="history" go={go} unreadCount={unreadCount} />
+        <PrintQNavigation active="history" go={go} unreadCount={unreadCount} language={language} />
         {renderDocumentPreviewModal()}
         {renderAuthModal()}
       </div>
@@ -5231,6 +5479,59 @@ export default function App() {
               </div>
             </section>
           )}
+
+          {/* Language Selection Section */}
+          <section className="bill-card settings-section-card" aria-labelledby="heading-display-language">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 0 6px" }}>
+              <h2 id="heading-display-language" style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: 0 }}>
+                🌐 {getTranslation(language, "settings_language_section")}
+              </h2>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)", background: "rgba(244, 215, 121, 0.12)", padding: "2px 7px", borderRadius: 5 }}>
+                {language.toUpperCase()}
+              </span>
+            </div>
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+              {getTranslation(language, "settings_language_desc")}
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              {[
+                { code: "en", label: "English", native: "English" },
+                { code: "gu", label: "Gujarati", native: "ગુજરાતી" },
+                { code: "hi", label: "Hindi", native: "हिन्दी" },
+              ].map((lang) => {
+                const isSelected = language === lang.code;
+                return (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    onClick={() => {
+                      setLanguage(lang.code as SupportedLanguage);
+                      saveStoredLanguage(lang.code as SupportedLanguage);
+                    }}
+                    style={{
+                      background: isSelected ? "var(--accent)" : "var(--surface)",
+                      color: isSelected ? "#0A0A0A" : "var(--text)",
+                      border: isSelected ? "1px solid var(--accent)" : "1px solid var(--border)",
+                      borderRadius: 10,
+                      padding: "10px 6px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 3,
+                      cursor: "pointer",
+                      fontWeight: isSelected ? 800 : 500,
+                      transition: "all 140ms ease",
+                    }}
+                    aria-pressed={isSelected}
+                    aria-label={`Select ${lang.label} language`}
+                  >
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{lang.native}</span>
+                    <span style={{ fontSize: 10, opacity: isSelected ? 0.85 : 0.65 }}>{lang.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
 
           {/* 1. Shop Hours & Printer Status Card */}
           <section className="bill-card settings-section-card">
@@ -5496,7 +5797,7 @@ export default function App() {
           </section>
         </main>
         </MainSwipeContainer>
-        <PrintQNavigation active="settings" go={go} unreadCount={unreadCount} />
+        <PrintQNavigation active="settings" go={go} unreadCount={unreadCount} language={language} />
         {renderDocumentPreviewModal()}
         {renderAuthModal()}
       </div>
@@ -5610,6 +5911,16 @@ export default function App() {
             </div>
           )}
 
+          <HomeShortcuts
+            language={language}
+            go={go}
+            activeOrder={activeOrder}
+            nowServing={nowServing}
+            onSelectShortcut={(tool) => {
+              if (tool === "language") go("settings");
+            }}
+          />
+
           <Document
             onBack={() => go("home")}
             onNotifications={() => go("notifications")}
@@ -5660,7 +5971,7 @@ export default function App() {
       )}
 
       {!isLoginOpen && screen === "home" && (
-        <PrintQNavigation active="home" go={go} unreadCount={unreadCount} />
+        <PrintQNavigation active="home" go={go} unreadCount={unreadCount} language={language} />
       )}
       {renderDocumentPreviewModal()}
       {renderAuthModal()}
@@ -5713,16 +6024,18 @@ function PrintQNavigation({
   active,
   go,
   unreadCount = 0,
+  language = "en",
 }: {
   active: NavTab;
   go: (screen: Screen) => void;
   unreadCount?: number;
+  language?: SupportedLanguage;
 }) {
   const tabs: { id: NavTab; label: string }[] = [
-    { id: "home", label: "Home" },
-    { id: "notifications", label: "Alerts" },
-    { id: "history", label: "History" },
-    { id: "settings", label: "Settings" },
+    { id: "home", label: getTranslation(language, "nav_home") || "Home" },
+    { id: "notifications", label: getTranslation(language, "nav_alerts") || "Alerts" },
+    { id: "history", label: getTranslation(language, "nav_history") || "History" },
+    { id: "settings", label: getTranslation(language, "nav_settings") || "Settings" },
   ];
 
   return (
