@@ -1525,7 +1525,12 @@ function Document({
   const [pageRangeTouched, setPageRangeTouched] = useState(false);
   const [applyingSample, setApplyingSample] = useState<string | null>(null);
   const [uploadRunId, setUploadRunId] = useState(0);
+  const [isPaperTypeOpen, setIsPaperTypeOpen] = useState(false);
   const uploadRunIdRef = useRef(0);
+  const paperTypeRef = useRef<HTMLDivElement>(null);
+  const paperTypeButtonRef = useRef<HTMLButtonElement>(null);
+  const paperTypeMenuRef = useRef<HTMLUListElement>(null);
+  const paperTypeOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const fileReadersRef = useRef<FileReader[]>([]);
   const objectUrlsRef = useRef<string[]>([]);
   const progressTimerRef = useRef<number | null>(null);
@@ -2006,6 +2011,7 @@ function Document({
     requestedPickupMinutes: job.readyMinutes,
   });
   const activeStockName = normalizePaperStock(job.paperStock);
+  const activePaperTypeConfig = PAPER_STOCK_CONFIG.find((p) => p.name === activeStockName);
   const doubleSupported = isDoubleSidedAvailable(activeStockName);
   const singlePricePerSheet = getPricePerSheet(activeStockName, job.paper || "A4", true, job.colour);
   const doublePricePerSheet = doubleSupported ? getPricePerSheet(activeStockName, job.paper || "A4", false, job.colour) : null;
@@ -2017,6 +2023,99 @@ function Document({
   }, [doubleSupported, job, setJob]);
 
   const updateJob = (changes: Partial<PrintJob>) => setJob({ ...job, ...changes });
+
+  const handleSelectPaperType = (newStock: string) => {
+    setActivePresetId(null);
+    const config = PAPER_STOCK_CONFIG.find((p) => p.name === newStock);
+    const willBeSingle = config && !config.doubleAllowed ? true : job.singleSided;
+    updateJob({
+      paperStock: newStock,
+      singleSided: willBeSingle,
+      stockSurcharge: 0,
+    });
+    setIsPaperTypeOpen(false);
+    paperTypeButtonRef.current?.focus();
+  };
+
+  const focusPaperTypeOption = (index: number) => {
+    paperTypeOptionRefs.current[index]?.focus();
+  };
+
+  const handlePaperTypeButtonKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    const lastIndex = PAPER_STOCK_CONFIG.length - 1;
+    if (!isPaperTypeOpen) {
+      setIsPaperTypeOpen(true);
+      const selectedIndex = PAPER_STOCK_CONFIG.findIndex((p) => p.name === activeStockName);
+      const targetIndex = event.key === "ArrowUp" ? lastIndex : Math.max(0, selectedIndex);
+      window.requestAnimationFrame(() => focusPaperTypeOption(targetIndex));
+      return;
+    }
+    focusPaperTypeOption(event.key === "ArrowUp" ? lastIndex : 0);
+  };
+
+  const handlePaperTypeOptionKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const lastIndex = PAPER_STOCK_CONFIG.length - 1;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      let targetIndex = index;
+      if (event.key === "ArrowDown") targetIndex = index >= lastIndex ? 0 : index + 1;
+      if (event.key === "ArrowUp") targetIndex = index <= 0 ? lastIndex : index - 1;
+      if (event.key === "Home") targetIndex = 0;
+      if (event.key === "End") targetIndex = lastIndex;
+      focusPaperTypeOption(targetIndex);
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setIsPaperTypeOpen(false);
+      paperTypeButtonRef.current?.focus();
+    }
+  };
+
+  const handlePaperTypeBlur = (event: React.FocusEvent<HTMLDivElement>) => {
+    const nextTarget = event.relatedTarget as Node | null;
+    if (!nextTarget || !paperTypeRef.current?.contains(nextTarget)) {
+      setIsPaperTypeOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isPaperTypeOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!paperTypeRef.current?.contains(event.target as Node)) {
+        setIsPaperTypeOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsPaperTypeOpen(false);
+        paperTypeButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isPaperTypeOpen]);
+
+  useEffect(() => {
+    if (!isPaperTypeOpen) return;
+    const selectedIndex = PAPER_STOCK_CONFIG.findIndex((p) => p.name === activeStockName);
+    const menu = paperTypeMenuRef.current;
+    const option = paperTypeOptionRefs.current[selectedIndex >= 0 ? selectedIndex : 0];
+    if (!menu || !option) return;
+    const optionTop = option.offsetTop;
+    const optionBottom = optionTop + option.offsetHeight;
+    if (optionTop < menu.scrollTop) {
+      menu.scrollTop = optionTop;
+    } else if (optionBottom > menu.scrollTop + menu.clientHeight) {
+      menu.scrollTop = optionBottom - menu.clientHeight;
+    }
+  }, [isPaperTypeOpen, activeStockName]);
 
   return (
     <section className={`printq-document-page${hasFile ? " has-file" : " upload-only"}`} onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
@@ -2619,43 +2718,87 @@ function Document({
           </section>
 
           {/* Section 7: Paper Type Dropdown */}
-          <section className="settings-section" aria-labelledby="heading-paper-type">
+          <section className="settings-section settings-paper-type-section" aria-labelledby="heading-paper-type">
             <h2 id="heading-paper-type" className="settings-section-title">Paper Type</h2>
-            <div className="settings-paper-dropdown-wrap">
-              <label htmlFor="settings-paper-stock-select" className="sr-only">Choose Paper Type</label>
+            <div className="settings-paper-dropdown-wrap" ref={paperTypeRef} onBlur={handlePaperTypeBlur}>
               <div className="settings-select-container">
-                <select
+                <button
+                  ref={paperTypeButtonRef}
                   id="settings-paper-stock-select"
-                  className="settings-paper-select"
-                  value={activeStockName}
-                  onChange={(e) => {
-                    const newStock = e.target.value;
-                    setActivePresetId(null);
-                    const config = PAPER_STOCK_CONFIG.find((p) => p.name === newStock);
-                    const willBeSingle = config && !config.doubleAllowed ? true : job.singleSided;
-                    updateJob({
-                      paperStock: newStock,
-                      singleSided: willBeSingle,
-                      stockSurcharge: 0,
-                    });
-                  }}
+                  type="button"
+                  className={`settings-paper-select${isPaperTypeOpen ? " is-open" : ""}`}
+                  role="combobox"
+                  aria-haspopup="listbox"
+                  aria-expanded={isPaperTypeOpen}
+                  aria-controls="settings-paper-stock-menu"
                   aria-label="Select paper type"
+                  onClick={() => setIsPaperTypeOpen((open) => !open)}
+                  onKeyDown={handlePaperTypeButtonKeyDown}
                 >
-                  {PAPER_STOCK_CONFIG.map(({ name, gsm }) => (
-                    <option key={name} value={name} className="settings-paper-option">
-                      {name} · {gsm}
-                    </option>
-                  ))}
-                </select>
-                <div className="settings-select-arrow" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </div>
+                  <span className="settings-paper-select-value">
+                    <span className="settings-paper-select-name">{activeStockName}</span>
+                    <span className="settings-paper-select-gsm">{activePaperTypeConfig?.gsm}</span>
+                  </span>
+                  <div className="settings-paper-select-meta">
+                    <span className="settings-paper-select-price">
+                      ₹{singlePricePerSheet.toFixed(2)} / sheet
+                    </span>
+                    <span className={`settings-select-arrow${isPaperTypeOpen ? " is-open" : ""}`} aria-hidden="true">
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </span>
+                  </div>
+                </button>
+
+                {isPaperTypeOpen && (
+                  <ul
+                    ref={paperTypeMenuRef}
+                    id="settings-paper-stock-menu"
+                    className="settings-paper-menu"
+                    role="listbox"
+                    aria-label="Paper types"
+                  >
+                    {PAPER_STOCK_CONFIG.map(({ name, gsm }, index) => {
+                      const isSelected = name === activeStockName;
+                      return (
+                        <li key={name} role="none">
+                          <button
+                            ref={(element) => {
+                              paperTypeOptionRefs.current[index] = element;
+                            }}
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            className={`settings-paper-menu-option${isSelected ? " is-selected" : ""}`}
+                            onClick={() => handleSelectPaperType(name)}
+                            onKeyDown={(event) => handlePaperTypeOptionKeyDown(event, index)}
+                          >
+                            <span className="settings-paper-menu-text">
+                              <span className="settings-paper-menu-name">{name}</span>
+                              <span className="settings-paper-menu-gsm">{gsm}</span>
+                            </span>
+                            <div className="settings-paper-menu-meta">
+                              <span className="settings-paper-menu-price">
+                                ₹{getPricePerSheet(name, job.paper || "A4", job.singleSided || !doubleSupported, job.colour).toFixed(2)}/sheet
+                              </span>
+                              {isSelected ? (
+                                <span className="settings-paper-menu-check" aria-hidden="true">
+                                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                </span>
+                              ) : (
+                                <span className="settings-paper-menu-check-spacer" aria-hidden="true" />
+                              )}
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
-              <p className="settings-paper-dropdown-helper" aria-live="polite">
-                Current selection: <strong style={{ color: "var(--accent)" }}>{activeStockName}</strong> ({PAPER_STOCK_CONFIG.find(p => p.name === activeStockName)?.gsm}) · ₹{singlePricePerSheet.toFixed(2)}/sheet
-              </p>
             </div>
           </section>
 
@@ -4090,7 +4233,7 @@ function Help({ go }: { go: (screen: Screen) => void }) {
   const [openQuestion, setOpenQuestion] = useState<number | null>(0);
   const questions = [
     ["How do I upload a document?", "Open Print Studio, select the upload icon, and choose a PDF, presentation, document, or image from your device."],
-    ["When can I collect my print?", "Your pickup time appears during setup. We will also notify you when the order is ready."],
+    ["When can I collect my print?", "Track your live token position in the queue. We will notify you as soon as your order is ready."],
     ["Can I cancel an order?", "You can cancel an order from the tracking screen before the print shop starts processing it."],
   ];
   return (

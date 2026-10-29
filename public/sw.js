@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "phopy-shell-";
-const CACHE_NAME = `${CACHE_PREFIX}v1`;
+const CACHE_NAME = `${CACHE_PREFIX}v2`;
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
@@ -47,6 +47,17 @@ self.addEventListener("fetch", (event) => {
 
   const requestUrl = new URL(request.url);
   const appShell = new URL("./", self.registration.scope);
+
+  // Skip dev files, vite internals, and API requests
+  if (
+    requestUrl.pathname.includes("@vite") ||
+    requestUrl.pathname.includes("@react-refresh") ||
+    requestUrl.pathname.startsWith("/src/") ||
+    requestUrl.pathname.startsWith("/node_modules/")
+  ) {
+    return;
+  }
+
   if (requestUrl.origin !== self.location.origin || !requestUrl.pathname.startsWith(appShell.pathname)) return;
 
   event.respondWith((async () => {
