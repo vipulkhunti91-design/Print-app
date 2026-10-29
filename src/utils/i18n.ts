@@ -118,7 +118,7 @@ export const translations: Record<SupportedLanguage, TranslationDictionary> = {
     home_greeting: "Hey Student,",
     home_subtitle: "Need to print something today?",
     home_upload_heading: "Upload your files",
-    home_upload_sub: "Upload up to 5 files · Max 50 MB per file",
+    home_upload_sub: "Upload up to 4 files · Max 50 MB per file",
     home_upload_button: "Upload Files",
     home_file_limit: "Max 50 MB per file",
     home_files_count: "files uploaded",

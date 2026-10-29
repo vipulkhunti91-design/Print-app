@@ -18,6 +18,14 @@ const baseJob = {
   stockSurcharge: 0,
 };
 
+export interface ActiveOrder {
+  recordId: string;
+  token: string;
+  job: any;
+  status: "confirmed" | "queued" | "printing" | "ready" | "pickup" | "completed" | "cancelled" | "delayed";
+  createdAt?: number;
+}
+
 export const demoActiveOrder = {
   recordId: "demo-active-A-26",
   token: "A-26",

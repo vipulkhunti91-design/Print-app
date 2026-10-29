@@ -457,7 +457,7 @@ class SecurityEngine {
     const newOrder: FirebaseOrderRecord = {
       ...orderData,
       id: orderId,
-      userId: this.activeUid, // enforce current UID
+      userId: this.activeUid || "guest", // enforce current UID
       createdAt: now,
       updatedAt: now,
     };
@@ -468,7 +468,7 @@ class SecurityEngine {
 
     // Auto-create initial Notification in notifications collection
     this.createNotification({
-      userId: this.activeUid,
+      userId: this.activeUid || "guest",
       type: "order_placed",
       title: "Order Placed & Payment Confirmed",
       message: `Your print order #${newOrder.token} (${newOrder.job.fileName}) has been placed.`,
@@ -501,7 +501,7 @@ class SecurityEngine {
     this.saveOrdersList(all);
 
     this.createNotification({
-      userId: this.activeUid,
+      userId: this.activeUid || "guest",
       type: "cancelled",
       title: "Order Cancelled",
       message: `Your order #${order.token} was cancelled successfully.`,

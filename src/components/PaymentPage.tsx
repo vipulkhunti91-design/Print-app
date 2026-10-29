@@ -344,13 +344,13 @@ export default function PaymentPage({
                   ? "rgba(244, 215, 121, 0.1)"
                   : paymentStatus === "success"
                   ? "rgba(167, 232, 189, 0.12)"
-                  : "rgba(244, 63, 94, 0.12)",
+                  : "rgba(248, 113, 113, 0.12)",
               border: `1px solid ${
                 paymentStatus === "verifying"
                   ? "rgba(244, 215, 121, 0.3)"
                   : paymentStatus === "success"
                   ? "var(--status-ready)"
-                  : "#F43F5E"
+                  : "var(--error)"
               }`,
             }}
           >
@@ -359,7 +359,7 @@ export default function PaymentPage({
                 <span style={{ width: 14, height: 14, border: "2px solid #F4D779", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
               )}
               {paymentStatus === "success" && <span style={{ color: "var(--status-ready)", fontWeight: 800 }}>✓</span>}
-              {paymentStatus === "failed" && <span style={{ color: "#F43F5E", fontWeight: 800 }}>✕</span>}
+              {paymentStatus === "failed" && <span style={{ color: "var(--error)", fontWeight: 800 }}>✕</span>}
               <strong
                 style={{
                   fontSize: 13,
@@ -368,7 +368,7 @@ export default function PaymentPage({
                       ? "var(--accent)"
                       : paymentStatus === "success"
                       ? "var(--status-ready)"
-                      : "#F43F5E",
+                      : "var(--error)",
                 }}
               >
                 {paymentStatus === "verifying"
@@ -392,7 +392,7 @@ export default function PaymentPage({
                   onClick={handleRetry}
                   style={{
                     background: "var(--accent)",
-                    color: "#0A0A0A",
+                    color: "var(--on-accent)",
                     border: "none",
                     borderRadius: 8,
                     padding: "6px 14px",
@@ -448,7 +448,7 @@ export default function PaymentPage({
             width: "100%",
             height: 48,
             background: "var(--accent)",
-            color: "#0A0A0A",
+            color: "var(--on-accent)",
             border: "none",
             borderRadius: 12,
             fontSize: 14,

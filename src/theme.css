@@ -564,7 +564,8 @@ select:focus-visible, textarea:focus-visible {
 
 .settings-screen-header {
   display: grid;
-  grid-template-columns: 72px 1fr 72px;
+  grid-template-columns: 44px 1fr auto;
+  gap: 8px;
   align-items: center;
   width: 100%;
   margin: 0 0 16px;
@@ -573,14 +574,14 @@ select:focus-visible, textarea:focus-visible {
 .upload-screen-back,
 .settings-screen-back {
   display: flex;
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px; min-height: 44px;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--surface);
   color: var(--text-secondary);
   cursor: pointer;
@@ -670,7 +671,7 @@ select:focus-visible, textarea:focus-visible {
   align-items: center;
   padding: 24px 16px;
   margin-top: 10px;
-  border: 1.5px dashed var(--accent);
+  border: 1.5px dashed var(--border);
   border-radius: 20px;
   background: var(--surface);
   color: var(--text);
@@ -1139,6 +1140,77 @@ select:focus-visible, textarea:focus-visible {
   display: inline-block;
 }
 
+
+/* Paper Type Custom Dropdown */
+.settings-paper-dropdown-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.settings-select-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.settings-paper-select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 42px 12px 14px;
+  background-color: var(--surface);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.settings-paper-select:hover {
+  background-color: var(--surface-raised);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.settings-paper-select:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.settings-paper-option {
+  background-color: var(--surface);
+  color: var(--text);
+  padding: 10px;
+}
+
+.settings-select-arrow {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-paper-dropdown-helper {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 0;
+  padding-left: 2px;
+}
 .settings-formula-banner {
   background: rgba(244, 215, 121, 0.07);
   border: 1px solid rgba(244, 215, 121, 0.25);
@@ -1745,7 +1817,7 @@ select:focus-visible, textarea:focus-visible {
 .settings-action-btn {
   flex: 1 1 calc(50% - 6px);
   min-width: 120px;
-  min-height: 40px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2783,7 +2855,7 @@ select:focus-visible, textarea:focus-visible {
 .printq-home,
 .printq-simple-page,
 .list-page {
-  padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)) !important;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
   box-sizing: border-box;
 }
 
@@ -2797,9 +2869,9 @@ select:focus-visible, textarea:focus-visible {
   padding: 12px 14px;
   margin-bottom: 14px;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(244, 215, 121, 0.12), rgba(23, 23, 23, 0.95));
-  border: 1px solid rgba(244, 215, 121, 0.35);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  background: var(--surface);
+  border: 1px solid rgba(244, 215, 121, 0.3);
+  box-shadow: none;
   cursor: pointer;
   box-sizing: border-box;
   transition: transform 120ms ease, border-color 120ms ease;
@@ -2876,7 +2948,7 @@ select:focus-visible, textarea:focus-visible {
   width: 100%;
   max-width: 420px;
   margin: 0 auto;
-  padding: 16px 16px calc(80px + env(safe-area-inset-bottom, 0px));
+  padding: 16px 16px calc(96px + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
 }
 .bill-header-nav {
@@ -3284,7 +3356,7 @@ select:focus-visible, textarea:focus-visible {
   padding: 3px 8px;
   border-radius: 8px;
   background: var(--accent);
-  color: #0A0A0A;
+  color: var(--on-accent);
   font-size: 12px;
   font-weight: 800;
 }
@@ -3296,10 +3368,11 @@ select:focus-visible, textarea:focus-visible {
   text-transform: capitalize;
 }
 .history-status-badge.queued { background: rgba(244, 215, 121, 0.15); color: var(--accent); }
-.history-status-badge.printing { background: rgba(56, 189, 248, 0.15); color: #38BDF8; }
+.history-status-badge.printing { background: rgba(143, 163, 255, 0.15); color: var(--status-processing); }
 .history-status-badge.ready { background: rgba(167, 232, 189, 0.15); color: var(--status-ready); }
 .history-status-badge.completed { background: rgba(167, 232, 189, 0.2); color: var(--status-ready); }
-.history-status-badge.cancelled { background: rgba(244, 63, 94, 0.15); color: #F43F5E; }
+.history-status-badge.cancelled { background: rgba(248, 113, 113, 0.15); color: var(--error); }
+.history-status-badge.delayed { background: rgba(248, 113, 113, 0.15); color: var(--error); }
 
 /* 11. Home Shop Information Card */
 .home-shop-status-card {
@@ -3318,11 +3391,46 @@ select:focus-visible, textarea:focus-visible {
   gap: 8px;
   margin-bottom: 10px;
 }
-.home-shop-name {
-  font-size: 14px;
+.home-shop-name,
+.home-shop-status-title {
+  font-size: 14.5px;
   font-weight: 700;
   color: var(--text);
+  margin: 0 0 3px 0;
+  line-height: 1.25;
+}
+
+.home-shop-status-hours {
+  font-size: 12px;
+  color: var(--text-secondary);
   margin: 0;
+  line-height: 1.4;
+}
+
+.home-shop-status-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.home-shop-status-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.home-shop-status-loc {
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
 }
 .shop-status-pill {
   display: inline-flex;
@@ -3340,9 +3448,9 @@ select:focus-visible, textarea:focus-visible {
   border: 1px solid rgba(167, 232, 189, 0.3);
 }
 .shop-status-pill.closed {
-  background: rgba(244, 63, 94, 0.12);
-  color: #F43F5E;
-  border: 1px solid rgba(244, 63, 94, 0.25);
+  background: rgba(248, 113, 113, 0.12);
+  color: var(--error);
+  border: 1px solid rgba(248, 113, 113, 0.25);
 }
 .shop-status-pill.warning {
   background: rgba(244, 215, 121, 0.15);
@@ -3361,7 +3469,7 @@ select:focus-visible, textarea:focus-visible {
   animation: bannerPulse 1.8s infinite ease-in-out;
 }
 .status-dot.red {
-  background: #F43F5E;
+  background: var(--error);
 }
 .status-dot.yellow {
   background: var(--accent);

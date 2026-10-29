@@ -203,7 +203,7 @@ export default function AuthModal({
       setSelectedGoogleAccount({
         name: derivedName,
         email: cleanEmail,
-        photo: undefined,
+        photo: "",
         role: "user",
       });
     }
@@ -779,7 +779,7 @@ export default function AuthModal({
               {otpDigits.map((digit, idx) => (
                 <input
                   key={idx}
-                  ref={(el) => (otpInputRefs.current[idx] = el)}
+                  ref={(el) => { otpInputRefs.current[idx] = el; }}
                   type="text"
                   inputMode="numeric"
                   maxLength={1}

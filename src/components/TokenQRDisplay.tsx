@@ -56,7 +56,7 @@ export function TokenQRDisplay({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          boxShadow: "0 4px 16px rgba(0, 0, 0, 0.35)",
+          border: "1px solid rgba(255, 255, 255, 0.12)",
         }}
       >
         <svg

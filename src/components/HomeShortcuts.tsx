@@ -37,7 +37,7 @@ export function HomeShortcuts({
           marginBottom: 14,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
           <div
             style={{
               width: 36,
@@ -53,7 +53,7 @@ export function HomeShortcuts({
           >
             📢
           </div>
-          <div>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <span
               style={{
                 fontSize: 11,
@@ -80,7 +80,7 @@ export function HomeShortcuts({
               background: "rgba(167, 232, 189, 0.12)",
               border: "1px solid rgba(167, 232, 189, 0.3)",
               borderRadius: 10,
-              padding: "6px 10px",
+              padding: "6px 10px", minHeight: 44, display: "inline-flex", flexDirection: "column", justifyContent: "center", flexShrink: 0,
               textAlign: "right",
               cursor: "pointer",
             }}

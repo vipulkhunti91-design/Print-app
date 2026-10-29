@@ -143,7 +143,7 @@ export function LegibilityChecker({
         <button
           type="button"
           onClick={() => setIsDismissed(true)}
-          style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", padding: "0 4px" }}
+          style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", minWidth: 44, minHeight: 44, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
           aria-label="Dismiss legibility warning"
         >
           ✕
@@ -154,16 +154,7 @@ export function LegibilityChecker({
         <button
           type="button"
           onClick={onSwitchToColour}
-          style={{
-            background: "var(--accent)",
-            color: "#0A0A0A",
-            border: "none",
-            borderRadius: 8,
-            padding: "6px 12px",
-            fontSize: 12,
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
+          style={{ background: "var(--accent)", color: "var(--on-accent)", border: "none", borderRadius: 12, minHeight: 44, padding: "0 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
         >
           Switch to Colour (₹8)
         </button>
@@ -171,16 +162,7 @@ export function LegibilityChecker({
           <button
             type="button"
             onClick={() => onInspectPage(issues[0].page)}
-            style={{
-              background: "rgba(255, 255, 255, 0.08)",
-              border: "1px solid rgba(255, 255, 255, 0.16)",
-              color: "var(--text)",
-              borderRadius: 8,
-              padding: "6px 12px",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
+            style={{ background: "rgba(255, 255, 255, 0.08)", border: "1px solid rgba(255, 255, 255, 0.16)", color: "var(--text)", borderRadius: 12, minHeight: 44, padding: "0 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
           >
             Inspect Page {issues[0].page}
           </button>

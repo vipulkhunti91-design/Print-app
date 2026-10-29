@@ -1,4 +1,4 @@
-﻿import { printQueueManager, type QueueOrder } from "./services/printQueueService";
+import { printQueueManager, type QueueOrder } from "./services/printQueueService";
 import {
   type SupportedLanguage,
   getStoredLanguage,
@@ -109,7 +109,7 @@ type ActiveOrder = {
   recordId: string;
   token: string;
   job: PrintJob;
-  status: "confirmed" | "queued" | "printing" | "ready" | "pickup" | "completed" | "cancelled";
+  status: "confirmed" | "queued" | "printing" | "ready" | "pickup" | "completed" | "cancelled" | "delayed";
   createdAt?: number;
 };
 
@@ -210,6 +210,7 @@ const orderStatusLabels: Record<ActiveOrder["status"], string> = {
   pickup: "Ready for Pickup",
   completed: "Completed",
   cancelled: "Cancelled",
+  delayed: "Delayed",
 };
 
 type FilePreviewData = {
@@ -354,7 +355,12 @@ export const PAPER_STOCK_CONFIG = [
   },
 ] as const;
 
-export const PAPER_SIZE_CONFIG = [
+export const PAPER_SIZE_CONFIG: readonly {
+  readonly size: string;
+  readonly dim: string;
+  readonly isLargeFormat: boolean;
+  readonly note?: string;
+}[] = [
   { size: "A4", dim: "210 × 297 mm", isLargeFormat: false },
   { size: "A3", dim: "297 × 420 mm", isLargeFormat: false },
   { size: "A2", dim: "420 × 594 mm", isLargeFormat: true, note: "Requires large-format printer" },
@@ -1615,7 +1621,7 @@ function Document({
     const availableSlots = MAX_FILES - currentCount;
 
     if (availableSlots <= 0) {
-      setUploadError("Maximum of 5 files reached. Delete a file to add another.");
+      setUploadError("Maximum of 4 files reached. Delete a file to add another.");
       return;
     }
 
@@ -1947,7 +1953,7 @@ function Document({
   });
   const [presetSavedFeedback, setPresetSavedFeedback] = useState<string>("");
   const [previewCurrentPage, setPreviewCurrentPage] = useState(1);
-  const previewTotalPages = Math.max(1, activeFile?.pages ?? (uploadedFiles.length > 0 ? uploadedFiles[0].pages : job.pages));
+  const previewTotalPages = Math.max(1, activeFile?.pages ?? (uploadedFiles.length > 0 ? (uploadedFiles[0].pages ?? 1) : job.pages));
 
   const rawPagesPerSet = uploadedFiles.length > 0
     ? uploadedFiles.reduce((sum, f) => sum + (f.pages || 1), 0)
@@ -2006,9 +2012,9 @@ function Document({
 
   useEffect(() => {
     if (!doubleSupported && !job.singleSided) {
-      setJob((prev) => ({ ...prev, singleSided: true }));
+      setJob({ ...job, singleSided: true });
     }
-  }, [doubleSupported, job.singleSided, setJob]);
+  }, [doubleSupported, job, setJob]);
 
   const updateJob = (changes: Partial<PrintJob>) => setJob({ ...job, ...changes });
 
@@ -2020,10 +2026,10 @@ function Document({
           <UploadIllustration />
           <div className="upload-screen-intro">
             <h2 className="upload-heading">Upload your files</h2>
-            <p className="upload-helper-text">Upload up to 5 files · Max 50 MB per file</p>
+            <p className="upload-helper-text">Upload up to 4 files · Max 50 MB per file</p>
             <div className="upload-counter-pill" aria-live="polite">
               <span className={`upload-counter-dot${uploadedFiles.length > 0 ? " has-files" : ""}`} />
-              <span>{uploadedFiles.length} of 5 files uploaded</span>
+              <span>{uploadedFiles.length} of 4 files uploaded</span>
             </div>
           </div>
 
@@ -3516,9 +3522,9 @@ function PaymentSuccess({
             {token}
           </strong>
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)", margin: "4px 0 8px", display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", background: "rgba(244, 215, 121, 0.08)", borderRadius: 12, border: "1px solid rgba(244, 215, 121, 0.2)" }}>
-            {readyEstimate.readyTimeFormatted && readyEstimate.readyTimeFormatted !== "--:--"
-              ? `⏱ Ready around ${readyEstimate.readyTimeFormatted}`
-              : `⏱ Ready in ~${readyEstimate.minutes || 15} minutes`}
+            {estimate.readyTimeFormatted && estimate.readyTimeFormatted !== "--:--"
+              ? `⏱ Ready around ${estimate.readyTimeFormatted}`
+              : `⏱ Ready in ~${estimate.minutes || 15} minutes`}
           </div>
           <small style={{ color: "var(--text-secondary)", fontSize: 12 }}>
             Reference: {orderRef} · Show this token at counter
@@ -3625,10 +3631,10 @@ function Token({
     singleSided: job.singleSided,
     paper: job.paper,
     paperStock: job.paperStock,
-    queueStatus: queueMetrics.queueStatus || 'normal',
-    queueAvailable: queueMetrics.isAvailable !== false,
+    queueStatus: queueMetrics.totalQueueCount > 3 ? "busy" : "normal",
+    queueAvailable: true,
   });
-  const etaText = (queueMetrics.isAvailable !== false && readyEstimate.readyTimeFormatted && readyEstimate.readyTimeFormatted !== '--:--')
+  const etaText = (readyEstimate.readyTimeFormatted && readyEstimate.readyTimeFormatted !== "--:--")
     ? `⏱ Ready around ${readyEstimate.readyTimeFormatted}`
     : `⏱ Ready in ~${readyEstimate.minutes || 15} minutes`;
   const isCancelled = order.status === "cancelled";
@@ -3837,7 +3843,7 @@ function Token({
 
       {/* Callout if Cancelled */}
       {isCancelled && (
-        <div className="track-pickup-callout" style={{ background: "rgba(244, 63, 94, 0.12)", borderColor: "#F43F5E", color: "#F43F5E", marginBottom: 16 }}>
+        <div className="track-pickup-callout" style={{ background: "rgba(248, 113, 113, 0.12)", borderColor: "var(--error)", color: "var(--error)", marginBottom: 16 }}>
           <span style={{ fontSize: 20 }}>✕</span>
           <div>
             <strong>Order Cancelled</strong>
@@ -3887,7 +3893,7 @@ function Token({
           <button
             type="button"
             className="track-action-btn"
-            style={{ color: "#F43F5E", borderColor: "rgba(244, 63, 94, 0.3)" }}
+            style={{ color: "var(--error)", borderColor: "rgba(248, 113, 113, 0.3)" }}
             onClick={() => {
               if (window.confirm("Are you sure you want to cancel this print order?")) {
                 onCancelOrder();
@@ -3909,86 +3915,6 @@ function Token({
           Back to Home
         </button>
       </div>
-    </main>
-  );
-}
-function Notifications({
-  go,
-  items,
-  onCheckClosing,
-}: {
-  go: (screen: Screen) => void;
-  items: AppNotification[];
-  onCheckClosing: (status: ShopStatus) => void;
-}) {
-  const [shopStatus, setShopStatus] = useState<ShopStatus>(() => getShopStatus());
-
-  useEffect(() => {
-    const updateShopStatus = () => {
-      const nextStatus = getShopStatus();
-      setShopStatus(nextStatus);
-      onCheckClosing(nextStatus);
-    };
-    updateShopStatus();
-    const interval = window.setInterval(updateShopStatus, 1000);
-    return () => window.clearInterval(interval);
-  }, [onCheckClosing]);
-
-  const todayClosingNotice = items.find((item) => item.kind === "shop-closing" && item.dateKey === shopStatus.dateKey);
-  const displayedItems = items.map((item) => {
-    if (item !== todayClosingNotice) return item;
-    if (shopStatus.state === "closed") {
-      return {
-        ...item,
-        title: "Print Shop Closed",
-        detail: `The print shop is closed now. Today's closing time was ${shopStatus.closingTime ?? "not available"}.`,
-        shopState: "closed" as const,
-      };
-    }
-    return {
-      ...item,
-      title: "Print Shop Closing Soon",
-      detail: `The print shop is closing soon. Please collect your print order before closing time. Closing Time: ${shopStatus.closingTime}. Time Remaining: ${formatTimeRemaining(shopStatus.remainingMs ?? 0)}.`,
-      shopState: "closing-soon" as const,
-    };
-  });
-
-  return (
-    <main className="page list-page">
-      <AppHeader title="Notification" onBack={() => go("home")} />
-      <p className="shop-status-note" role="status">
-        {shopStatus.state === "unavailable"
-          ? "Print shop hours are not configured. Closing time is unavailable."
-          : shopStatus.state === "closed"
-            ? `Print shop is currently closed. Regular closing time: ${shopStatus.closingTime}.`
-            : shopStatus.state === "closing-soon"
-              ? `Print shop closes at ${shopStatus.closingTime} in ${formatTimeRemaining(shopStatus.remainingMs ?? 0)}.`
-              : `Print shop is open. It closes at ${shopStatus.closingTime}.`}
-      </p>
-      <section className="notification-list">
-        {displayedItems.map((item) => (
-          item.kind === "shop-closing" ? (
-            <button className="notification-card notification-action" type="button" key={item.id} onClick={() => go("token")}>
-              <Asset name={item.icon} />
-              <span><b>{item.title}</b><small>{item.detail}</small></span>
-              <time>{item.time}</time>
-            </button>
-          ) : (
-            <article className="notification-card" key={item.id}>
-              <Asset name={item.icon} />
-              <span><b>{item.title}</b><small>{item.detail}</small></span>
-              <time>{item.time}</time>
-            </article>
-          )
-        ))}
-      </section>
-      <BottomNavigation
-        active="notifications"
-        onHome={() => go("home")}
-        onHistory={() => go("history")}
-        onNotifications={() => go("notifications")}
-        onProfile={() => go("profile")}
-      />
     </main>
   );
 }
@@ -4391,14 +4317,14 @@ export default function App() {
     if (userNotifs.length > 0) {
       return userNotifs.map((n) => ({
         id: n.id,
-        type: n.type,
+        type: n.type as any,
         title: n.title,
         message: n.message,
         timestamp: n.timestamp,
         orderToken: n.orderToken,
         recordId: n.recordId,
         read: n.read,
-        iconType: n.iconType as any,
+        iconType: (n.iconType || "placed") as any,
       }));
     }
     return [];
@@ -5058,14 +4984,14 @@ export default function App() {
         if (userNotifs.length > 0) {
           setNotificationItems(userNotifs.map((n) => ({
             id: n.id,
-            type: n.type,
+            type: n.type as any,
             title: n.title,
             message: n.message,
             timestamp: n.timestamp,
             orderToken: n.orderToken,
             recordId: n.recordId,
             read: n.read,
-            iconType: n.iconType as any,
+            iconType: (n.iconType || "placed") as any,
           })));
         } else {
           setNotificationItems([]);
@@ -5078,12 +5004,7 @@ export default function App() {
 
   const renderDocumentPreviewModal = () => {
     if (!showPreview) return null;
-    const activeFile = uploadedFiles[0] ? {
-      name: uploadedFiles[0].name,
-      size: uploadedFiles[0].size,
-      type: uploadedFiles[0].type,
-      raw: uploadedFiles[0],
-    } : filePreview;
+    const activeFile = uploadedFiles[0] || filePreview;
     return (
       <DocumentPreview
         close={() => setShowPreview(false)}
@@ -5196,8 +5117,9 @@ export default function App() {
             pages: rawTotalPages,
             copies: printJob.copies || 1,
           }}
-          onPay={() => {
-            go("checkout");
+          onPaymentSuccess={() => {
+            confirmOrder();
+            go("paymentSuccess");
           }}
           onBack={() => go("checkout")}
         />
@@ -5313,13 +5235,13 @@ export default function App() {
                   return (
                     <article key={rec.id} className="history-order-card">
                       <div className="history-order-top">
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span className="history-token-pill">{rec.token}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 180 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+                          <span className="history-token-pill" style={{ flexShrink: 0 }}>{rec.token}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1 }}>
                             {rec.job.fileName}
                           </span>
                         </div>
-                        <span className={`history-status-badge ${rec.status}`}>{rec.status}</span>
+                        <span className={`history-status-badge ${rec.status}`} style={{ flexShrink: 0 }}>{rec.status}</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "var(--text-secondary)", marginTop: 6 }}>
                         <span>{rec.job.pages} pgs · {rec.job.copies} {rec.job.copies === 1 ? "copy" : "copies"} · {rec.job.colour ? "Colour" : "B&W"} · {rec.job.orientation ?? "Portrait"}</span>
@@ -5329,7 +5251,7 @@ export default function App() {
                         <button
                           type="button"
                           className="track-action-btn primary"
-                          style={{ height: 36, marginTop: 10, fontSize: 13 }}
+                          style={{ minHeight: 44, marginTop: 10, fontSize: 13 }}
                           onClick={() => go("token")}
                         >
                           Track Live Order →
@@ -5471,7 +5393,7 @@ export default function App() {
                 <button
                   type="button"
                   className="admin-header-action-btn primary"
-                  style={{ background: "var(--accent)", color: "#0A0A0A", fontWeight: 700, flexShrink: 0, padding: "8px 12px", fontSize: 12 }}
+                  style={{ background: "var(--accent)", color: "var(--on-accent)", fontWeight: 700, flexShrink: 0, padding: "8px 12px", fontSize: 12 }}
                   onClick={() => go("admin")}
                 >
                   Master Control →
@@ -5510,7 +5432,7 @@ export default function App() {
                     }}
                     style={{
                       background: isSelected ? "var(--accent)" : "var(--surface)",
-                      color: isSelected ? "#0A0A0A" : "var(--text)",
+                      color: isSelected ? "var(--on-accent)" : "var(--text)",
                       border: isSelected ? "1px solid var(--accent)" : "1px solid var(--border)",
                       borderRadius: 10,
                       padding: "10px 6px",
@@ -5553,7 +5475,7 @@ export default function App() {
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span>Weekend (Sat & Sun)</span>
-                <span style={{ color: "#F43F5E", fontWeight: 600 }}>Closed</span>
+                <span style={{ color: "var(--error)", fontWeight: 600 }}>Closed</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span>Location</span>
@@ -5788,7 +5710,7 @@ export default function App() {
               <button
                 type="button"
                 className="track-action-btn"
-                style={{ color: "#F43F5E", borderColor: "rgba(244, 63, 94, 0.3)" }}
+                style={{ color: "var(--error)", borderColor: "rgba(248, 113, 113, 0.3)" }}
                 onClick={deleteAllUserData}
               >
                 Reset All App Data

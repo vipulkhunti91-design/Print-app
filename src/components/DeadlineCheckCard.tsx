@@ -48,8 +48,8 @@ export function DeadlineCheckCard({
           style={{
             fontSize: 11,
             fontWeight: 700,
-            color: isLikelyToMeet ? "var(--status-ready)" : "#F43F5E",
-            background: isLikelyToMeet ? "rgba(167, 232, 189, 0.12)" : "rgba(244, 63, 94, 0.12)",
+            color: isLikelyToMeet ? "var(--status-ready)" : "var(--error)",
+            background: isLikelyToMeet ? "rgba(167, 232, 189, 0.12)" : "rgba(248, 113, 113, 0.12)",
             padding: "2px 8px",
             borderRadius: 6,
           }}
@@ -82,7 +82,7 @@ export function DeadlineCheckCard({
               }}
               style={{
                 background: isActive ? "var(--accent)" : "rgba(255, 255, 255, 0.06)",
-                color: isActive ? "#0A0A0A" : "var(--text)",
+                color: isActive ? "var(--on-accent)" : "var(--text)",
                 border: "1px solid",
                 borderColor: isActive ? "var(--accent)" : "rgba(255, 255, 255, 0.12)",
                 borderRadius: 8,

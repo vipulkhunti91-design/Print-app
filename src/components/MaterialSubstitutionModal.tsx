@@ -110,10 +110,7 @@ export function MaterialSubstitutionModal({
             onClick={onCancelOrder}
             style={{
               width: "100%",
-              height: 40,
-              background: "transparent",
-              border: "1px solid rgba(244, 63, 94, 0.4)",
-              color: "#F43F5E",
+              minHeight: 44, background: "transparent", border: "1px solid rgba(248, 113, 113, 0.4)", color: "var(--error)",
               borderRadius: 12,
               fontSize: 12.5,
               fontWeight: 600,

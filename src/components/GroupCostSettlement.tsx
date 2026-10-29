@@ -79,7 +79,7 @@ export function GroupCostSettlement({
           onClick={() => setIsGroupMode(true)}
           style={{
             background: "var(--accent)",
-            color: "#0A0A0A",
+            color: "var(--on-accent)",
             border: "none",
             borderRadius: 8,
             padding: "6px 12px",
@@ -237,7 +237,7 @@ export function GroupCostSettlement({
           <strong
             style={{
               fontSize: 15,
-              color: outstandingBalance <= 0.01 ? "var(--status-ready)" : "#F43F5E",
+              color: outstandingBalance <= 0.01 ? "var(--status-ready)" : "var(--error)",
               display: "block",
             }}
           >
@@ -270,7 +270,7 @@ export function GroupCostSettlement({
                   <button
                     type="button"
                     onClick={() => handleRemoveMember(mem.id)}
-                    style={{ background: "none", border: "none", color: "#F43F5E", fontSize: 11, cursor: "pointer", padding: "0 4px" }}
+                    style={{ background: "none", border: "none", color: "var(--error)", fontSize: 11, cursor: "pointer", padding: "0 4px" }}
                     title="Remove member"
                   >
                     ✕
@@ -370,7 +370,7 @@ export function GroupCostSettlement({
           type="submit"
           style={{
             background: "var(--accent)",
-            color: "#0A0A0A",
+            color: "var(--on-accent)",
             border: "none",
             borderRadius: 8,
             padding: "0 12px",
