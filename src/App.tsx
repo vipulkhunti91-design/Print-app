@@ -5,10 +5,11 @@ import {
   saveStoredLanguage,
   getTranslation,
 } from "./utils/i18n";
-import { HomeShortcuts } from "./components/HomeShortcuts";
+import { HomeQueueStatus } from "./components/HomeQueueStatus";
 import { LegibilityChecker } from "./components/LegibilityChecker";
-import { DeadlineCheckCard } from "./components/DeadlineCheckCard";
 import { TokenQRDisplay } from "./components/TokenQRDisplay";
+import { UnifiedTokenSwipeCard } from "./components/UnifiedTokenSwipeCard";
+import { CustomPickupTimeCard } from "./components/CustomPickupTimeCard";
 import { MaterialSubstitutionModal, type MaterialSubstitutionAlert } from "./components/MaterialSubstitutionModal";
 import { GroupCostSettlement } from "./components/GroupCostSettlement";
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent } from "react";
@@ -52,6 +53,7 @@ import PaymentPage from "./components/PaymentPage";
 import AdminMasterControl from "./components/AdminMasterControl";
 import { securityEngine, type FirebaseOrderRecord } from "./services/securityEngine";
 import OnboardingFlow from "./components/OnboardingFlow";
+import InstallAppPrompt, { usePwaInstall } from "./components/InstallAppPrompt";
 
 const A = `${import.meta.env.BASE_URL}assets`;
 
@@ -1251,6 +1253,9 @@ function DocumentPreview({
   updatedJob,
   hasChanges,
   initialVersion,
+  files = [],
+  activeFileIndex = 0,
+  onSelectFile,
 }: {
   close: () => void;
   totalPages: number;
@@ -1260,11 +1265,29 @@ function DocumentPreview({
   updatedJob: PrintJob;
   hasChanges: boolean;
   initialVersion: "original" | "updated";
+  files?: UploadedFileData[];
+  activeFileIndex?: number;
+  onSelectFile?: (index: number) => void;
 }) {
+  const [selectedFileIdx, setSelectedFileIdx] = useState(activeFileIndex);
+  const activeFile = files.length > 0 ? (files[selectedFileIdx] || previewData) : previewData;
+  const currentFileName = activeFile?.name || fileName;
+  const currentFilePages = Math.max(1, activeFile?.pages || totalPages || 1);
+
   const [page, setPage] = useState(1);
   const [version, setVersion] = useState<"original" | "updated">(initialVersion);
   const [isClosing, setIsClosing] = useState(false);
   const closeTimer = useRef<number | null>(null);
+
+  // When switching files, reset page to 1
+  const handleSwitchFile = (idx: number) => {
+    setSelectedFileIdx(idx);
+    setPage(1);
+    if (onSelectFile) {
+      onSelectFile(idx);
+    }
+  };
+
   const isUpdated = version === "updated" && hasChanges;
   const activeJob = isUpdated ? updatedJob : originalJob;
   const requestClose = () => {
@@ -1295,9 +1318,36 @@ function DocumentPreview({
     <div className={`modal-backdrop${isClosing ? " is-closing" : ""}`} onClick={requestClose}>
       <section className={`preview-modal${isClosing ? " is-closing" : ""}`} role="dialog" aria-modal="true" aria-labelledby="preview-dialog-title" onClick={(event) => event.stopPropagation()}>
         <header className="preview-modal-header">
-          <h2 id="preview-dialog-title">Document Preview</h2>
+          <div className="preview-modal-title-wrap">
+            <h2 id="preview-dialog-title">Document Preview</h2>
+            <span className="preview-modal-filename-badge" title={currentFileName}>{currentFileName}</span>
+          </div>
           <button type="button" className="preview-close-button" onClick={requestClose} disabled={isClosing} aria-label="Close preview">×</button>
         </header>
+
+        {/* Multi-file preview tabs if user uploaded multiple files */}
+        {files.length > 1 && (
+          <div className="preview-files-tabs" role="tablist" aria-label="Select file to preview">
+            {files.map((file, idx) => {
+              const isCurrent = idx === selectedFileIdx;
+              return (
+                <button
+                  key={`${file.name}-${idx}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={isCurrent}
+                  className={`preview-file-tab${isCurrent ? " is-active" : ""}`}
+                  onClick={() => handleSwitchFile(idx)}
+                  title={file.name}
+                >
+                  <span className="preview-tab-number">{idx + 1}</span>
+                  <span className="preview-tab-name">{file.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {hasChanges && (
           <div className="preview-version-switch" role="tablist" aria-label="Preview version">
             <button className={!isUpdated ? "active" : ""} role="tab" aria-selected={!isUpdated} onClick={() => setVersion("original")}>Original</button>
@@ -1310,12 +1360,20 @@ function DocumentPreview({
             : "Original file · formatting preserved"}
         </p>
         <div className="modal-file-preview">
-          <FilePreview previewData={previewData} page={page} totalPages={totalPages} colour={isUpdated ? activeJob.colour : true} fileName={fileName} applyChanges={isUpdated} orientation={activeJob.orientation ?? "Portrait"} />
+          <FilePreview
+            previewData={activeFile}
+            page={page}
+            totalPages={currentFilePages}
+            colour={isUpdated ? activeJob.colour : true}
+            fileName={currentFileName}
+            applyChanges={isUpdated}
+            orientation={activeJob.orientation ?? "Portrait"}
+          />
         </div>
         <div className="page-controls">
           <button disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>← Prev Page</button>
-          <b>{page} / {totalPages}</b>
-          <button disabled={page === totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>Next Page →</button>
+          <b>{page} / {currentFilePages}</b>
+          <button disabled={page === currentFilePages} onClick={() => setPage((current) => Math.min(currentFilePages, current + 1))}>Next Page →</button>
         </div>
       </section>
     </div>
@@ -1437,7 +1495,7 @@ function UploadIllustration() {
   return <UploadHeroIllustration />;
 }
 
-function HomeExtras() {
+function HomeExtras({ language = "en" }: { language?: SupportedLanguage }) {
   const shopStatus = getShopStatus();
   const isOpen = shopStatus.state === "open" || shopStatus.state === "closing-soon";
 
@@ -1447,19 +1505,29 @@ function HomeExtras() {
       <article className="home-shop-status-card" role="region" aria-label="Shop Status">
         <div className="home-shop-status-header">
           <div>
-            <h2 className="home-shop-status-title">Campus Central Print Shop</h2>
-            <p className="home-shop-status-hours">Mon–Fri: 9:30 AM – 5:00 PM · Sat &amp; Sun: Closed</p>
+            <h2 className="home-shop-status-title">{getTranslation(language, "settings_shop_hours_card")}</h2>
+            <p className="home-shop-status-hours">
+              {language === "gu" ? "સોમ–શુક્ર: 9:30 AM – 5:00 PM · શનિ અને રવિ: બંધ" : language === "hi" ? "सोम–शुक्र: 9:30 AM – 5:00 PM · शनि व रवि: बंद" : "Mon–Fri: 9:30 AM – 5:00 PM · Sat & Sun: Closed"}
+            </p>
           </div>
           <div className={`shop-status-pill ${isOpen ? "open" : "closed"}`}>
             <span className={`status-dot ${isOpen ? "green" : "red"}`} />
-            <span>{isOpen ? (shopStatus.state === "closing-soon" ? "Closing Soon" : "Open Now") : "Closed"}</span>
+            <span>
+              {isOpen
+                ? (shopStatus.state === "closing-soon"
+                    ? (language === "gu" ? "ટૂંક સમયમાં બંધ થશે" : language === "hi" ? "जल्द बंद होगा" : "Closing Soon")
+                    : (language === "gu" ? "હાલ ખુલ્લું છે" : language === "hi" ? "अभी खुला है" : "Open Now"))
+                : (language === "gu" ? "બંધ છે" : language === "hi" ? "बंद है" : "Closed")}
+            </span>
           </div>
         </div>
         <div className="home-shop-status-meta">
           <span className="home-shop-status-next">
-            {isOpen ? `Open today until ${shopStatus.closingTime || "5:00 PM"}` : (shopStatus.nextOpeningText || "Opens Monday at 9:30 AM")}
+            {isOpen
+              ? (language === "gu" ? `આજે ${shopStatus.closingTime || "5:00 PM"} સુધી ખુલ્લું છે` : language === "hi" ? `आज ${shopStatus.closingTime || "5:00 PM"} तक खुला है` : `Open today until ${shopStatus.closingTime || "5:00 PM"}`)
+              : (language === "gu" ? "સોમવારે સવારે ૯:૩૦ વાગ્યે ખુલશે" : language === "hi" ? "सोमवार सुबह 9:30 बजे खुलेगा" : (shopStatus.nextOpeningText || "Opens Monday at 9:30 AM"))}
           </span>
-          <span className="home-shop-status-loc">Campus Central Building</span>
+          <span className="home-shop-status-loc">{getTranslation(language, "home_campus_building")}</span>
         </div>
       </article>
     </section>
@@ -1489,6 +1557,7 @@ function Document({
   unreadCount = 0,
   authSession = null,
   onOpenAuth,
+  language = "en",
 }: {
   onBack: () => void;
   onPay: (summary: LoginSummary) => void;
@@ -1512,6 +1581,7 @@ function Document({
   unreadCount?: number;
   authSession?: AuthUser | null;
   onOpenAuth?: () => void;
+  language?: SupportedLanguage;
 }) {
   const [uploadComplete, setUploadComplete] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -1527,10 +1597,6 @@ function Document({
   const [uploadRunId, setUploadRunId] = useState(0);
   const [isPaperTypeOpen, setIsPaperTypeOpen] = useState(false);
   const uploadRunIdRef = useRef(0);
-  const paperTypeRef = useRef<HTMLDivElement>(null);
-  const paperTypeButtonRef = useRef<HTMLButtonElement>(null);
-  const paperTypeMenuRef = useRef<HTMLUListElement>(null);
-  const paperTypeOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const fileReadersRef = useRef<FileReader[]>([]);
   const objectUrlsRef = useRef<string[]>([]);
   const progressTimerRef = useRef<number | null>(null);
@@ -1626,7 +1692,7 @@ function Document({
     const availableSlots = MAX_FILES - currentCount;
 
     if (availableSlots <= 0) {
-      setUploadError("Maximum of 4 files reached. Delete a file to add another.");
+      setUploadError("Maximum of 5 files reached. Delete a file to add another.");
       return;
     }
 
@@ -1640,7 +1706,7 @@ function Document({
 
     const files = nonDuplicates.slice(0, availableSlots);
     if (nonDuplicates.length > availableSlots) {
-      setUploadError(`Only ${availableSlots} more file${availableSlots > 1 ? "s" : ""} added (maximum 4 files allowed).`);
+      setUploadError(`Only ${availableSlots} more file${availableSlots > 1 ? "s" : ""} added (maximum 5 files allowed).`);
     } else {
       setUploadError("");
     }
@@ -2022,7 +2088,28 @@ function Document({
     }
   }, [doubleSupported, job, setJob]);
 
-  const updateJob = (changes: Partial<PrintJob>) => setJob({ ...job, ...changes });
+  const updateJob = (changes: Partial<PrintJob>) => {
+    const updated = { ...job, ...changes };
+    setJob(updated);
+    // Also save settings for the current active file
+    const activeName = activeFile?.name ?? displayedName;
+    if (activeName && uploadedFiles.length > 0) {
+      setUploadedFiles(
+        uploadedFiles.map((f) => {
+          if (f.name === activeName) {
+            return {
+              ...f,
+              settings: {
+                ...(f.settings || {}),
+                ...changes,
+              },
+            };
+          }
+          return f;
+        })
+      );
+    }
+  };
 
   const handleSelectPaperType = (newStock: string) => {
     setActivePresetId(null);
@@ -2034,88 +2121,7 @@ function Document({
       stockSurcharge: 0,
     });
     setIsPaperTypeOpen(false);
-    paperTypeButtonRef.current?.focus();
   };
-
-  const focusPaperTypeOption = (index: number) => {
-    paperTypeOptionRefs.current[index]?.focus();
-  };
-
-  const handlePaperTypeButtonKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    event.preventDefault();
-    const lastIndex = PAPER_STOCK_CONFIG.length - 1;
-    if (!isPaperTypeOpen) {
-      setIsPaperTypeOpen(true);
-      const selectedIndex = PAPER_STOCK_CONFIG.findIndex((p) => p.name === activeStockName);
-      const targetIndex = event.key === "ArrowUp" ? lastIndex : Math.max(0, selectedIndex);
-      window.requestAnimationFrame(() => focusPaperTypeOption(targetIndex));
-      return;
-    }
-    focusPaperTypeOption(event.key === "ArrowUp" ? lastIndex : 0);
-  };
-
-  const handlePaperTypeOptionKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
-    const lastIndex = PAPER_STOCK_CONFIG.length - 1;
-    if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Home" || event.key === "End") {
-      event.preventDefault();
-      let targetIndex = index;
-      if (event.key === "ArrowDown") targetIndex = index >= lastIndex ? 0 : index + 1;
-      if (event.key === "ArrowUp") targetIndex = index <= 0 ? lastIndex : index - 1;
-      if (event.key === "Home") targetIndex = 0;
-      if (event.key === "End") targetIndex = lastIndex;
-      focusPaperTypeOption(targetIndex);
-      return;
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      setIsPaperTypeOpen(false);
-      paperTypeButtonRef.current?.focus();
-    }
-  };
-
-  const handlePaperTypeBlur = (event: React.FocusEvent<HTMLDivElement>) => {
-    const nextTarget = event.relatedTarget as Node | null;
-    if (!nextTarget || !paperTypeRef.current?.contains(nextTarget)) {
-      setIsPaperTypeOpen(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!isPaperTypeOpen) return;
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!paperTypeRef.current?.contains(event.target as Node)) {
-        setIsPaperTypeOpen(false);
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsPaperTypeOpen(false);
-        paperTypeButtonRef.current?.focus();
-      }
-    };
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isPaperTypeOpen]);
-
-  useEffect(() => {
-    if (!isPaperTypeOpen) return;
-    const selectedIndex = PAPER_STOCK_CONFIG.findIndex((p) => p.name === activeStockName);
-    const menu = paperTypeMenuRef.current;
-    const option = paperTypeOptionRefs.current[selectedIndex >= 0 ? selectedIndex : 0];
-    if (!menu || !option) return;
-    const optionTop = option.offsetTop;
-    const optionBottom = optionTop + option.offsetHeight;
-    if (optionTop < menu.scrollTop) {
-      menu.scrollTop = optionTop;
-    } else if (optionBottom > menu.scrollTop + menu.clientHeight) {
-      menu.scrollTop = optionBottom - menu.clientHeight;
-    }
-  }, [isPaperTypeOpen, activeStockName]);
 
   return (
     <section className={`printq-document-page${hasFile ? " has-file" : " upload-only"}`} onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
@@ -2124,11 +2130,10 @@ function Document({
         <div className="upload-screen">
           <UploadIllustration />
           <div className="upload-screen-intro">
-            <h2 className="upload-heading">Upload your files</h2>
-            <p className="upload-helper-text">Upload up to 4 files · Max 50 MB per file</p>
+            <p className="upload-helper-text">{getTranslation(language, "home_upload_sub")}</p>
             <div className="upload-counter-pill" aria-live="polite">
               <span className={`upload-counter-dot${uploadedFiles.length > 0 ? " has-files" : ""}`} />
-              <span>{uploadedFiles.length} of 4 files uploaded</span>
+              <span>{uploadedFiles.length} {language === "gu" ? "માંથી ૫ ફાઇલો અપલોડ થઈ" : language === "hi" ? "में से 5 फाइलें अपलोड हुईं" : "of 5 files uploaded"}</span>
             </div>
           </div>
 
@@ -2136,40 +2141,40 @@ function Document({
           <div className="upload-eta-banner" role="status">
             <span className="upload-eta-icon" aria-hidden="true">⏱</span>
             <div className="upload-eta-text">
-              <strong>{uploadedFiles.length > 0 ? currentEstimate.primaryText : "Add a file to see estimated time"}</strong>
-              <small>{uploadedFiles.length > 0 ? currentEstimate.subText : "Upload a document to calculate completion time"}</small>
+              <strong>{uploadedFiles.length > 0 ? currentEstimate.primaryText : getTranslation(language, "home_eta_prompt")}</strong>
+              <small>{uploadedFiles.length > 0 ? currentEstimate.subText : getTranslation(language, "home_eta_prompt_sub")}</small>
             </div>
           </div>
 
           <button
-            className={`upload-drop-zone${dropActive ? " is-drag-active" : ""}${uploadedFiles.length >= 4 ? " is-disabled" : ""}`}
+            className={`upload-drop-zone${dropActive ? " is-drag-active" : ""}${uploadedFiles.length >= 5 ? " is-disabled" : ""}`}
             type="button"
             aria-describedby="upload-supported-types"
-            disabled={uploadedFiles.length >= 4}
+            disabled={uploadedFiles.length >= 5}
             onClick={() => {
-              if (uploadedFiles.length < 4) {
+              if (uploadedFiles.length < 5) {
                 fileInputRef.current?.click();
               }
             }}
             onDragEnter={() => {
-              if (uploadedFiles.length < 4) setDropActive(true);
+              if (uploadedFiles.length < 5) setDropActive(true);
             }}
             onDragLeave={() => setDropActive(false)}
             onDragOver={(event) => {
               event.preventDefault();
-              if (uploadedFiles.length < 4) setDropActive(true);
+              if (uploadedFiles.length < 5) setDropActive(true);
             }}
             onDrop={(event) => {
               event.preventDefault();
               setDropActive(false);
-              if (uploadedFiles.length >= 4) {
-                setUploadError("Maximum 4 files reached. Delete a file to add another.");
+              if (uploadedFiles.length >= 5) {
+                setUploadError("Maximum 5 files reached. Delete a file to add another.");
                 return;
               }
               startUpload(event.dataTransfer.files);
             }}
           >
-            {uploadedFiles.length >= 4 ? (
+            {uploadedFiles.length >= 5 ? (
               <>
                 <span className="upload-icon-container is-max-reached">
                   <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2177,8 +2182,8 @@ function Document({
                     <path d="m9 12 2 2 4-4"/>
                   </svg>
                 </span>
-                <strong className="upload-max-text">Maximum 4 files reached</strong>
-                <span className="upload-browse-hint">Delete a file below to make room for new ones</span>
+                <strong className="upload-max-text">{getTranslation(language, "home_max_reached")}</strong>
+                <span className="upload-browse-hint">{getTranslation(language, "home_delete_room_hint")}</span>
               </>
             ) : (
               <>
@@ -2189,8 +2194,8 @@ function Document({
                     <path d="M12 3v12" />
                   </svg>
                 </span>
-                <strong>Tap to upload or browse files</strong>
-                <span className="upload-browse-hint">or drag and drop files here</span>
+                <strong>{getTranslation(language, "home_tap_to_upload")}</strong>
+                <span className="upload-browse-hint">{getTranslation(language, "home_or_drag_drop")}</span>
                 <span className="upload-file-types" id="upload-supported-types">
                   {["PDF", "DOCX", "PPTX", "JPG", "PNG"].map((type) => (
                     <span key={type}>{type}</span>
@@ -2244,7 +2249,7 @@ function Document({
                         >
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
-                        <span>File uploaded successfully</span>
+                        <span>{getTranslation(language, "home_file_uploaded_success")}</span>
                       </span>
                     </div>
                   </div>
@@ -2253,16 +2258,16 @@ function Document({
             </div>
           )}
 
-          <HomeExtras />
+          <HomeExtras language={language} />
         </div>
       ) : (
         <div className="settings-screen">
-          <header className="settings-screen-header">
+          <header className="settings-screen-header" aria-label="Print Settings">
             <button className="settings-screen-back" type="button" onClick={() => setHasFile(false)} aria-label="Go back to Upload File">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
             </button>
-            <h1>Print Settings</h1>
-            <span className="settings-step-indicator">Step 2/3</span>
+            <span className="settings-screen-header-spacer" aria-hidden="true" />
+            <span className="settings-step-indicator">{getTranslation(language, "step_2_of_3")}</span>
           </header>
 
           {/* Screen 2: Sticky bar below header */}
@@ -2276,7 +2281,7 @@ function Document({
             </div>
             <span className="settings-sticky-eta-badge">
               {currentEstimate.isQueueAvailable && <span className="live-radar-dot" aria-hidden="true" />}
-              {currentEstimate.isQueueAvailable ? "Live Queue" : "Estimate"}
+              {currentEstimate.isQueueAvailable ? getTranslation(language, "live_queue") : getTranslation(language, "estimate")}
             </span>
           </div>
 
@@ -2299,7 +2304,7 @@ function Document({
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 
                 <span className="settings-files-counter-badge">
-                  {uploadedFiles.length}/4 Files
+                  {uploadedFiles.length}/5 Files
                 </span>
               </div>
             </div>
@@ -2336,21 +2341,21 @@ function Document({
             <div className="settings-preview-actions">
               <button
                 type="button"
-                className={`settings-action-btn settings-add-btn${uploadedFiles.length >= 4 ? " is-disabled" : ""}`}
+                className={`settings-action-btn settings-add-btn${uploadedFiles.length >= 5 ? " is-disabled" : ""}`}
                 onClick={() => {
-                  if (uploadedFiles.length < 4) {
+                  if (uploadedFiles.length < 5) {
                     fileInputRef.current?.click();
                   }
                 }}
-                disabled={uploadedFiles.length >= 4}
-                title={uploadedFiles.length >= 4 ? "Maximum 4 files reached" : "Add more files (up to 4)"}
+                disabled={uploadedFiles.length >= 5}
+                title={uploadedFiles.length >= 5 ? "Maximum 5 files reached" : "Add more files (up to 5)"}
                 aria-label="Add More Files"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                <span>{uploadedFiles.length >= 4 ? "Max 4 Files" : "Add More Files"}</span>
+                <span>{uploadedFiles.length >= 5 ? (language === "gu" ? "મહત્તમ ૫ ફાઇલો" : language === "hi" ? "अधिकतम 5 फाइलें" : "Max 5 Files") : getTranslation(language, "add_more_files")}</span>
               </button>
 
               <button
@@ -2364,7 +2369,7 @@ function Document({
                   <polyline points="3 6 5 6 21 6" />
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                 </svg>
-                <span>Delete All Files</span>
+                <span>{getTranslation(language, "delete_all_files")}</span>
               </button>
             </div>
           </div>
@@ -2375,8 +2380,8 @@ function Document({
           {uploadedFiles.length > 1 && (
             <div className="settings-files-tray" role="region" aria-label="All uploaded files">
               <div className="settings-files-tray-header">
-                <span>Uploaded Files ({uploadedFiles.length}/4)</span>
-                {uploadedFiles.length < 4 ? (
+                <span>Uploaded Files ({uploadedFiles.length}/5)</span>
+                {uploadedFiles.length < 5 ? (
                   <button
                     type="button"
                     className="settings-add-inline-link"
@@ -2398,14 +2403,14 @@ function Document({
                       className={`settings-file-row${isSelected ? " is-active" : ""}`}
                       onClick={() => {
                         setPreviewData(file);
-                        setJob({ ...job, fileName: file.name, fileSize: file.size });
+                        setJob({ ...job, fileName: file.name, fileSize: file.size, pages: file.pages || job.pages, ...(file.settings || {}) });
                       }}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           setPreviewData(file);
-                          setJob({ ...job, fileName: file.name, fileSize: file.size });
+                          setJob({ ...job, fileName: file.name, fileSize: file.size, pages: file.pages || job.pages, ...(file.settings || {}) });
                         }
                       }}
                     >
@@ -2455,19 +2460,11 @@ function Document({
             }}
           />
 
-          {/* BATCH 2: Deadline Check Interface */}
-          <DeadlineCheckCard
-            currentEstimate={currentEstimate}
-            onDeadlineSelected={(mins) => {
-              updateJob({ readyMinutes: mins });
-            }}
-          />
-
           {/* Section 2: Number of Copies */}
           <section className="settings-section settings-copies-section" aria-labelledby="heading-number-of-copies">
             <div className="settings-section-header-row">
-              <h2 id="heading-number-of-copies" className="settings-section-title">Number of Copies</h2>
-              <span className="settings-copies-badge">Set quantity first</span>
+              <h2 id="heading-number-of-copies" className="settings-section-title">{getTranslation(language, "copies")}</h2>
+              <span className="settings-section-badge">{job.copies} {job.copies > 1 ? "copies" : "copy"}</span>
             </div>
             <div className="settings-copies-card">
               <div className="settings-copies-stepper-row" role="group" aria-label="Number of copies stepper">
@@ -2544,14 +2541,21 @@ function Document({
               </div>
 
               <p className="settings-copies-calculation" aria-live="polite">
-                Total pages: {effectivePagesPerSet} × {job.copies} {job.copies > 1 ? "copies" : "copy"} = {totalPages} pages
+                {language === "gu"
+                  ? `કુલ પાનાઓ: ${effectivePagesPerSet} × ${job.copies} ${job.copies > 1 ? "નકલો" : "નકલ"} = ${totalPages} પાનાઓ`
+                  : language === "hi"
+                  ? `कुल पृष्ठ: ${effectivePagesPerSet} × ${job.copies} ${job.copies > 1 ? "प्रतियां" : "प्रति"} = ${totalPages} पृष्ठ`
+                  : `Total pages: ${effectivePagesPerSet} × ${job.copies} ${job.copies > 1 ? "copies" : "copy"} = ${totalPages} pages`}
               </p>
             </div>
           </section>
 
           {/* Section 4: Print Option */}
           <section className="settings-section" aria-labelledby="heading-print-option">
-            <h2 id="heading-print-option" className="settings-section-title">Print Option</h2>
+            <div className="settings-section-header-row">
+              <h2 id="heading-print-option" className="settings-section-title">{getTranslation(language, "colour_mode")}</h2>
+              <span className="settings-section-badge">{!job.colour ? "B&W" : "Colour"}</span>
+            </div>
             <div className="settings-cards-stack" role="radiogroup" aria-labelledby="heading-print-option">
               <label className={`settings-radio-card${!job.colour ? " is-selected" : ""}`}>
                 <input
@@ -2570,10 +2574,10 @@ function Document({
                 </span>
                 <span className="settings-card-content">
                   <span className="settings-card-header">
-                    <span className="settings-card-title">Black &amp; White</span>
+                    <span className="settings-card-title">{getTranslation(language, "bw_mode")}</span>
                     <span className="settings-card-price">₹2.00 / page</span>
                   </span>
-                  <p className="settings-card-desc">Standard printing for documents, forms, and notes.</p>
+                  <p className="settings-card-desc">{language === "gu" ? "દસ્તાવેજો, ફોર્મ અને નોંધો માટે સ્ટાન્ડર્ડ પ્રિન્ટિંગ." : language === "hi" ? "દस्तावेजों, फॉर्म और नोट्स के लिए मानक प्रिंटिंग।" : "Standard printing for documents, forms, and notes."}</p>
                 </span>
               </label>
               <label className={`settings-radio-card${job.colour ? " is-selected" : ""}`}>
@@ -2593,10 +2597,10 @@ function Document({
                 </span>
                 <span className="settings-card-content">
                   <span className="settings-card-header">
-                    <span className="settings-card-title">Full Colour</span>
+                    <span className="settings-card-title">{language === "gu" ? "રંગીન (Colour)" : language === "hi" ? "रंगीन (Colour)" : "Full Colour"}</span>
                     <span className="settings-card-price">₹8.00 / page</span>
                   </span>
-                  <p className="settings-card-desc">Vibrant colour printing for presentations, charts, and graphics.</p>
+                  <p className="settings-card-desc">{language === "gu" ? "પ્રેઝન્ટેશન, ચાર્ટ અને ગ્રાફિક્સ માટે તેજસ્વી રંગીન પ્રિન્ટિંગ." : language === "hi" ? "प्रस्तुतियों, चार्ट और ग्राफिक्स के लिए जीवंत रंगीन प्रिंटिंग।" : "Vibrant colour printing for presentations, charts, and graphics."}</p>
                 </span>
               </label>
             </div>
@@ -2604,7 +2608,10 @@ function Document({
 
           {/* Section 5: Printing Side */}
           <section className="settings-section" aria-labelledby="heading-printing-side">
-            <h2 id="heading-printing-side" className="settings-section-title">Printing Side</h2>
+            <div className="settings-section-header-row">
+              <h2 id="heading-printing-side" className="settings-section-title">{getTranslation(language, "print_side")}</h2>
+              <span className="settings-section-badge">{job.singleSided || !doubleSupported ? getTranslation(language, "single_sided") : getTranslation(language, "double_sided")}</span>
+            </div>
 
             {!doubleSupported && (
               <div className="settings-restriction-alert" role="alert">
@@ -2635,7 +2642,7 @@ function Document({
                 </span>
                 <span className="settings-card-content">
                   <span className="settings-card-header">
-                    <span className="settings-card-title">Single-Sided</span>
+                    <span className="settings-card-title">{getTranslation(language, "single_sided")}</span>
                     <span className="settings-card-price">₹{singlePricePerSheet.toFixed(2)} / sheet</span>
                   </span>
                   <p className="settings-card-desc">Print on one side of each sheet. Ideal for resumes and official forms.</p>
@@ -2661,15 +2668,15 @@ function Document({
                 </span>
                 <span className="settings-card-content">
                   <span className="settings-card-header">
-                    <span className="settings-card-title">Double-Sided</span>
+                    <span className="settings-card-title">{getTranslation(language, "double_sided")}</span>
                     <span className="settings-card-price">
                       {doubleSupported ? `₹${doublePricePerSheet?.toFixed(2)} / sheet` : "Not Available"}
                     </span>
                   </span>
                   <p className="settings-card-desc">
                     {doubleSupported
-                      ? "Save paper by printing on both sides of each sheet (Eco-Friendly)."
-                      : `Double-sided printing is not available on heavy or specialty ${activeStockName}.`}
+                      ? getTranslation(language, "eco_friendly_note")
+                      : (language === "gu" ? `જાડા અથવા સ્પેશિયલ ${activeStockName} પર ડબલ સાઇડ ઉપલબ્ધ નથી.` : language === "hi" ? `भारी या विशेष ${activeStockName} पर दोनों तरफ प्रिंटिंग उपलब्ध नहीं है।` : `Double-sided printing is not available on heavy or specialty ${activeStockName}.`)}
                   </p>
                 </span>
               </label>
@@ -2678,7 +2685,10 @@ function Document({
 
           {/* Section 6: Paper Size */}
           <section className="settings-section" aria-labelledby="heading-paper-size">
-            <h2 id="heading-paper-size" className="settings-section-title">Paper Size</h2>
+            <div className="settings-section-header-row">
+              <h2 id="heading-paper-size" className="settings-section-title">{getTranslation(language, "paper_size")}</h2>
+              <span className="settings-section-badge">{job.paper ?? "A4"}</span>
+            </div>
             <div className="settings-grid-2col" role="radiogroup" aria-labelledby="heading-paper-size">
               {PAPER_SIZE_CONFIG.map(({ size, dim, isLargeFormat, note }) => {
                 const isSelected = (job.paper ?? "A4") === size;
@@ -2717,102 +2727,82 @@ function Document({
             </div>
           </section>
 
-          {/* Section 7: Paper Type Dropdown */}
+                    {/* Section 7: Paper Type Dropdown */}
           <section className="settings-section settings-paper-type-section" aria-labelledby="heading-paper-type">
-            <h2 id="heading-paper-type" className="settings-section-title">Paper Type</h2>
-            <div className="settings-paper-dropdown-wrap" ref={paperTypeRef} onBlur={handlePaperTypeBlur}>
-              <div className="settings-select-container">
-                <button
-                  ref={paperTypeButtonRef}
-                  id="settings-paper-stock-select"
-                  type="button"
-                  className={`settings-paper-select${isPaperTypeOpen ? " is-open" : ""}`}
-                  role="combobox"
-                  aria-haspopup="listbox"
-                  aria-expanded={isPaperTypeOpen}
-                  aria-controls="settings-paper-stock-menu"
-                  aria-label="Select paper type"
-                  onClick={() => setIsPaperTypeOpen((open) => !open)}
-                  onKeyDown={handlePaperTypeButtonKeyDown}
-                >
-                  <span className="settings-paper-select-value">
-                    <span className="settings-paper-select-name">{activeStockName}</span>
-                    <span className="settings-paper-select-gsm">{activePaperTypeConfig?.gsm}</span>
+            <div className="settings-section-header-row">
+              <h2 id="heading-paper-type" className="settings-section-title">{getTranslation(language, "paper_type")}</h2>
+              <span className="settings-section-badge">{activeStockName}</span>
+            </div>
+            <div className="settings-paper-dropdown-wrap">
+              {/* Dropdown Trigger Button */}
+              <button
+                type="button"
+                className={`settings-paper-select${isPaperTypeOpen ? " is-open" : ""}`}
+                aria-haspopup="listbox"
+                aria-expanded={isPaperTypeOpen}
+                onClick={() => setIsPaperTypeOpen((prev) => !prev)}
+              >
+                <span className="settings-paper-select-value">
+                  <span className="settings-paper-select-name">{activeStockName}</span>
+                  <span className="settings-paper-select-gsm">{activePaperTypeConfig?.gsm}</span>
+                </span>
+                <span className="settings-paper-select-right">
+                  <span className="settings-paper-select-price">₹{singlePricePerSheet.toFixed(2)}/sheet</span>
+                  <span className={`settings-select-chevron${isPaperTypeOpen ? " is-open" : ""}`} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
                   </span>
-                  <div className="settings-paper-select-meta">
-                    <span className="settings-paper-select-price">
-                      ₹{singlePricePerSheet.toFixed(2)} / sheet
-                    </span>
-                    <span className={`settings-select-arrow${isPaperTypeOpen ? " is-open" : ""}`} aria-hidden="true">
-                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
-                    </span>
-                  </div>
-                </button>
+                </span>
+              </button>
 
-                {isPaperTypeOpen && (
-                  <ul
-                    ref={paperTypeMenuRef}
-                    id="settings-paper-stock-menu"
-                    className="settings-paper-menu"
-                    role="listbox"
-                    aria-label="Paper types"
-                  >
-                    {PAPER_STOCK_CONFIG.map(({ name, gsm }, index) => {
-                      const isSelected = name === activeStockName;
-                      return (
-                        <li key={name} role="none">
-                          <button
-                            ref={(element) => {
-                              paperTypeOptionRefs.current[index] = element;
-                            }}
-                            type="button"
-                            role="option"
-                            aria-selected={isSelected}
-                            className={`settings-paper-menu-option${isSelected ? " is-selected" : ""}`}
-                            onClick={() => handleSelectPaperType(name)}
-                            onKeyDown={(event) => handlePaperTypeOptionKeyDown(event, index)}
-                          >
-                            <span className="settings-paper-menu-text">
-                              <span className="settings-paper-menu-name">{name}</span>
-                              <span className="settings-paper-menu-gsm">{gsm}</span>
-                            </span>
-                            <div className="settings-paper-menu-meta">
-                              <span className="settings-paper-menu-price">
-                                ₹{getPricePerSheet(name, job.paper || "A4", job.singleSided || !doubleSupported, job.colour).toFixed(2)}/sheet
-                              </span>
-                              {isSelected ? (
-                                <span className="settings-paper-menu-check" aria-hidden="true">
-                                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="20 6 9 17 4 12" />
-                                  </svg>
-                                </span>
-                              ) : (
-                                <span className="settings-paper-menu-check-spacer" aria-hidden="true" />
-                              )}
-                            </div>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
+              {/* Dropdown Options List */}
+              {isPaperTypeOpen && (
+                <div className="settings-paper-menu">
+                  {PAPER_STOCK_CONFIG.map(({ name, gsm, detail, doubleAllowed }) => {
+                    const isSelected = name === activeStockName;
+                    const rate = getPricePerSheet(name, job.paper || "A4", job.singleSided || !doubleAllowed, job.colour);
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        className={`settings-paper-menu-option${isSelected ? " is-selected" : ""}`}
+                        onClick={() => handleSelectPaperType(name)}
+                      >
+                        <span className="settings-paper-menu-text">
+                          <span className="settings-paper-menu-head">
+                            <span className="settings-paper-menu-name">{name}</span>
+                            <span className="settings-paper-menu-price">₹{rate.toFixed(2)}/sheet</span>
+                          </span>
+                          <span className="settings-paper-menu-gsm">{gsm}</span>
+                          <span className="settings-paper-menu-detail">{detail}</span>
+                        </span>
+                        {isSelected && (
+                          <span className="settings-paper-menu-check" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </section>
 
           {/* Section 8: Page Layout */}
           <section className="settings-section" aria-labelledby="heading-page-orientation">
             <div className="settings-section-header-row">
-              <h2 id="heading-page-orientation" className="settings-section-title">Page Layout</h2>
-              <span className="settings-copies-badge">{job.orientation ?? "Portrait"}</span>
+              <h2 id="heading-page-orientation" className="settings-section-title">{getTranslation(language, "page_layout")}</h2>
+              <span className="settings-section-badge">{job.orientation ?? "Portrait"}</span>
             </div>
             <div className="settings-grid-2col" role="radiogroup" aria-labelledby="heading-page-orientation">
               {[
                 {
                   id: "Portrait",
-                  title: "Portrait",
+                  title: getTranslation(language, "portrait"),
                   subtitle: "Vertical Layout",
                   icon: (
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -2824,7 +2814,7 @@ function Document({
                 },
                 {
                   id: "Landscape",
-                  title: "Landscape",
+                  title: getTranslation(language, "landscape"),
                   subtitle: "Horizontal Layout",
                   icon: (
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -2886,65 +2876,98 @@ function Document({
             </div>
 
             <div className="settings-summary-header">
-              <span className="settings-summary-title">Price Summary</span>
-              <span className="settings-summary-pages-tag">{currentPricing.totalSheets} {currentPricing.totalSheets === 1 ? "sheet" : "sheets"}</span>
+              <span className="settings-summary-title">{getTranslation(language, "price_summary")}</span>
+              <span className="settings-summary-pages-tag">{currentPricing.totalSheets} {language === "gu" ? "શીટ્સ" : language === "hi" ? "शीट्स" : currentPricing.totalSheets === 1 ? "sheet" : "sheets"}</span>
             </div>
 
             <div className="settings-summary-lines">
+              {/* 1. Number of Copies */}
               <div className="settings-summary-row">
-                <span>Print Option:</span>
-                <span>{job.colour ? "Full Colour (₹8.00 / page)" : "Black & White (₹2.00 / page)"}</span>
+                <span className="settings-summary-label">{getTranslation(language, "copies")}:</span>
+                <span className="settings-summary-value-wrap">
+                  <span className="settings-summary-val">{job.copies} {language === "gu" ? "નકલો" : language === "hi" ? "प्रतियां" : job.copies > 1 ? "copies" : "copy"}</span>
+                  <span className="settings-summary-price-pill">×{job.copies}</span>
+                </span>
+              </div>
+
+              {/* 2. Print Option */}
+              <div className="settings-summary-row">
+                <span className="settings-summary-label">{getTranslation(language, "colour_mode")}:</span>
+                <span className="settings-summary-value-wrap">
+                  <span className="settings-summary-val">{job.colour ? (language === "gu" ? "રંગીન (Colour)" : language === "hi" ? "રંગીન (Colour)" : "Full Colour") : getTranslation(language, "bw_mode")}</span>
+                  <span className="settings-summary-price-pill">₹{job.colour ? "8.00" : "2.00"} / {language === "gu" ? "પેજ" : language === "hi" ? "पेज" : "page"}</span>
+                </span>
+              </div>
+
+              {/* 3. Printing Side */}
+              <div className="settings-summary-row">
+                <span className="settings-summary-label">{getTranslation(language, "print_side")}:</span>
+                <span className="settings-summary-value-wrap">
+                  <span className="settings-summary-val">{job.singleSided || !doubleSupported ? getTranslation(language, "single_sided") : getTranslation(language, "double_sided")}</span>
+                  <span className="settings-summary-price-pill">
+                    {job.singleSided || !doubleSupported ? `₹${singlePricePerSheet.toFixed(2)} / sheet` : (doublePricePerSheet ? `₹${doublePricePerSheet.toFixed(2)} / sheet` : (language === "gu" ? "સમાવિષ્ટ" : language === "hi" ? "शामिल" : "Included"))}
+                  </span>
+                </span>
+              </div>
+
+              {/* 4. Paper Size */}
+              <div className="settings-summary-row">
+                <span className="settings-summary-label">{getTranslation(language, "paper_size")}:</span>
+                <span className="settings-summary-value-wrap">
+                  <span className="settings-summary-val">{currentPricing.size}</span>
+                  <span className="settings-summary-price-pill">₹{getPricePerSheet(activeStockName, job.paper || "A4", job.singleSided || !doubleSupported, job.colour).toFixed(2)} / sheet</span>
+                </span>
+              </div>
+
+              {/* 5. Paper Type */}
+              <div className="settings-summary-row">
+                <span className="settings-summary-label">{getTranslation(language, "paper_type")}:</span>
+                <span className="settings-summary-value-wrap">
+                  <span className="settings-summary-val">{currentPricing.stock}</span>
+                  <span className="settings-summary-price-pill">₹{singlePricePerSheet.toFixed(2)} / sheet</span>
+                </span>
+              </div>
+
+              {/* 6. Page Layout */}
+              <div className="settings-summary-row">
+                <span className="settings-summary-label">{getTranslation(language, "page_layout")}:</span>
+                <span className="settings-summary-value-wrap">
+                  <span className="settings-summary-val">{job.orientation === "Landscape" ? getTranslation(language, "landscape") : getTranslation(language, "portrait")}</span>
+                  <span className="settings-summary-price-pill is-free">{getTranslation(language, "free")}</span>
+                </span>
+              </div>
+
+              {/* Calculation & File Meta */}
+              <div className="settings-summary-row settings-summary-rate-row">
+                <span className="settings-summary-label">{getTranslation(language, "rate_per_sheet")}</span>
+                <strong style={{ color: "var(--accent)", fontSize: "13.5px" }}>₹{currentPricing.unitRate.toFixed(2)} / sheet</strong>
               </div>
               <div className="settings-summary-row">
-                <span>Print Side:</span>
-                <span>{currentPricing.sideLabel} (₹{currentPricing.unitRate.toFixed(2)} / sheet)</span>
+                <span className="settings-summary-label">{getTranslation(language, "sheets_per_copy")}</span>
+                <span className="settings-summary-value">{currentPricing.sheetsPerFile} {language === "gu" ? "શીટ્સ" : language === "hi" ? "शीટ્સ" : currentPricing.sheetsPerFile === 1 ? "sheet" : "sheets"}</span>
               </div>
-              <div className="settings-summary-row">
-                <span>Paper Size:</span>
-                <span>{currentPricing.size}</span>
-              </div>
-              <div className="settings-summary-row">
-                <span>Paper Type:</span>
-                <span>{currentPricing.stock}</span>
-              </div>
-              <div className="settings-summary-row">
-                <span>Orientation:</span>
-                <span>{job.orientation ?? "Portrait"}</span>
-              </div>
+              {uploadedFiles.length > 1 && (
+                <div className="settings-summary-row">
+                  <span className="settings-summary-label">{getTranslation(language, "total_uploaded_files")}</span>
+                  <span className="settings-summary-value">× {uploadedFiles.length} files</span>
+                </div>
+              )}
               {pagesPerSheet > 1 && (
                 <div className="settings-summary-row">
-                  <span>Pages per sheet ({pagesPerSheet}):</span>
-                  <span style={{ color: "var(--success)" }}>50% less paper</span>
+                  <span className="settings-summary-label">Pages per sheet ({pagesPerSheet}):</span>
+                  <span style={{ color: "var(--success)", fontWeight: 600 }}>50% less paper</span>
                 </div>
               )}
               {currentPricing.bindingSubtotal > 0 && (
                 <div className="settings-summary-row">
-                  <span>Binding ({job.bindingOption === "spiral" ? "Spiral Binding" : "Staple"}):</span>
-                  <span>+₹{currentPricing.bindingSubtotal.toFixed(2)}</span>
-                </div>
-              )}
-              <div className="settings-summary-row settings-summary-rate-row">
-                <span>Rate per sheet:</span>
-                <strong>₹{currentPricing.unitRate.toFixed(2)}</strong>
-              </div>
-              <div className="settings-summary-row">
-                <span>Sheets per copy:</span>
-                <span>{currentPricing.sheetsPerFile} {currentPricing.sheetsPerFile === 1 ? "sheet" : "sheets"}</span>
-              </div>
-              <div className="settings-summary-row">
-                <span>Number of copies:</span>
-                <span>× {job.copies} {job.copies > 1 ? "copies" : "copy"}</span>
-              </div>
-              {uploadedFiles.length > 1 && (
-                <div className="settings-summary-row">
-                  <span>Total uploaded files:</span>
-                  <span>× {uploadedFiles.length} files</span>
+                  <span className="settings-summary-label">Binding ({job.bindingOption === "spiral" ? "Spiral Binding" : "Staple"}):</span>
+                  <span style={{ color: "var(--accent)", fontWeight: 600 }}>+₹{currentPricing.bindingSubtotal.toFixed(2)}</span>
                 </div>
               )}
             </div>
 
             <div className="settings-summary-total">
-              <span>Total Amount</span>
+              <span>{getTranslation(language, "total_price")}</span>
               <strong>₹{currentPricing.grandTotal.toFixed(2)}</strong>
             </div>
 
@@ -2969,7 +2992,7 @@ function Document({
                 total: `₹${calculatedTotal.toFixed(2)}`
               })}
             >
-              Continue to Pay
+              {getTranslation(language, "continue_to_pay")}
             </button>
           </div>
         </div>
@@ -3136,12 +3159,14 @@ function Checkout({
   job,
   onOrderConfirmed,
   uploadedFiles,
+  language = "en",
 }: {
   go: (screen: Screen) => void;
   preview: () => void;
   job: PrintJob;
   onOrderConfirmed: (token?: string) => void;
   uploadedFiles: UploadedFileData[];
+  language?: SupportedLanguage;
 }) {
   const [payment, setPayment] = useState<"UPI" | "Cash">("UPI");
   const [selectedUpiApp, setSelectedUpiApp] = useState<"gpay" | "phonepe" | "paytm" | "bhim">("gpay");
@@ -3161,8 +3186,7 @@ function Checkout({
     return unsub;
   }, []);
   const [failErrorMessage, setFailErrorMessage] = useState("");
-  const [isDocDetailsOpen, setIsDocDetailsOpen] = useState(false);
-  const [isBillBreakdownOpen, setIsBillBreakdownOpen] = useState(false);
+  const [isBillBreakdownOpen, setIsBillBreakdownOpen] = useState(true);
   const isSubmittingRef = useRef(false);
   const paymentTimerRef = useRef<number | null>(null);
 
@@ -3280,7 +3304,7 @@ function Checkout({
   };
 
   return (
-    <main className="bill-review-page" style={{ paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+    <main className="bill-review-page">
       <div className="bill-header-nav">
         <button
           type="button"
@@ -3292,31 +3316,58 @@ function Checkout({
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
-        <h1 className="bill-header-title">Review & Pay</h1>
+        <h1 className="bill-header-title">{getTranslation(language, "checkout_title")}</h1>
       </div>
 
       <div className="bill-shop-notice">
         <span className="bill-shop-dot" />
-        <span>Campus Central Shop · Open 9:30 AM – 5:00 PM (Mon–Fri)</span>
+        <span>{language === "gu" ? "કેમ્પસ સેન્ટ્રલ શોપ · ખુલ્લી 9:30 AM – 5:00 PM (સોમ–શુક્ર)" : language === "hi" ? "कैंपस सेंट्रल शॉप · खुली 9:30 AM – 5:00 PM (सोम–शुक्र)" : "Campus Central Shop · Open 9:30 AM – 5:00 PM (Mon–Fri)"}</span>
       </div>
 
-      {/* 1. Payment Method Selector (near top) */}
+      {/* 1. Payment Method Selector (Top) */}
       <div className="bill-payment-selector">
-        <label className="bill-card-title" style={{ margin: "4px 0 8px" }}>Payment Method</label>
+        <label className="bill-card-title" style={{ margin: "4px 0 8px" }}>{getTranslation(language, "payment_method")}</label>
         <div
           className={`bill-pay-opt${payment === "UPI" ? " is-selected" : ""}`}
           onClick={() => paymentState === "idle" && setPayment("UPI")}
           role="button"
           tabIndex={0}
         >
-          <div className="bill-pay-opt-info">
-            <div className="bill-pay-opt-radio" />
-            <div className="bill-pay-opt-text">
-              <strong>Pay via UPI / QR</strong>
-              <small>Google Pay, PhonePe, Paytm, BHIM</small>
+          <div className="bill-pay-opt-header">
+            <div className="bill-pay-opt-info">
+              <div className="bill-pay-opt-radio" />
+              <div className="bill-pay-opt-text">
+                <strong>{getTranslation(language, "pay_upi")}</strong>
+                <small>{getTranslation(language, "pay_upi_sub")}</small>
+              </div>
             </div>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)" }}>{getTranslation(language, "instant")}</span>
           </div>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)" }}>Instant</span>
+
+          {payment === "UPI" && (
+            <div className="bill-upi-apps-row" onClick={(e) => e.stopPropagation()}>
+              {(
+                [
+                  { id: "gpay", label: "Google Pay" },
+                  { id: "phonepe", label: "PhonePe" },
+                  { id: "paytm", label: "Paytm" },
+                  { id: "bhim", label: "BHIM" },
+                ] as const
+              ).map((app) => (
+                <button
+                  key={app.id}
+                  type="button"
+                  className={`bill-upi-app-chip${selectedUpiApp === app.id ? " is-active" : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedUpiApp(app.id);
+                  }}
+                >
+                  {app.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div
@@ -3325,26 +3376,28 @@ function Checkout({
           role="button"
           tabIndex={0}
         >
-          <div className="bill-pay-opt-info">
-            <div className="bill-pay-opt-radio" />
-            <div className="bill-pay-opt-text">
-              <strong>Pay Cash at Counter</strong>
-              <small>Pay ₹{grandTotal.toFixed(2)} when collecting prints</small>
+          <div className="bill-pay-opt-header">
+            <div className="bill-pay-opt-info">
+              <div className="bill-pay-opt-radio" />
+              <div className="bill-pay-opt-text">
+                <strong>{getTranslation(language, "pay_cash")}</strong>
+                <small>{language === "gu" ? `પ્રિન્ટ મેળવતી વખતે ₹${grandTotal.toFixed(2)} ચૂકવો` : language === "hi" ? `प्रिंट प्राप्त करते समय ₹${grandTotal.toFixed(2)} का भुगतान करें` : `Pay ₹${grandTotal.toFixed(2)} when collecting prints`}</small>
+              </div>
             </div>
+            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{getTranslation(language, "at_pickup")}</span>
           </div>
-          <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>At pickup</span>
         </div>
       </div>
 
-      {/* BATCH 4: Group Cost Settlement */}
+      {/* 2. Split with Project Group */}
       <GroupCostSettlement
         grandTotal={grandTotal}
         totalPages={totalPages}
         pricePerSheet={fileCalculations[0]?.pricePerSheet || 2}
       />
 
-      {/* 1. Bill Breakdown Accordion */}
-      <section className="bill-card" aria-labelledby="bill-breakdown-heading" style={{ marginBottom: 16 }}>
+      {/* 3. Bill Breakdown Accordion */}
+      <section className="bill-card" aria-labelledby="bill-breakdown-heading">
         <button
           type="button"
           className="accordion-header-btn"
@@ -3354,7 +3407,7 @@ function Checkout({
           id="bill-breakdown-heading"
         >
           <div className="accordion-header-left">
-            <span className="accordion-title-text">Bill Breakdown</span>
+            <span className="accordion-title-text">{getTranslation(language, "bill_breakdown")}</span>
             <span className="accordion-badge">₹{grandTotal.toFixed(2)}</span>
           </div>
           <div className="accordion-header-right">
@@ -3383,7 +3436,7 @@ function Checkout({
                       ₹{file.pricePerSheet.toFixed(2)} / sheet × {file.totalSheets} {file.totalSheets === 1 ? "sheet" : "sheets"} ({file.pages} {file.pages === 1 ? "pg" : "pgs"} × {file.copies} {file.copies > 1 ? "copies" : "copy"})
                     </span>
                     <span style={{ color: "var(--text-muted)", fontSize: 11 }}>
-                      {file.paperStock} · {file.paperSize} · {file.isSingle ? "Single" : "Double"}
+                      {file.paperStock} · {file.paperSize} · {file.isSingle ? "Single-Sided" : "Double-Sided"}
                     </span>
                   </div>
                 </div>
@@ -3392,7 +3445,7 @@ function Checkout({
               <div className="bill-divider-line" />
 
               <div className="bill-line-row">
-                <span>Total Sheets (All Files)</span>
+                <span>{getTranslation(language, "total_sheets_all")}</span>
                 <span>{totalSheetsAllFiles} {totalSheetsAllFiles === 1 ? "sheet" : "sheets"}</span>
               </div>
               <div className="bill-line-row">
@@ -3403,126 +3456,52 @@ function Checkout({
                 <span>Grand Total</span>
                 <span className="bill-total-price">₹{grandTotal.toFixed(2)}</span>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* 2. Document Details Accordion */}
-      <section className="bill-card" aria-labelledby="bill-details-heading" style={{ marginBottom: 16 }}>
-        <button
-          type="button"
-          className="accordion-header-btn"
-          onClick={() => setIsDocDetailsOpen(!isDocDetailsOpen)}
-          aria-expanded={isDocDetailsOpen}
-          aria-controls="doc-details-content"
-          id="bill-details-heading"
-        >
-          <div className="accordion-header-left">
-            <span className="accordion-title-text">Document Details</span>
-            <span className="accordion-badge" style={{ color: "var(--text-secondary)" }}>
-              {effectiveUploadedFiles.length} {effectiveUploadedFiles.length === 1 ? "file" : "files"}
-            </span>
-          </div>
-          <div className="accordion-header-right">
-            <span className={`accordion-chevron${isDocDetailsOpen ? " is-expanded" : ""}`} aria-hidden="true">
-              ▼
-            </span>
-          </div>
-        </button>
-
-        <div
-          id="doc-details-content"
-          className={`accordion-panel${isDocDetailsOpen ? " is-open" : ""}`}
-          role="region"
-          aria-labelledby="bill-details-heading"
-        >
-          <div className="accordion-panel-inner">
-            <div className="bill-doc-details-files">
-              {fileCalculations.map((file, idx) => (
-                <div key={idx} className="doc-details-file-card">
-                  <div className="doc-details-file-header">
-                    <strong className="doc-details-file-title" title={file.name}>{file.name}</strong>
-                    <span className="doc-details-file-pages">{file.pages} {file.pages === 1 ? "page" : "pages"}</span>
-                  </div>
-                  <div className="doc-details-grid">
-                    <div className="doc-detail-cell">
-                      <span className="doc-detail-lbl">Copies</span>
-                      <span className="doc-detail-val">{file.copies} {file.copies === 1 ? "copy" : "copies"}</span>
-                    </div>
-                    <div className="doc-detail-cell">
-                      <span className="doc-detail-lbl">Paper Type</span>
-                      <span className="doc-detail-val">{file.paperStock}</span>
-                    </div>
-                    <div className="doc-detail-cell">
-                      <span className="doc-detail-lbl">Paper Size</span>
-                      <span className="doc-detail-val">{file.paperSize}</span>
-                    </div>
-                    <div className="doc-detail-cell">
-                      <span className="doc-detail-lbl">Print Side</span>
-                      <span className="doc-detail-val">{file.isSingle ? "Single-Sided" : "Double-Sided"}</span>
-                    </div>
-                    <div className="doc-detail-cell">
-                      <span className="doc-detail-lbl">Colour Mode</span>
-                      <span className="doc-detail-val">{file.colour ? "Full Colour" : "Black & White"}</span>
-                    </div>
-                  </div>
+              {job.specialInstructions && (
+                <div style={{ marginTop: 12, padding: "8px 12px", background: "rgba(244, 215, 121, 0.06)", borderRadius: 10, fontSize: 12, border: "1px dashed rgba(244, 215, 121, 0.25)" }}>
+                  <strong style={{ color: "var(--accent)" }}>Special Instructions: </strong>
+                  <span style={{ color: "var(--text-secondary)" }}>{job.specialInstructions}</span>
                 </div>
-              ))}
+              )}
             </div>
-
-            {job.specialInstructions && (
-              <div style={{ marginTop: 12, padding: "8px 12px", background: "rgba(244, 215, 121, 0.06)", borderRadius: 8, fontSize: 12, border: "1px dashed rgba(244, 215, 121, 0.25)" }}>
-                <strong style={{ color: "var(--accent)" }}>Special Instructions: </strong>
-                <span style={{ color: "var(--text-secondary)" }}>{job.specialInstructions}</span>
-              </div>
-            )}
           </div>
         </div>
       </section>
 
-      {/* 3. Live Print Queue Status */}
-      <section className="bill-card" aria-labelledby="bill-queue-heading" style={{ marginBottom: 20 }}>
-        <div className="bill-card-title">
-          <span id="bill-queue-heading">Live Print Queue Status</span>
-          <span style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>
-            {queueMetrics.isPrinterActive ? "Printer Active (FIFO)" : "Printer Idle"}
+
+      {/* 4. Live Print Queue Status */}
+      <section className="bill-card" aria-labelledby="bill-queue-heading">
+        <div className="bill-card-header-clean">
+          <div className="bill-card-header-title-wrap">
+            <span className="bill-card-icon-dot" />
+            <h2 id="bill-queue-heading" className="bill-card-title-clean">Live Print Queue Status</h2>
+          </div>
+          <span className="bill-queue-status-badge">
+            {queueMetrics.currentlyPrinting ? "Printer Active (FIFO)" : "Printer Ready"}
           </span>
         </div>
-        <div className="bill-line-rows">
-          <div className="bill-line-row">
-            <span style={{ color: "var(--text-secondary)" }}>Currently Printing</span>
-            <span style={{ color: "var(--accent)", fontWeight: 700 }}>
+        <div className="bill-queue-grid">
+          <div className="bill-queue-row">
+            <span className="bill-queue-lbl">Currently Printing</span>
+            <span className="bill-queue-val highlight">
               {queueMetrics.currentlyPrinting ? `Token ${queueMetrics.currentlyPrinting.token}` : "None (Printer Ready)"}
             </span>
           </div>
-          {queueMetrics.currentlyPrinting && (
-            <div className="bill-line-row">
-              <span style={{ color: "var(--text-secondary)" }}>Current Order Details</span>
-              <span style={{ color: "var(--text)", fontSize: 12 }}>
-                {queueMetrics.currentlyPrinting.fileName} ({queueMetrics.currentlyPrinting.details})
-              </span>
-            </div>
-          )}
-          <div className="bill-line-row">
-            <span style={{ color: "var(--text-secondary)" }}>Your Token (Upon Confirmation)</span>
-            <span style={{ color: "var(--text)", fontWeight: 700 }}>Next Available</span>
+          <div className="bill-queue-row">
+            <span className="bill-queue-lbl">Your Token</span>
+            <span className="bill-queue-val">Next Available</span>
           </div>
-          <div className="bill-line-row">
-            <span style={{ color: "var(--text-secondary)" }}>Orders Ahead of You</span>
-            <span style={{ color: "var(--text)" }}>{queueMetrics.ordersAhead} {queueMetrics.ordersAhead === 1 ? "order" : "orders"}</span>
+          <div className="bill-queue-row">
+            <span className="bill-queue-lbl">Orders Ahead</span>
+            <span className="bill-queue-val">{queueMetrics.ordersAhead || 0} orders</span>
           </div>
-          <div className="bill-line-row">
-            <span style={{ color: "var(--text-secondary)" }}>Estimated Waiting Time</span>
-            <span style={{ color: "var(--accent)", fontWeight: 600 }}>{queueMetrics.waitFormatted}</span>
-          </div>
-          <div className="bill-line-row">
-            <span style={{ color: "var(--text-secondary)" }}>Current Order Progress</span>
-            <span style={{ color: "var(--status-ready)", fontWeight: 600 }}>Ready to Queue</span>
+          <div className="bill-queue-row">
+            <span className="bill-queue-lbl">Est. Waiting Time</span>
+            <span className="bill-queue-val highlight">{queueMetrics.waitFormatted || "Under 1 minute"}</span>
           </div>
         </div>
-        <p style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic", margin: "10px 0 0", lineHeight: 1.5 }}>
-          Estimated wait calculated dynamically based on queue depth & page volume. Not a guaranteed time.
+        <p className="bill-queue-note">
+          Estimated wait calculated dynamically based on queue depth & page volume.
         </p>
       </section>
 
@@ -3555,7 +3534,9 @@ function Checkout({
               {payment === "UPI" ? "Processing UPI…" : "Generating Token…"}
             </span>
           ) : (
-            payment === "UPI" ? `Pay ₹${grandTotal.toFixed(2)} & Place Order` : "Confirm & Pay at Counter"
+            payment === "UPI"
+              ? (language === "gu" ? `₹${grandTotal.toFixed(2)} ચૂકવો અને ઓર્ડર આપો` : language === "hi" ? `₹${grandTotal.toFixed(2)} भुगतान करें और ऑर्डर दें` : `Pay ₹${grandTotal.toFixed(2)} & Place Order`)
+              : (language === "gu" ? "ઓર્ડર પુષ્ટિ કરો (કાઉન્ટર પર ચૂકવો)" : language === "hi" ? "ऑर्डर पुष्टि करें (काउंटर पर भुगतान करें)" : "Confirm & Pay at Counter")
           )}
         </button>
       </div>
@@ -3726,13 +3707,18 @@ function Token({
   order,
   onCancelOrder,
   onSetStage,
+  language = "en",
 }: {
   go: (screen: Screen) => void;
   order: ActiveOrder | null;
   onCancelOrder: () => boolean;
   onSetStage?: (status: ActiveOrder["status"]) => void;
+  language?: SupportedLanguage;
 }) {
   const [queueMetrics, setQueueMetrics] = useState(() => printQueueManager.getQueueMetricsForToken(order?.token));
+  const [customPickupTime, setCustomPickupTime] = useState<string | null>(() => {
+    return (order as any)?.customPickupTime || null;
+  });
 
   useEffect(() => {
     const unsub = printQueueManager.subscribe(() => {
@@ -3777,9 +3763,32 @@ function Token({
     queueStatus: queueMetrics.totalQueueCount > 3 ? "busy" : "normal",
     queueAvailable: true,
   });
-  const etaText = (readyEstimate.readyTimeFormatted && readyEstimate.readyTimeFormatted !== "--:--")
+  const etaText = customPickupTime
+    ? `⏱ Pickup at ${customPickupTime} (Custom)`
+    : (readyEstimate.readyTimeFormatted && readyEstimate.readyTimeFormatted !== "--:--")
     ? `⏱ Ready around ${readyEstimate.readyTimeFormatted}`
     : `⏱ Ready in ~${readyEstimate.minutes || 15} minutes`;
+  const targetReadyDate = useMemo(() => {
+    if (customPickupTime) {
+      const match = customPickupTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (match) {
+        let h = parseInt(match[1], 10);
+        const m = parseInt(match[2], 10);
+        const isPM = match[3].toUpperCase() === "PM";
+        if (isPM && h < 12) h += 12;
+        if (!isPM && h === 12) h = 0;
+        const d = new Date();
+        d.setHours(h, m, 0, 0);
+        if (d.getTime() < Date.now() - 120000) {
+          d.setDate(d.getDate() + 1);
+        }
+        return d;
+      }
+    }
+    return readyEstimate.readyDate || new Date(Date.now() + (readyEstimate.minutes || 5) * 60 * 1000);
+  }, [customPickupTime, readyEstimate.readyDate, readyEstimate.minutes]);
+
+  const readyTimeFormatted = customPickupTime || readyEstimate.readyTimeFormatted || "in ~5 mins";
   const isCancelled = order.status === "cancelled";
 
   // Derive order status directly from shared FIFO Queue Engine
@@ -3817,28 +3826,28 @@ function Token({
   const stages: { key: string; title: string; desc: React.ReactNode }[] = [
     {
       key: "confirmed",
-      title: "Order Confirmed",
-      desc: "Order verified & payment confirmed",
+      title: getTranslation(language, "stage_confirmed"),
+      desc: language === "gu" ? "ઓર્ડર ચકાસાયેલ અને ચુકવણી પુષ્ટિ થયેલ" : language === "hi" ? "ऑर्डर सत्यापित और भुगतान की पुष्टि" : "Order verified & payment confirmed",
     },
     {
       key: "queued",
-      title: "Queued (FIFO)",
+      title: getTranslation(language, "stage_queued"),
       desc: queueMetrics.ordersAhead > 0
-        ? `${queueMetrics.ordersAhead} ${queueMetrics.ordersAhead === 1 ? "order" : "orders"} ahead of you in queue`
-        : "Next in line to print",
+        ? (language === "gu" ? `કતારમાં તમારી આગળ ${queueMetrics.ordersAhead} ઓર્ડર છે` : language === "hi" ? `कतार में आपके आगे ${queueMetrics.ordersAhead} ऑर्डर हैं` : `${queueMetrics.ordersAhead} orders ahead of you in queue`)
+        : (language === "gu" ? "પ્રિન્ટ માટે આગળનો વારો" : language === "hi" ? "प्रिंट के लिए अगली बारी" : "Next in line to print"),
     },
     {
       key: "printing",
-      title: "Printing",
+      title: getTranslation(language, "stage_printing"),
       desc: (
         <span>
-          Printing {job.pages} pages × {job.copies} {job.copies > 1 ? "copies" : "copy"} ({job.colour ? "Colour" : "B&W"})
+          {language === "gu" ? `પ્રિન્ટિંગ ચાલુ: ${job.pages} પાના × ${job.copies} નકલ (${job.colour ? "રંગીન" : "B&W"})` : language === "hi" ? `प्रिंटिंग जारी: ${job.pages} पृष्ठ × ${job.copies} प्रति (${job.colour ? "रंगीन" : "B&W"})` : `Printing ${job.pages} pages × ${job.copies} ${job.copies > 1 ? "copies" : "copy"} (${job.colour ? "Colour" : "B&W"})`}
           {isPrinting && (
             <span className="track-printing-indicator" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
               <span className="printing-dot-wave">
                 <span /><span /><span />
               </span>
-              <span style={{ color: "var(--accent)", fontWeight: 600 }}>Printing on Printer #1...</span>
+              <span style={{ color: "var(--accent)", fontWeight: 600 }}>{language === "gu" ? "પ્રિન્ટર #૧ પર પ્રિન્ટ થઈ રહ્યું છે..." : language === "hi" ? "प्रिंटर #1 पर प्रिंट हो रहा है..." : "Printing on Printer #1..."}</span>
             </span>
           )}
         </span>
@@ -3846,13 +3855,13 @@ function Token({
     },
     {
       key: "ready",
-      title: "Ready for Pickup",
-      desc: "Available at Campus Central Counter / Shelf A-2",
+      title: getTranslation(language, "stage_ready"),
+      desc: language === "gu" ? "કેમ્પસ સેન્ટ્રલ કાઉન્ટર પર સંગ્રહ માટે ઉપલબ્ધ" : language === "hi" ? "कैंपस सेंट्रल काउंटर पर संग्रह के लिए उपलब्ध" : "Available at Campus Central Counter / Shelf A-2",
     },
     {
       key: "completed",
-      title: "Completed",
-      desc: "Order collected & verified from counter",
+      title: getTranslation(language, "stage_completed"),
+      desc: language === "gu" ? "કાઉન્ટર પરથી ઓર્ડર મેળવી લેવાયો" : language === "hi" ? "काउंटर से ऑर्डर प्राप्त कर लिया गया" : "Order collected & verified from counter",
     },
   ];
 
@@ -3865,27 +3874,43 @@ function Token({
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
-        <h1 className="bill-header-title">Live Order & Queue Tracking</h1>
+        <h1 className="bill-header-title">{language === "gu" ? "લાઇવ ઓર્ડર અને કતાર ટ્રેકિંગ" : language === "hi" ? "लाइव ऑर्डर और कतार ट्रैकिंग" : "Live Order & Queue Tracking"}</h1>
       </div>
 
-      {/* Prominent Token Banner */}
-      <div className="track-token-banner" style={{ marginBottom: 16 }}>
-        <TrackingStatusIllustration stageIndex={currentStageIndex} />
-        <span className="track-token-eyebrow">Pickup Token</span>
-        <strong className="track-token-code">{order.token}</strong>
-        <div className="token-estimated-ready-time" style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)", margin: "4px 0 8px", display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", background: "rgba(244, 215, 121, 0.08)", borderRadius: 12, border: "1px solid rgba(244, 215, 121, 0.2)" }}>
-          {etaText}
-        </div>
-        <span className="track-token-sub">
-          {job.fileName} · {job.pages} {job.pages === 1 ? "page" : "pages"} ({job.colour ? "Colour" : "B&W"})
-        </span>
-      </div>
-
-      {/* BATCH 3: QR Pickup Token & Counter Verification */}
-      <TokenQRDisplay
+      {/* 2-in-1 Swipeable Token & Counter QR Card */}
+      <UnifiedTokenSwipeCard
         token={order.token}
         orderRef={order.recordId}
-        status={mappedStatus === "ready" ? "Ready for Pickup" : mappedStatus === "printing" ? "Printing" : mappedStatus === "completed" ? "Collected" : "Queued"}
+        statusText={mappedStatus === "ready" ? getTranslation(language, "stage_ready") : mappedStatus === "printing" ? getTranslation(language, "stage_printing") : mappedStatus === "completed" ? getTranslation(language, "stage_completed") : getTranslation(language, "stage_queued")}
+        stageIndex={currentStageIndex}
+        etaText={etaText}
+        fileName={job.fileName || "Document"}
+        pages={job.pages || 1}
+        colour={Boolean(job.colour)}
+        language={language}
+        targetReadyDate={targetReadyDate}
+        readyTimeFormatted={readyTimeFormatted}
+        initialMinutes={readyEstimate.minutes || 5}
+        isReady={isReady}
+        isCompleted={isCompleted}
+        onOpenCustomTime={() => {
+          const el = document.getElementById("custom-pickup-time-section");
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }}
+      />
+
+      {/* Custom Pickup Time Scheduler */}
+      <CustomPickupTimeCard
+        defaultReadyFormatted={readyEstimate.readyTimeFormatted || "in ~15 mins"}
+        defaultMinutes={readyEstimate.minutes || 15}
+        customTime={customPickupTime}
+        language={language}
+        onSelectTime={(newTime) => {
+          setCustomPickupTime(newTime);
+          if (order) {
+            (order as any).customPickupTime = newTime;
+          }
+        }}
       />
 
       {/* BATCH 3: Material Substitution Approval Modal */}
@@ -3905,17 +3930,17 @@ function Token({
       {/* Live Print Queue Status Section */}
       <section className="bill-card" aria-labelledby="token-queue-heading" style={{ marginBottom: 16 }}>
         <div className="bill-card-title">
-          <span id="token-queue-heading">Live Print Queue</span>
+          <span id="token-queue-heading">{getTranslation(language, "live_print_queue_title")}</span>
           <span style={{ fontSize: 11, color: "var(--accent)", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
             <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }} />
-            FIFO Active
+            {getTranslation(language, "fifo_active")}
           </span>
         </div>
         <div className="bill-line-rows">
           <div className="bill-line-row">
-            <span style={{ color: "var(--text-secondary)" }}>Currently Printing</span>
+            <span style={{ color: "var(--text-secondary)" }}>{getTranslation(language, "currently_printing")}</span>
             <strong style={{ color: "var(--accent)" }}>
-              {queueMetrics.currentlyPrinting ? `Token ${queueMetrics.currentlyPrinting.token}` : "None (Idle)"}
+              {queueMetrics.currentlyPrinting ? `Token ${queueMetrics.currentlyPrinting.token}` : getTranslation(language, "printer_idle")}
             </strong>
           </div>
           {queueMetrics.currentlyPrinting && (
@@ -3927,23 +3952,23 @@ function Token({
             </div>
           )}
           <div className="bill-line-row">
-            <span style={{ color: "var(--text-secondary)" }}>Your Token Number</span>
+            <span style={{ color: "var(--text-secondary)" }}>{getTranslation(language, "your_token_number")}</span>
             <strong style={{ color: "var(--text)" }}>{order.token}</strong>
           </div>
           <div className="bill-line-row">
-            <span style={{ color: "var(--text-secondary)" }}>Orders Ahead of You</span>
+            <span style={{ color: "var(--text-secondary)" }}>{getTranslation(language, "orders_ahead")}</span>
             <span style={{ color: "var(--text)", fontWeight: 600 }}>
-              {queueMetrics.ordersAhead} {queueMetrics.ordersAhead === 1 ? "order" : "orders"}
+              {queueMetrics.ordersAhead} {language === "gu" ? "ઓર્ડર્સ આગળ છે" : language === "hi" ? "ऑर्डर आगे हैं" : queueMetrics.ordersAhead === 1 ? "order" : "orders"}
             </span>
           </div>
           <div className="bill-line-row">
-            <span style={{ color: "var(--text-secondary)" }}>Estimated Waiting Time</span>
+            <span style={{ color: "var(--text-secondary)" }}>{getTranslation(language, "est_waiting_time")}</span>
             <strong style={{ color: isReady || isCompleted ? "var(--status-ready)" : "var(--accent)" }}>
-              {isCompleted ? "Completed" : isReady ? "Ready Now!" : isPrinting ? "Printing now..." : queueMetrics.waitFormatted}
+              {isCompleted ? getTranslation(language, "stage_completed") : isReady ? (language === "gu" ? "હવે તૈયાર છે!" : language === "hi" ? "अब तैयार है!" : "Ready Now!") : isPrinting ? (language === "gu" ? "પ્રિન્ટિંગ ચાલુ..." : language === "hi" ? "प्रिंटिंग जारी..." : "Printing now...") : queueMetrics.waitMinutes <= 1 ? getTranslation(language, "under_1_min") : queueMetrics.waitFormatted}
             </strong>
           </div>
           <div className="bill-line-row">
-            <span style={{ color: "var(--text-secondary)" }}>Current Order Progress</span>
+            <span style={{ color: "var(--text-secondary)" }}>{getTranslation(language, "order_progress")}</span>
             <span style={{
               color: isCompleted || isReady ? "var(--status-ready)" : isPrinting ? "var(--accent)" : "var(--text-secondary)",
               fontWeight: 700,
@@ -3963,7 +3988,7 @@ function Token({
         <div className="track-pickup-callout" role="alert" style={{ marginBottom: 16 }}>
           <span style={{ fontSize: 20 }}>🎉</span>
           <div>
-            <strong>Ready for Collection Now!</strong>
+            <strong>{getTranslation(language, "ready_collection_banner")}</strong>
             <div style={{ fontSize: 12, marginTop: 2 }}>
               Collect your prints at Campus Central Counter with Token <strong>{order.token}</strong>.
             </div>
@@ -3998,7 +4023,7 @@ function Token({
       {/* 5-Stage Step Card */}
       <section className="track-stages-card" aria-label="5-Stage progress tracker">
         <h2 style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", margin: "0 0 16px" }}>
-          Order Lifecycle
+          {getTranslation(language, "order_lifecycle")}
         </h2>
 
         {stages.map((stage, idx) => {
@@ -4263,6 +4288,7 @@ function Help({ go }: { go: (screen: Screen) => void }) {
 }
 
 export default function App() {
+  const { isStandalone, promptInstall } = usePwaInstall();
   useEffect(() => {
     document.title = "PrintQ | Campus Print Ordering and Notifications";
     let themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
@@ -4504,6 +4530,7 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState(() => readStoredValue("printq_sound_enabled", true));
   const [autoOpenSettings, setAutoOpenSettings] = useState(() => readStoredValue("printq_auto_open_settings", true));
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [isSettingsPaperPickerOpen, setIsSettingsPaperPickerOpen] = useState(false);
 
   useEffect(() => {
     try { window.localStorage.setItem("printq_notify_order_ready", JSON.stringify(notifyOrderReady)); } catch {}
@@ -5079,7 +5106,8 @@ export default function App() {
   const phoneMask = payMobile.length === 10 ? `${payMobile.slice(0, 2)}xxxxxx${payMobile.slice(-2)}` : "";
 
   const renderAuthModal = () => (
-    <AuthModal
+    <>
+      <AuthModal
       isOpen={isAuthModalOpen}
       onClose={() => {
         try { window.sessionStorage.setItem("printq-auth-dismissed", "true"); } catch {}
@@ -5143,21 +5171,40 @@ export default function App() {
         setIsAuthModalOpen(false);
       }}
     />
-  );
+    <InstallAppPrompt language={language} />
+  </>
+);
 
   const renderDocumentPreviewModal = () => {
     if (!showPreview) return null;
-    const activeFile = uploadedFiles[0] || filePreview;
+    const activeIdx = uploadedFiles.findIndex((f) => f.name === (filePreview?.name || printJob.fileName));
+    const safeIdx = activeIdx >= 0 ? activeIdx : 0;
+    const activeFile = uploadedFiles[safeIdx] || filePreview;
     return (
       <DocumentPreview
         close={() => setShowPreview(false)}
-        totalPages={printJob.pages || 1}
+        totalPages={activeFile?.pages || printJob.pages || 1}
         previewData={activeFile}
-        fileName={printJob.fileName || "Document"}
+        fileName={activeFile?.name || printJob.fileName || "Document"}
         originalJob={originalPrintJob}
         updatedJob={printJob}
         hasChanges={hasPreviewChanges}
         initialVersion={previewVersion}
+        files={uploadedFiles}
+        activeFileIndex={safeIdx}
+        onSelectFile={(newIdx) => {
+          const selected = uploadedFiles[newIdx];
+          if (selected) {
+            setFilePreview(selected);
+            setPrintJob((current) => ({
+              ...current,
+              fileName: selected.name,
+              fileSize: selected.size,
+              pages: selected.pages || current.pages,
+              ...(selected.settings || {}),
+            }));
+          }
+        }}
       />
     );
   };
@@ -5227,6 +5274,7 @@ export default function App() {
           job={printJob}
           uploadedFiles={uploadedFiles}
           onOrderConfirmed={(assignedToken) => confirmOrder(assignedToken)}
+          language={language}
         />
         {renderDocumentPreviewModal()}
       </div>
@@ -5286,6 +5334,7 @@ export default function App() {
           order={activeOrder}
           onCancelOrder={cancelActiveOrder}
           onSetStage={setOrderStage}
+          language={language}
         />
       </div>
     );
@@ -5307,6 +5356,7 @@ export default function App() {
             onBack={() => go("home")}
             onMarkAsRead={markNotificationAsRead}
             onMarkAllAsRead={markAllNotificationsAsRead}
+            language={language}
             onSelectNotification={(item) => {
               markNotificationAsRead(item.id);
               if (item.orderToken) {
@@ -5344,31 +5394,31 @@ export default function App() {
           onSwipeMove={handleSwipeMove}
           onSwipeEnd={handleSwipeEnd}
         >
-          <main className="printq-simple-page" style={{ maxWidth: 420, margin: "0 auto", padding: "16px 16px calc(78px + env(safe-area-inset-bottom, 0px))" }}>
+          <main className="printq-simple-page" style={{ maxWidth: 420, margin: "0 auto", padding: "16px 16px calc(92px + env(safe-area-inset-bottom, 0px))" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 0 16px" }}>
-              <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--text)", margin: 0 }}>Order History</h1>
+              <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--text)", margin: 0 }}>{getTranslation(language, "history_title")}</h1>
               <button
                 type="button"
                 className="track-action-btn"
                 style={{ width: "auto", padding: "6px 14px", height: 32, fontSize: 13 }}
                 onClick={() => go("home")}
               >
-                ← Back to Home
+                {getTranslation(language, "back_home")}
               </button>
             </div>
             {printHistory.length === 0 ? (
               <section className="printq-empty-state-card history-empty-card" aria-label="No print orders yet">
                 <EmptyHistoryIllustration />
-                <h2 className="history-empty-title">No Print Orders Yet</h2>
+                <h2 className="history-empty-title">{getTranslation(language, "no_history")}</h2>
                 <p className="history-empty-desc">
-                  Upload your lecture notes, assignments, or resumes to get started.
+                  {getTranslation(language, "no_history_desc")}
                 </p>
                 <button
                   type="button"
                   className="history-empty-btn"
                   onClick={() => go("home")}
                 >
-                  Start a Print →
+                  {language === "gu" ? "પ્રિન્ટ શરૂ કરો →" : language === "hi" ? "प्रिंट शुरू करें →" : "Start a Print →"}
                 </button>
               </section>
             ) : (
@@ -5417,20 +5467,20 @@ export default function App() {
   if (screen === "settings") {
     const faqs = [
       {
-        q: "How do I collect my order?",
-        a: "Show your assigned pickup token (e.g. P-92) at the Campus Central counter. No physical slip or printout is needed.",
+        q: getTranslation(language, "faq_q1"),
+        a: getTranslation(language, "faq_a1"),
       },
       {
-        q: "Which file formats and sizes are supported?",
-        a: "We accept PDF, DOCX, PPTX, JPG, and PNG files up to 50 MB per file, with up to 4 files per batch.",
+        q: getTranslation(language, "faq_q2"),
+        a: getTranslation(language, "faq_a2"),
       },
       {
-        q: "What happens if I place an order after hours?",
-        a: "Orders submitted after 5:00 PM or on weekends are safely saved in the queue and printed first thing the next working morning at 9:30 AM.",
+        q: getTranslation(language, "faq_q3"),
+        a: getTranslation(language, "faq_a3"),
       },
       {
-        q: "Can I cancel a print order?",
-        a: "You can cancel any queued order directly from the tracking screen before printing begins.",
+        q: getTranslation(language, "faq_q4"),
+        a: getTranslation(language, "faq_a4"),
       },
     ];
 
@@ -5444,7 +5494,7 @@ export default function App() {
           onSwipeMove={handleSwipeMove}
           onSwipeEnd={handleSwipeEnd}
         >
-          <main className="printq-simple-page" style={{ maxWidth: 420, margin: "0 auto", padding: "16px 16px calc(78px + env(safe-area-inset-bottom, 0px))" }}>
+          <main className="printq-simple-page" style={{ maxWidth: 420, margin: "0 auto", padding: "16px 16px calc(92px + env(safe-area-inset-bottom, 0px))" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 0 16px" }}>
             <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--text)", margin: 0 }}>Shop & Settings</h1>
             <button
@@ -5601,31 +5651,31 @@ export default function App() {
           {/* 1. Shop Hours & Printer Status Card */}
           <section className="bill-card settings-section-card">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 0 8px" }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: 0 }}>Campus Central Print Shop</h2>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: 0 }}>{getTranslation(language, "settings_shop_hours_card")}</h2>
               <span className="settings-printer-badge">
                 <span className="settings-printer-dot" />
-                HP Printer Online
+                {getTranslation(language, "settings_printer_online")}
               </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13, color: "var(--text-secondary)" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Working Hours</span>
+                <span>{getTranslation(language, "settings_working_hours")}</span>
                 <strong style={{ color: "var(--text)" }}>9:30 AM – 5:00 PM</strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Working Days</span>
-                <span style={{ color: "var(--text)" }}>Monday – Friday</span>
+                <span>{getTranslation(language, "settings_working_days")}</span>
+                <span style={{ color: "var(--text)" }}>{language === "gu" ? "સોમવાર – શુક્રવાર" : language === "hi" ? "सोमवार – शुक्रवार" : "Monday – Friday"}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Weekend (Sat & Sun)</span>
-                <span style={{ color: "var(--error)", fontWeight: 600 }}>Closed</span>
+                <span>{getTranslation(language, "settings_weekend")}</span>
+                <span style={{ color: "var(--error)", fontWeight: 600 }}>{language === "gu" ? "બંધ" : language === "hi" ? "बंद" : "Closed"}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Location</span>
-                <span style={{ color: "var(--text)" }}>Campus Central Building</span>
+                <span>{getTranslation(language, "settings_location")}</span>
+                <span style={{ color: "var(--text)" }}>{getTranslation(language, "home_campus_building")}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Printer Model</span>
+                <span>{getTranslation(language, "settings_printer_model")}</span>
                 <span style={{ color: "var(--text)" }}>HP PageWide Pro 777z</span>
               </div>
             </div>
@@ -5633,30 +5683,30 @@ export default function App() {
 
           {/* 2. Contact Print Shop (Moved directly below Campus Central Print Shop) */}
           <section className="bill-card settings-section-card">
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: "0 0 4px" }}>Contact Print Shop</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: "0 0 4px" }}>{getTranslation(language, "settings_contact_shop")}</h2>
             <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 8px" }}>
-              Questions about an order, custom binding, or campus billing?
+              {getTranslation(language, "settings_contact_sub")}
             </p>
             <div className="settings-support-actions">
               <a href="tel:9876543210" className="settings-support-btn" aria-label="Call Campus Helpdesk">
-                📞 Call Helpdesk
+                {getTranslation(language, "settings_call_helpdesk")}
               </a>
               <a href="mailto:printshop@campus.edu" className="settings-support-btn" aria-label="Email Print Shop Support">
-                ✉ Email Support
+                {getTranslation(language, "settings_email_support")}
               </a>
             </div>
           </section>
 
           {/* 3. Default Print Preferences */}
           <section className="bill-card settings-section-card">
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: "0 0 4px" }}>Default Print Preferences</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: "0 0 4px" }}>{getTranslation(language, "settings_default_prefs")}</h2>
             <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
-              Saved preferences applied automatically when you upload new files.
+              {getTranslation(language, "settings_default_prefs_sub")}
             </p>
             <div className="settings-pref-row">
               <div className="settings-pref-text">
-                <span className="settings-pref-title">Default Color</span>
-                <span className="settings-pref-desc">{printJob.colour ? "Full colour printing (₹8/page)" : "Black & White economical (₹2/page)"}</span>
+                <span className="settings-pref-title">{getTranslation(language, "settings_default_color")}</span>
+                <span className="settings-pref-desc">{printJob.colour ? (language === "gu" ? "રંગીન પ્રિન્ટિંગ (₹8/પેજ)" : language === "hi" ? "रंगीन प्रिंटिंग (₹8/पेज)" : "Full colour printing (₹8/page)") : (language === "gu" ? "બ્લેક એન્ડ વ્હાઇટ (₹2/પેજ)" : language === "hi" ? "ब्लैक एंड व्हाइट (₹2/पेज)" : "Black & White economical (₹2/page)")}</span>
               </div>
               <div className="settings-segmented-group" role="group" aria-label="Default Color">
                 <button
@@ -5678,7 +5728,7 @@ export default function App() {
 
             <div className="settings-pref-row">
               <div className="settings-pref-text">
-                <span className="settings-pref-title">Default Print Sides</span>
+                <span className="settings-pref-title">{getTranslation(language, "settings_default_sides")}</span>
                 <span className="settings-pref-desc">{printJob.singleSided ? "Single-sided sheets" : "Double-sided duplex (standard)"}</span>
               </div>
               <div className="settings-segmented-group" role="group" aria-label="Default Print Sides">
@@ -5699,20 +5749,118 @@ export default function App() {
               </div>
             </div>
 
-            <div className="settings-pref-row">
-              <div className="settings-pref-text">
-                <span className="settings-pref-title">Default Paper Size</span>
-                <span className="settings-pref-desc">Standard college submission format</span>
+            {/* Default Paper Size with In-App Selector */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "4px 0" }}>
+              <div className="settings-pref-row" style={{ alignItems: "center" }}>
+                <div className="settings-pref-text">
+                  <span className="settings-pref-title">{getTranslation(language, "settings_default_paper")}</span>
+                  <span className="settings-pref-desc">
+                    {printJob.paper === "A3"
+                      ? "Double size · Charts, drawings & presentations"
+                      : printJob.paper === "A2"
+                      ? "Large format · Engineering & architectural sheets"
+                      : printJob.paper === "A1"
+                      ? "Exhibition posters & blueprints"
+                      : "Standard college submission format"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsSettingsPaperPickerOpen(!isSettingsPaperPickerOpen)}
+                  className="settings-paper-badge-btn"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "var(--accent)",
+                    padding: "6px 10px",
+                    background: isSettingsPaperPickerOpen ? "rgba(244, 215, 121, 0.16)" : "var(--surface-raised)",
+                    border: `1px solid ${isSettingsPaperPickerOpen ? "var(--accent)" : "rgba(244, 215, 121, 0.3)"}`,
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    transition: "all 140ms ease",
+                  }}
+                  aria-expanded={isSettingsPaperPickerOpen}
+                  aria-label="Edit Default Paper Size"
+                >
+                  <span>
+                    {printJob.paper || "A4"} ({PAPER_SIZE_CONFIG.find((p) => p.size === (printJob.paper || "A4"))?.dim || "210 × 297 mm"})
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 9,
+                      transform: isSettingsPaperPickerOpen ? "rotate(180deg)" : "none",
+                      transition: "transform 140ms ease",
+                    }}
+                  >
+                    ▼
+                  </span>
+                </button>
               </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", padding: "4px 8px", background: "var(--surface-raised)", borderRadius: 6 }}>
-                A4 (210 × 297 mm)
-              </span>
+
+              {/* Expandable Paper Size Options */}
+              {isSettingsPaperPickerOpen && (
+                <div
+                  className="settings-paper-options-tray"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, 1fr)",
+                    gap: 8,
+                    padding: "10px",
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 12,
+                    animation: "fadeIn 150ms ease",
+                  }}
+                >
+                  {PAPER_SIZE_CONFIG.map(({ size, dim, note }) => {
+                    const isSelected = (printJob.paper || "A4") === size;
+                    return (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => {
+                          setPrintJob((j) => ({ ...j, paper: size }));
+                          setIsSettingsPaperPickerOpen(false);
+                        }}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          padding: "8px 10px",
+                          borderRadius: 10,
+                          border: isSelected ? "1.5px solid var(--accent)" : "1px solid var(--border)",
+                          background: isSelected ? "var(--accent-tint)" : "var(--surface-raised)",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          transition: "all 120ms ease",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
+                          <strong style={{ fontSize: 13, color: isSelected ? "var(--accent)" : "var(--text)" }}>{size}</strong>
+                          {isSelected && <span style={{ color: "var(--accent)", fontSize: 12, fontWeight: 900 }}>✓</span>}
+                        </div>
+                        <span style={{ fontSize: 10.5, color: "var(--text-secondary)", marginTop: 2 }}>{dim}</span>
+                        {size === "A4" && (
+                          <span style={{ fontSize: 9.5, color: "var(--status-ready)", marginTop: 2 }}>College Standard</span>
+                        )}
+                        {note && (
+                          <span style={{ fontSize: 9, color: "var(--text-muted)", marginTop: 2 }}>{note}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="settings-pref-row">
               <div className="settings-pref-text">
-                <span className="settings-pref-title">Auto-open print settings</span>
-                <span className="settings-pref-desc">Navigate directly to settings once upload finishes</span>
+                <span className="settings-pref-title">{getTranslation(language, "settings_auto_open")}</span>
+                <span className="settings-pref-desc">{getTranslation(language, "settings_auto_open_sub")}</span>
               </div>
               <button
                 type="button"
@@ -5729,14 +5877,14 @@ export default function App() {
 
           {/* 4. Notifications & Alerts */}
           <section className="bill-card settings-section-card">
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: "0 0 4px" }}>Notifications & Alerts</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: "0 0 4px" }}>{getTranslation(language, "settings_notifications_section")}</h2>
             <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
-              Keep updated on your queue position and pickup ready alerts.
+              {language === "gu" ? "તમારા ઓર્ડરની કતાર સ્થિતિ અને પિકઅપ સૂચનાઓ મેળવો." : language === "hi" ? "अपनी कतार स्थिति और पिकअप अलर्ट से अपडेट रहें।" : "Keep updated on your queue position and pickup ready alerts."}
             </p>
             <div className="settings-pref-row">
               <div className="settings-pref-text">
-                <span className="settings-pref-title">Order Ready Alerts</span>
-                <span className="settings-pref-desc">Push alerts as soon as prints are ready for pickup</span>
+                <span className="settings-pref-title">{getTranslation(language, "settings_order_updates")}</span>
+                <span className="settings-pref-desc">{getTranslation(language, "settings_order_updates_sub")}</span>
               </div>
               <button
                 type="button"
@@ -5752,8 +5900,8 @@ export default function App() {
 
             <div className="settings-pref-row">
               <div className="settings-pref-text">
-                <span className="settings-pref-title">Shop Closing Warning</span>
-                <span className="settings-pref-desc">Remind 30 mins before shop closes at 5:00 PM</span>
+                <span className="settings-pref-title">{getTranslation(language, "settings_shop_updates")}</span>
+                <span className="settings-pref-desc">{getTranslation(language, "settings_shop_updates_sub")}</span>
               </div>
               <button
                 type="button"
@@ -5769,8 +5917,8 @@ export default function App() {
 
             <div className="settings-pref-row">
               <div className="settings-pref-text">
-                <span className="settings-pref-title">Sound & Haptics</span>
-                <span className="settings-pref-desc">Chime and vibration on order progress</span>
+                <span className="settings-pref-title">{getTranslation(language, "settings_sound_haptics")}</span>
+                <span className="settings-pref-desc">{getTranslation(language, "settings_sound_haptics_sub")}</span>
               </div>
               <button
                 type="button"
@@ -5796,7 +5944,7 @@ export default function App() {
 
           {/* 5. Help & FAQs Accordion */}
           <section className="bill-card settings-section-card">
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: "0 0 8px" }}>Help & Guidelines</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: "0 0 8px" }}>{getTranslation(language, "settings_help_faqs")}</h2>
             <div>
               {faqs.map((faq, index) => {
                 const isOpen = activeFaq === index;
@@ -5822,10 +5970,66 @@ export default function App() {
             </div>
           </section>
 
+                    {/* Mobile & Desktop App Installation */}
+          <section className="bill-card settings-section-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 10px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 18 }}>📲</span>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: 0 }}>
+                  {language === "gu" ? "મોબાઇલ એપ ઇન્સ્ટોલેશન" : language === "hi" ? "मोबाइल ऐप इंस्टॉलेशन" : "Mobile App Installation"}
+                </h2>
+              </div>
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: isStandalone ? "var(--status-ready)" : "var(--accent)",
+                  background: isStandalone ? "rgba(167, 232, 189, 0.12)" : "var(--accent-tint)",
+                  padding: "2px 8px",
+                  borderRadius: 6,
+                }}
+              >
+                {isStandalone ? "Installed" : "PWA / Mobile"}
+              </span>
+            </div>
+
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 14px", lineHeight: 1.4 }}>
+              {isStandalone
+                ? (language === "gu"
+                    ? "PrintQ આ ડિવાઇસ પર સફળતાપૂર્વક ઇન્સ્ટોલ કરેલ છે. તમે તેને હોમ સ્ક્રીનથી સીધું ખોલી શકો છો."
+                    : language === "hi"
+                    ? "PrintQ इस डिवाइस पर सफलतापूर्वक इंस्टॉल है। आप इसे सीधे होम स्क्रीन से खोल सकते हैं।"
+                    : "PrintQ is running as an installed standalone app with full offline support.")
+                : (language === "gu"
+                    ? "ઝડપી ૧-ટેપ પ્રિન્ટિંગ, લાઇવ કતાર નોટિફિકેશન અને ઑફલાઇન ઍક્સેસ માટે PrintQ ને તમારી ફોન હોમ સ્ક્રીન પર ઉમેરો."
+                    : language === "hi"
+                    ? "त्वरित 1-टैप प्रिंटिंग, लाइव कतार नोटिफिकेशन और ऑफलाइन एक्सेस के लिए PrintQ को अपने फोन की होम स्क्रीन पर जोड़ें।"
+                    : "Install PrintQ on your mobile home screen for 1-tap fast ordering, real-time queue tracking, and offline support.")}
+            </p>
+
+            <button
+              type="button"
+              className="track-action-btn"
+              style={{
+                background: isStandalone ? "var(--surface-raised)" : "var(--accent)",
+                color: isStandalone ? "var(--text-secondary)" : "var(--on-accent)",
+                border: isStandalone ? "1px solid var(--border)" : "none",
+                fontWeight: 700,
+              }}
+              onClick={() => {
+                promptInstall();
+              }}
+            >
+              {isStandalone
+                ? (language === "gu" ? "✓ એપ પહેલેથી ઇન્સ્ટોલ છે" : language === "hi" ? "✓ ऐप पहले से इंस्टॉल है" : "✓ App Already Installed")
+                : (language === "gu" ? "⬇️ ફોનમાં એપ ઇન્સ્ટોલ કરો" : language === "hi" ? "⬇️ फोन में ऐप इंस्टॉल करें" : "⬇️ Install App on Mobile")}
+            </button>
+          </section>
+
           {/* 6. Data Actions & Version */}
           <section className="bill-card settings-section-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 12px" }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: 0 }}>Data & Reset</h2>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: 0 }}>{getTranslation(language, "settings_data_reset")}</h2>
               <span style={{ fontSize: 11, color: "var(--text-muted)" }}>v2.4.0 (Campus)</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -5835,28 +6039,30 @@ export default function App() {
                   className="track-action-btn"
                   onClick={clearDemoData}
                 >
-                  Clear Demo Orders
+                  {getTranslation(language, "settings_clear_demo")}
                 </button>
               )}
               <button
                 type="button"
                 className="track-action-btn"
-                onClick={() => {
+                style={{ color: "var(--error)", borderColor: "rgba(248, 113, 113, 0.3)" }}
+                onClick={async () => {
+                  const confirmed = window.confirm(
+                    language === "gu"
+                      ? "શું તમે બધો એપ ડેટા રીસેટ કરીને ફરીથી ઓનબોર્ડિંગ ટૂર શરૂ કરવા માંગો છો?"
+                      : language === "hi"
+                      ? "क्या आप सारा ऐप डेटा रीसेट करके दोबारा ऑनबोर्डिंग टूर शुरू करना चाहते हैं?"
+                      : "Reset all app data and replay the onboarding tour from the beginning?"
+                  );
+                  if (!confirmed) return;
+                  await deleteAllUserData();
                   try {
                     window.localStorage.removeItem("onboardingCompleted");
                   } catch {}
                   setIsOnboardingOpen(true);
                 }}
               >
-                Replay Onboarding Tour
-              </button>
-              <button
-                type="button"
-                className="track-action-btn"
-                style={{ color: "var(--error)", borderColor: "rgba(248, 113, 113, 0.3)" }}
-                onClick={deleteAllUserData}
-              >
-                Reset All App Data
+                {getTranslation(language, "settings_reset_and_tour")}
               </button>
             </div>
           </section>
@@ -5874,6 +6080,7 @@ export default function App() {
       <div className="app-shell printq-shell">
         <main className="printq-home has-uploaded-file">
           <Document
+            language={language}
             onBack={() => {
               setHasDocument(false);
               setUploadedFiles([]);
@@ -5952,14 +6159,14 @@ export default function App() {
                 <span className="home-active-order-pulse-dot" />
                 <div>
                   <div className="home-active-order-title">
-                    Active Print Order <span className="home-active-order-token-pill">{activeOrder.token}</span>
+                    {getTranslation(language, "home_active_order_banner")} <span className="home-active-order-token-pill">{activeOrder.token}</span>
                   </div>
                   <div className="home-active-order-sub">
                     {activeOrder.status === "ready"
-                      ? "🎉 Ready for pickup now at Campus Central!"
+                      ? (language === "gu" ? "🎉 કેમ્પસ સેન્ટ્રલ પર પિકઅપ માટે તૈયાર છે!" : language === "hi" ? "🎉 कैंपस सेंट्रल पर पिकअप के लिए तैयार है!" : "🎉 Ready for pickup now at Campus Central!")
                       : activeOrder.status === "printing"
-                      ? "Printing in progress on Printer #2"
-                      : "Queued at Campus Central · Tap to track"}
+                      ? (language === "gu" ? "પ્રિન્ટર #૨ પર પ્રિન્ટિંગ ચાલુ છે" : language === "hi" ? "प्रिंटर #2 पर प्रिंटिंग जारी है" : "Printing in progress on Printer #2")
+                      : (language === "gu" ? "કેમ્પસ સેન્ટ્રલ પર કતારમાં છે · ટ્રેક કરવા ટેપ કરો" : language === "hi" ? "कैंपस सेंट्रल पर कतारबद्ध है · ट्रैक करने के लिए टैप करें" : "Queued at Campus Central · Tap to track")}
                   </div>
                 </div>
               </div>
@@ -5971,22 +6178,20 @@ export default function App() {
                   go("token");
                 }}
               >
-                Track Order →
+                {getTranslation(language, "home_view_order")}
               </button>
             </div>
           )}
 
-          <HomeShortcuts
+          <HomeQueueStatus
             language={language}
             go={go}
             activeOrder={activeOrder}
             nowServing={nowServing}
-            onSelectShortcut={(tool) => {
-              if (tool === "language") go("settings");
-            }}
           />
 
           <Document
+            language={language}
             onBack={() => go("home")}
             onNotifications={() => go("notifications")}
             unreadCount={unreadCount}

@@ -1,3 +1,5 @@
+import type { SupportedLanguage } from "../utils/i18n";
+import { getTranslation } from "../utils/i18n";
 import React from "react";
 
 export type NotificationType =
@@ -113,6 +115,7 @@ export function NotificationsScreen({
   onMarkAllAsRead,
   onSelectNotification,
   onStartPrint,
+  language = "en",
 }: {
   items: PrintOrderNotification[];
   onBack: () => void;
@@ -120,6 +123,7 @@ export function NotificationsScreen({
   onMarkAllAsRead: () => void;
   onSelectNotification: (item: PrintOrderNotification) => void;
   onStartPrint: () => void;
+  language?: SupportedLanguage;
 }) {
   const unreadCount = items.filter((item) => !item.read).length;
 
@@ -128,11 +132,11 @@ export function NotificationsScreen({
       {/* Screen Header */}
       <div className="notifications-header-row">
         <div>
-          <h1 className="notifications-title">Notifications</h1>
+          <h1 className="notifications-title">{getTranslation(language, "notifications_title")}</h1>
           <p className="notifications-subtitle">
             {unreadCount > 0
               ? `${unreadCount} unread update${unreadCount > 1 ? "s" : ""}`
-              : "All order updates are up to date"}
+              : (language === "gu" ? "બધા ઓર્ડર અપડેટ્સ અપ-ટૂ-ડેટ છે" : language === "hi" ? "सभी ऑर्डर अपडेट अप-टू-डेट हैं" : "All order updates are up to date")}
           </p>
         </div>
         <button
@@ -142,7 +146,7 @@ export function NotificationsScreen({
           onClick={onBack}
           aria-label="Back to Home"
         >
-          ← Back to Home
+          {getTranslation(language, "back_home")}
         </button>
       </div>
 
@@ -173,7 +177,7 @@ export function NotificationsScreen({
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
           </div>
-          <h2 className="notifications-empty-title">No Notifications Yet</h2>
+          <h2 className="notifications-empty-title">{getTranslation(language, "no_notifications")}</h2>
           <p className="notifications-empty-desc">
             You will receive real-time updates here about your print queue, order confirmation, and pickup reminders.
           </p>

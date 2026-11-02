@@ -35,7 +35,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   }, [])
 
   const handleNext = () => {
-    if (currentStep < 3) {
+    if (currentStep < 4) {
       setDirection("forward")
 
       setCurrentStep((prev) => prev + 1)
@@ -89,7 +89,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       if (deltaX < 0) {
         // Swiped Left -> Next
 
-        if (currentStep < 3) {
+        if (currentStep < 4) {
           handleNext()
         } else {
           handleFinish()
@@ -132,6 +132,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             {currentStep === 1 && <IllustrationSettings />}
             {currentStep === 2 && <IllustrationMultipleFiles />}
             {currentStep === 3 && <IllustrationToken />}
+            {currentStep === 4 && <QuickToolsShowcase />}
           </div>
 
           {/* 2. Text Copy Area */}
@@ -174,18 +175,27 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
                 </p>
               </>
             )}
+            {currentStep === 4 && (
+              <>
+                <h1 className="onboarding-heading">PrintQ Quick Tools</h1>
+                <p className="onboarding-subtext">
+                  Legibility checks, deadline estimates and group cost splits
+                  are built right into your print setup.
+                </p>
+              </>
+            )}
           </div>
         </div>
 
         {/* 3. Bottom Controls */}
         <div className="onboarding-bottom-bar">
-          {/* Dots Indicator: 4 dots */}
+          {/* Dots Indicator: 5 dots */}
           <div
             className="onboarding-dots"
             role="tablist"
             aria-label="Onboarding screens"
           >
-            {[0, 1, 2, 3].map((idx) => (
+            {[0, 1, 2, 3, 4].map((idx) => (
               <button
                 key={idx}
                 type="button"
@@ -200,8 +210,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             ))}
           </div>
 
-          {/* Action Button: Next → for 0, 1, 2; Get Started for 3 */}
-          {currentStep < 3 ? (
+          {/* Action Button: Next → for 0-3; Get Started for 4 */}
+          {currentStep < 4 ? (
             <button
               type="button"
               className="onboarding-primary-btn"
@@ -221,8 +231,8 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             </button>
           )}
 
-          {/* Skip Button: Only on Screens 1, 2, 3 (indices 0, 1, 2) */}
-          {currentStep < 3 ? (
+          {/* Skip Button: Only on all screens before the last */}
+          {currentStep < 4 ? (
             <button
               type="button"
               className="onboarding-skip-btn"
@@ -252,149 +262,184 @@ function IllustrationQueue() {
       <svg viewBox="0 0 280 200" fill="none" className="onboarding-svg">
         <defs>
           <radialGradient id="art-glow-1" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#F4D779" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#0A0A0A" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="var(--background)" stopOpacity="0" />
           </radialGradient>
         </defs>
-        {/* Glow */}
-        <circle cx="140" cy="100" r="85" fill="url(#art-glow-1)" />
 
-        {/* Backdrop Card */}
+        {/* Soft ambient glow */}
+        <circle cx="140" cy="100" r="95" fill="url(#art-glow-1)" />
+
+        {/* LEFT: old way — three people waiting in a queue */}
         <rect
-          x="50"
-          y="30"
-          width="180"
-          height="140"
-          rx="20"
-          fill="#171717"
-          stroke="#262626"
+          x="16"
+          y="26"
+          width="108"
+          height="148"
+          rx="16"
+          fill="var(--surface)"
+          stroke="var(--border)"
           strokeWidth="1.5"
         />
-
-        {/* Queue Figures Silhouette */}
-        <g opacity="0.35">
-          <circle cx="75" cy="72" r="9" fill="#555" />
-          <path
-            d="M64 100 C64 88 86 88 86 100"
-            stroke="#555"
-            strokeWidth="3"
-            fill="none"
-            strokeLinecap="round"
-          />
-
-          <circle cx="105" cy="72" r="9" fill="#555" />
-          <path
-            d="M94 100 C94 88 116 88 116 100"
-            stroke="#555"
-            strokeWidth="3"
-            fill="none"
-            strokeLinecap="round"
-          />
-
-          <circle cx="135" cy="72" r="9" fill="#555" />
-          <path
-            d="M124 100 C124 88 146 88 146 100"
-            stroke="#555"
-            strokeWidth="3"
-            fill="none"
-            strokeLinecap="round"
-          />
-        </g>
-
-        {/* Red / Alert Cross Over Queue Line */}
-        <line
-          x1="60"
-          y1="88"
-          x2="150"
-          y2="88"
-          stroke="#EF4444"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeDasharray="6 4"
-        />
-
-        {/* Central Express Clock Card */}
-        <rect
-          x="145"
-          y="55"
-          width="70"
-          height="70"
-          rx="35"
-          fill="#1F1F1F"
-          stroke="#F4D779"
-          strokeWidth="2.5"
-        />
-        <circle cx="180" cy="90" r="28" fill="#171717" />
-        <circle cx="180" cy="90" r="2" fill="#F4D779" />
-        {/* Clock Hands */}
-        <line
-          x1="180"
-          y1="90"
-          x2="180"
-          y2="72"
-          stroke="#F4D779"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        />
-        <line
-          x1="180"
-          y1="90"
-          x2="194"
-          y2="90"
-          stroke="#F4D779"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        />
-
-        {/* Cross Badge on Waiting Time */}
-        <circle
-          cx="204"
-          cy="65"
-          r="13"
-          fill="#EF4444"
-          stroke="#171717"
-          strokeWidth="2"
-        />
-        <line
-          x1="198"
-          y1="59"
-          x2="210"
-          y2="71"
-          stroke="#FFFFFF"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        />
-        <line
-          x1="210"
-          y1="59"
-          x2="198"
-          y2="71"
-          stroke="#FFFFFF"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        />
-
-        {/* Instant pickup badge */}
-        <rect
-          x="68"
-          y="125"
-          width="144"
-          height="26"
-          rx="8"
-          fill="#222"
-          stroke="#333"
-          strokeWidth="1"
-        />
-        <circle cx="82" cy="138" r="4" fill="#A7E8BD" />
         <text
-          x="94"
-          y="142"
-          fill="#FFFFFF"
-          fontSize="10.5"
+          x="70"
+          y="46"
+          fill="var(--text-muted)"
+          fontSize="8.5"
           fontWeight="700"
           fontFamily="sans-serif"
+          letterSpacing="0.1em"
+          textAnchor="middle"
         >
-          ZERO QUEUE · INSTANT
+          CAMPUS QUEUE
+        </text>
+
+        {/* Waiting clock */}
+        <circle
+          cx="70"
+          cy="66"
+          r="9"
+          stroke="var(--text-muted)"
+          strokeWidth="1.6"
+        />
+        <path
+          d="M70 60.5v5.5l3.5 2"
+          stroke="var(--text-muted)"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* Three clearly drawn people, standing in line */}
+        <g fill="var(--text-muted)">
+          <circle cx="42" cy="100" r="8" />
+          <path d="M30 134c0-17 6-23 12-23s12 6 12 23H30z" />
+          <circle cx="70" cy="100" r="8" />
+          <path d="M58 134c0-17 6-23 12-23s12 6 12 23H58z" />
+          <circle cx="98" cy="100" r="8" />
+          <path d="M86 134c0-17 6-23 12-23s12 6 12 23H86z" />
+        </g>
+
+        {/* "No waiting" slash over the queue */}
+        <line
+          x1="28"
+          y1="146"
+          x2="116"
+          y2="84"
+          stroke="var(--error)"
+          strokeWidth="5"
+          strokeLinecap="round"
+        />
+        <text
+          x="70"
+          y="162"
+          fill="var(--error)"
+          fontSize="9"
+          fontWeight="800"
+          fontFamily="sans-serif"
+          letterSpacing="0.08em"
+          textAnchor="middle"
+        >
+          WAITING
+        </text>
+
+        {/* Arrow: old way → PrintQ */}
+        <path
+          d="M128 100h16M138 94l7 6-7 6"
+          stroke="var(--text-secondary)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* RIGHT: PrintQ — instant token, no queue */}
+        <rect
+          x="156"
+          y="26"
+          width="108"
+          height="148"
+          rx="16"
+          fill="var(--surface)"
+          stroke="var(--accent)"
+          strokeWidth="1.5"
+        />
+        <text
+          x="210"
+          y="46"
+          fill="var(--accent)"
+          fontSize="8.5"
+          fontWeight="700"
+          fontFamily="sans-serif"
+          letterSpacing="0.1em"
+          textAnchor="middle"
+        >
+          PRINTQ
+        </text>
+
+        {/* Token card */}
+        <rect
+          x="174"
+          y="60"
+          width="72"
+          height="66"
+          rx="12"
+          fill="var(--surface-raised)"
+          stroke="var(--border)"
+          strokeWidth="1.5"
+        />
+        <text
+          x="210"
+          y="88"
+          fill="var(--accent)"
+          fontSize="22"
+          fontWeight="900"
+          fontFamily="sans-serif"
+          textAnchor="middle"
+          letterSpacing="-0.02em"
+        >
+          A-26
+        </text>
+        <text
+          x="210"
+          y="104"
+          fill="var(--text-secondary)"
+          fontSize="7.5"
+          fontWeight="700"
+          fontFamily="sans-serif"
+          letterSpacing="0.08em"
+          textAnchor="middle"
+        >
+          YOUR TOKEN
+        </text>
+
+        {/* Success check badge */}
+        <circle
+          cx="242"
+          cy="58"
+          r="10"
+          fill="var(--status-ready)"
+          stroke="var(--surface)"
+          strokeWidth="2.5"
+        />
+        <path
+          d="M237.5 58l3 3 6-6"
+          stroke="var(--on-accent)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        <text
+          x="210"
+          y="162"
+          fill="var(--status-ready)"
+          fontSize="9"
+          fontWeight="800"
+          fontFamily="sans-serif"
+          letterSpacing="0.08em"
+          textAnchor="middle"
+        >
+          INSTANT PICKUP
         </text>
       </svg>
     </div>
@@ -878,6 +923,79 @@ function IllustrationMultipleFiles() {
           </text>
         </g>
       </svg>
+    </div>
+  )
+}
+
+// ============================================================================
+
+// Guide Screen: PrintQ Quick Tools overview
+
+// ============================================================================
+
+function QuickToolsShowcase() {
+  const tools = [
+    { icon: "🔍", title: "B&W Legibility" },
+    { icon: "⏱", title: "Deadline Check" },
+    { icon: "👥", title: "Group Printing" },
+    { icon: "🌐", title: "Language" },
+  ]
+
+  return (
+    <div
+      className="onboarding-quick-tools"
+      style={{
+        width: "100%",
+        maxWidth: 320,
+        display: "grid",
+        gridTemplateColumns: "repeat(2, 1fr)",
+        gap: 10,
+      }}
+    >
+      {tools.map((tool) => (
+        <div
+          key={tool.title}
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 14,
+            padding: "14px 10px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            textAlign: "center",
+            minHeight: 92,
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 10,
+              background: "var(--accent-tint)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 16,
+            }}
+          >
+            {tool.icon}
+          </span>
+          <strong
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--text)",
+              lineHeight: 1.3,
+            }}
+          >
+            {tool.title}
+          </strong>
+        </div>
+      ))}
     </div>
   )
 }

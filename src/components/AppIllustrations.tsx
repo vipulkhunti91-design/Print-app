@@ -14,105 +14,139 @@ export function UploadHeroIllustration() {
   return (
     <svg
       className="upload-illustration anime-upload-hero"
-      viewBox="0 0 180 140"
+      viewBox="0 0 200 150"
       role="img"
-      aria-label="Anime-inspired printing companion and document upload"
+      aria-label="Document printing from a friendly printer with a pickup token"
     >
       <defs>
-        <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#222222" />
-          <stop offset="100%" stopColor="#171717" />
-        </linearGradient>
+        <radialGradient id="uploadGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.16" />
+          <stop offset="100%" stopColor="var(--background)" stopOpacity="0" />
+        </radialGradient>
       </defs>
 
-      {/* Anime Twinkle Stars & Sparkles */}
+      {/* Ambient glow */}
+      <circle cx="100" cy="76" r="70" fill="url(#uploadGlow)" />
+
+      {/* Twinkles */}
       <g className="anime-sparkles">
-        {/* Four-point sparkle top-left */}
         <path
           className="anime-sparkle-1"
-          d="M 22 28 Q 22 34 28 34 Q 22 34 22 40 Q 22 34 16 34 Q 22 34 22 28 Z"
+          d="M 172 30 Q 172 36 178 36 Q 172 36 172 42 Q 172 36 166 36 Q 172 36 172 30 Z"
           fill="var(--accent)"
         />
-        {/* Four-point sparkle top-right */}
         <path
           className="anime-sparkle-2"
-          d="M 158 24 Q 158 30 164 30 Q 158 30 158 36 Q 158 30 152 30 Q 158 30 158 24 Z"
+          d="M 24 118 Q 24 123 29 123 Q 24 123 24 128 Q 24 123 19 123 Q 24 123 24 118 Z"
           fill="var(--status-ready)"
         />
-        {/* Tiny twinkle dots */}
-        <circle cx="162" cy="98" r="2.5" fill="var(--accent)" className="anime-dot-1" />
-        <circle cx="26" cy="104" r="2" fill="var(--status-ready)" className="anime-dot-2" />
-        <circle cx="44" cy="22" r="1.5" fill="#FFFFFF" opacity="0.6" />
+        <circle cx="170" cy="112" r="2.5" fill="var(--accent)" className="anime-dot-1" />
+        <circle cx="52" cy="22" r="1.8" fill="#FFFFFF" opacity="0.6" />
       </g>
 
-      {/* Floating Background Paper Sheets */}
-      <g stroke="var(--border)" strokeWidth="1.2">
+      {/* Floating pickup token */}
+      <g className="anime-float-left">
         <rect
-          x="30"
-          y="42"
-          width="32"
-          height="40"
-          rx="6"
-          fill="var(--surface)"
-          className="illus-card-left anime-float-left"
-        />
-        <rect
-          x="118"
-          y="42"
-          width="32"
-          height="40"
-          rx="6"
-          fill="var(--surface)"
-          className="illus-card-right anime-float-right"
-        />
-      </g>
-
-      {/* Left Sheet Ruled Lines */}
-      <g stroke="var(--text-secondary)" strokeWidth="1.2" strokeLinecap="round" opacity="0.7">
-        <path d="M 37 52 h 18 M 37 58 h 14 M 37 64 h 16" />
-      </g>
-      {/* Right Sheet Ruled Lines */}
-      <g stroke="var(--text-secondary)" strokeWidth="1.2" strokeLinecap="round" opacity="0.7">
-        <path d="M 125 52 h 18 M 125 58 h 14 M 125 64 h 16" />
-      </g>
-
-      {/* Central Friendly Cloud / Printer Base */}
-      <path
-        d="M 48 98 c -11 0 -18 -7 -18 -16 0 -8 6 -15 15 -16 4 -13 16 -22 31 -22 17 0 31 12 33 28 10 1 17 8 17 17 0 10 -8 18 -19 18 H 48 Z"
-        fill="url(#cloudGrad)"
-        stroke="var(--border)"
-        strokeWidth="1.5"
-        className="illus-cloud anime-cloud"
-      />
-
-      {/* Cute Anime Mascot Eyes on the Cloud Base */}
-      <g className="anime-mascot-face" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round">
-        {/* Left eye: happy curved arch */}
-        <path d="M 76 80 q 4 -5 8 0" fill="none" />
-        {/* Right eye: happy curved arch */}
-        <path d="M 96 80 q 4 -5 8 0" fill="none" />
-        {/* Tiny blush dots */}
-        <circle cx="73" cy="84" r="2" fill="var(--accent)" opacity="0.5" stroke="none" />
-        <circle cx="107" cy="84" r="2" fill="var(--accent)" opacity="0.5" stroke="none" />
-      </g>
-
-      {/* Central Animated Upload Arrow */}
-      <g className="illus-arrow anime-arrow-float">
-        <path
-          d="M 90 91 V 64 m 0 0 -9 9 m 9 -9 9 9"
-          fill="none"
+          x="12"
+          y="44"
+          width="50"
+          height="23"
+          rx="11.5"
+          fill="var(--accent-tint)"
           stroke="var(--accent)"
-          strokeWidth="3.5"
+          strokeWidth="1.2"
+        />
+        <circle cx="25" cy="55.5" r="3" fill="var(--status-ready)" />
+        <text
+          x="33"
+          y="59.5"
+          fill="var(--accent)"
+          fontSize="10"
+          fontWeight="800"
+          fontFamily="sans-serif"
+        >
+          A-26
+        </text>
+      </g>
+
+      {/* Printed document coming out of the printer */}
+      <g className="anime-float-right">
+        <rect
+          x="68"
+          y="16"
+          width="66"
+          height="52"
+          rx="8"
+          fill="var(--surface)"
+          stroke="var(--accent)"
+          strokeWidth="1.5"
+        />
+        <path
+          d="M 80 33 H 122 M 80 42 H 112 M 80 51 H 118"
+          stroke="var(--text-secondary)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          opacity="0.75"
+        />
+        {/* Ready check badge */}
+        <circle
+          cx="134"
+          cy="18"
+          r="9"
+          fill="var(--status-ready)"
+          stroke="var(--surface)"
+          strokeWidth="2.5"
+        />
+        <path
+          d="M 129.5 18 l 3 3 l 6 -6"
+          fill="none"
+          stroke="var(--on-accent)"
+          strokeWidth="2.2"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <path
-          d="M 78 91 v 6 c 0 3 2 5 5 5 h 14 c 3 0 5 -2 5 -5 v -6"
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="2.5"
-          strokeLinecap="round"
+      </g>
+
+      {/* Friendly printer */}
+      <g className="anime-cloud">
+        {/* Paper feed slot */}
+        <rect
+          x="66"
+          y="64"
+          width="68"
+          height="12"
+          rx="6"
+          fill="var(--surface)"
+          stroke="var(--border)"
+          strokeWidth="1.2"
         />
+        <rect x="76" y="68" width="48" height="3" rx="1.5" fill="var(--accent)" opacity="0.7" />
+
+        {/* Body */}
+        <rect
+          x="42"
+          y="74"
+          width="116"
+          height="56"
+          rx="14"
+          fill="var(--surface-raised)"
+          stroke="var(--border)"
+          strokeWidth="1.5"
+        />
+
+        {/* Mascot face */}
+        <g stroke="var(--accent)" strokeWidth="2" strokeLinecap="round">
+          <path d="M 84 101 q 4 -5 8 0" fill="none" />
+          <path d="M 108 101 q 4 -5 8 0" fill="none" />
+          <circle cx="80" cy="107" r="2.2" fill="var(--accent)" opacity="0.5" stroke="none" />
+          <circle cx="120" cy="107" r="2.2" fill="var(--accent)" opacity="0.5" stroke="none" />
+        </g>
+
+        {/* Status light */}
+        <circle cx="146" cy="88" r="3.5" fill="var(--status-ready)" />
+
+        {/* Output tray */}
+        <rect x="60" y="128" width="80" height="6" rx="3" fill="var(--surface)" />
       </g>
     </svg>
   );

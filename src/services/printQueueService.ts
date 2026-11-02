@@ -19,7 +19,7 @@ export type QueueOrder = {
   isCurrentUser?: boolean;
 };
 
-const QUEUE_STORAGE_KEY = "printq_live_queue_v1";
+const QUEUE_STORAGE_KEY = "printq_live_queue_v2";
 
 // Printer spec: Single shared shop printer
 export const PRINTER_SPEED_BW_MS = 2500; 
@@ -34,46 +34,7 @@ export function calculateOrderPrintDurationMs(order: { totalPages: number; copie
 
 // Initial demo baseline queue if storage is empty
 function getInitialQueue(): QueueOrder[] {
-  const now = Date.now();
-  return [
-    {
-      id: "demo-q-08",
-      token: "#08",
-      fileName: "Lecture_Notes_Unit3.pdf",
-      totalPages: 12,
-      copies: 1,
-      colour: false,
-      paperStock: "Regular",
-      createdAt: now - 8000,
-      startedPrintingAt: now - 3000,
-      status: "printing",
-      userName: "Aarav Sharma",
-    },
-    {
-      id: "demo-q-09",
-      token: "#09",
-      fileName: "Lab_Report_Final.pdf",
-      totalPages: 6,
-      copies: 1,
-      colour: true,
-      paperStock: "Regular",
-      createdAt: now - 4000,
-      status: "waiting",
-      userName: "Priya Patel",
-    },
-    {
-      id: "demo-q-10",
-      token: "#10",
-      fileName: "Project_Proposal.docx",
-      totalPages: 15,
-      copies: 1,
-      colour: false,
-      paperStock: "Regular",
-      createdAt: now - 2000,
-      status: "waiting",
-      userName: "Rohan Verma",
-    },
-  ];
+  return [];
 }
 
 class PrintQueueManager {

@@ -2,7 +2,6 @@ import React, { useState } from "react";
 
 export type GroupMember = {
   id: string;
-  name: string;
   assignedPages: number;
   assignedCopies: number;
   amount: number;
@@ -23,7 +22,6 @@ export function GroupCostSettlement({
   onSettlementComplete,
 }: GroupCostSettlementProps) {
   const [isGroupMode, setIsGroupMode] = useState(false);
-  const [newMemberName, setNewMemberName] = useState("");
   const [memberPages, setMemberPages] = useState<number>(Math.max(1, Math.round(totalPages / 2)));
   const [memberCopies, setMemberCopies] = useState<number>(1);
 
@@ -32,7 +30,6 @@ export function GroupCostSettlement({
   const [members, setMembers] = useState<GroupMember[]>([
     {
       id: "mem-1",
-      name: "You (Organizer)",
       assignedPages: Math.max(1, Math.ceil(totalPages / 2)),
       assignedCopies: 1,
       amount: initialShare,
@@ -40,7 +37,6 @@ export function GroupCostSettlement({
     },
     {
       id: "mem-2",
-      name: "Sahil Mehta",
       assignedPages: Math.max(1, Math.floor(totalPages / 2)),
       assignedCopies: 1,
       amount: Math.round((grandTotal - initialShare) * 100) / 100,
@@ -55,12 +51,12 @@ export function GroupCostSettlement({
         style={{
           background: "rgba(244, 215, 121, 0.05)",
           border: "1px dashed rgba(244, 215, 121, 0.3)",
-          borderRadius: 12,
-          padding: "10px 14px",
+          borderRadius: 14,
+          padding: "12px 14px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          margin: "12px 0",
+          margin: "0 0 16px",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -70,7 +66,7 @@ export function GroupCostSettlement({
               Split with Project Group
             </strong>
             <small style={{ fontSize: 11, color: "var(--text-secondary)" }}>
-              Share cost with classmates via individual UPI payment links
+              Share cost with group members via individual UPI payment links
             </small>
           </div>
         </div>
@@ -127,13 +123,10 @@ export function GroupCostSettlement({
 
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMemberName.trim()) return;
-
     const baseList: Omit<GroupMember, "amount">[] = [
       ...members.map(({ amount, ...rest }) => rest),
       {
         id: `mem-${Date.now()}`,
-        name: newMemberName.trim(),
         assignedPages: memberPages || 1,
         assignedCopies: memberCopies || 1,
         status: "pending" as const,
@@ -142,7 +135,6 @@ export function GroupCostSettlement({
 
     const updated = recalculateShares(baseList);
     setMembers(updated);
-    setNewMemberName("");
   };
 
   const handleRemoveMember = (id: string) => {
@@ -186,7 +178,7 @@ export function GroupCostSettlement({
         border: "1px solid var(--border)",
         borderRadius: 14,
         padding: "14px",
-        margin: "12px 0 16px",
+        margin: "0 0 16px",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -248,7 +240,7 @@ export function GroupCostSettlement({
 
       {/* Member Roster */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-        {members.map((mem) => (
+        {members.map((mem, idx) => (
           <div
             key={mem.id}
             style={{
@@ -264,9 +256,9 @@ export function GroupCostSettlement({
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <strong style={{ fontSize: 12.5, color: "var(--text)" }}>
-                  {mem.name}
+                  {idx === 0 ? "Member 1 (You)" : `Member ${idx + 1}`}
                 </strong>
-                {mem.id !== "mem-1" && (
+                {idx > 0 && (
                   <button
                     type="button"
                     onClick={() => handleRemoveMember(mem.id)}
@@ -328,44 +320,32 @@ export function GroupCostSettlement({
         ))}
       </div>
 
-      {/* Add Member Form */}
-      <form onSubmit={handleAddMember} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <input
-          type="text"
-          placeholder="Classmate name..."
-          value={newMemberName}
-          onChange={(e) => setNewMemberName(e.target.value)}
-          style={{
-            flex: 2,
-            height: 34,
-            background: "#1c1c1c",
-            border: "1px solid var(--border)",
-            borderRadius: 8,
-            padding: "0 10px",
-            fontSize: 12,
-            color: "var(--text)",
-            outline: "none",
-          }}
-        />
-        <input
-          type="number"
-          placeholder="Pgs"
-          min={1}
-          value={memberPages}
-          onChange={(e) => setMemberPages(parseInt(e.target.value) || 1)}
-          style={{
-            width: 50,
-            height: 34,
-            background: "#1c1c1c",
-            border: "1px solid var(--border)",
-            borderRadius: 8,
-            padding: "0 6px",
-            fontSize: 12,
-            color: "var(--text)",
-            outline: "none",
-          }}
-          title="Assigned document pages"
-        />
+      {/* Add Member Form without Name Input */}
+      <form onSubmit={handleAddMember} style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between", paddingTop: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+            Pages for next member:
+          </span>
+          <input
+            type="number"
+            placeholder="Pgs"
+            min={1}
+            value={memberPages}
+            onChange={(e) => setMemberPages(parseInt(e.target.value) || 1)}
+            style={{
+              width: 54,
+              height: 34,
+              background: "#1c1c1c",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              padding: "0 8px",
+              fontSize: 12,
+              color: "var(--text)",
+              outline: "none",
+            }}
+            title="Assigned document pages"
+          />
+        </div>
         <button
           type="submit"
           style={{
@@ -373,7 +353,7 @@ export function GroupCostSettlement({
             color: "var(--on-accent)",
             border: "none",
             borderRadius: 8,
-            padding: "0 12px",
+            padding: "0 14px",
             height: 34,
             fontSize: 12,
             fontWeight: 700,
@@ -381,7 +361,7 @@ export function GroupCostSettlement({
             whiteSpace: "nowrap",
           }}
         >
-          + Invite
+          + Add Member
         </button>
       </form>
     </div>
