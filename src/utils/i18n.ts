@@ -106,16 +106,6 @@ export type TranslationDictionary = {
   settings_replay_tour: string;
   settings_reset_all: string;
   settings_reset_and_tour: string;
-  install_app_title: string;
-  install_app_desc: string;
-  install_app_btn: string;
-  install_app_later: string;
-  install_app_ios_title: string;
-  install_app_ios_step1: string;
-  install_app_ios_step2: string;
-  install_app_ios_step3: string;
-  install_app_already_installed: string;
-  install_app_ready: string;
   settings_faqs: string;
   settings_account: string;
   settings_sign_out: string;
@@ -322,16 +312,6 @@ export const translations: Record<SupportedLanguage, TranslationDictionary> = {
     settings_replay_tour: "Replay Onboarding Tour",
     settings_reset_all: "Reset All App Data",
     settings_reset_and_tour: "Reset App & Replay Tour",
-  install_app_title: "Install PrintQ App",
-  install_app_desc: "Add to your mobile home screen for 1-tap orders, real-time queue alerts & fast offline access.",
-  install_app_btn: "Install App",
-  install_app_later: "Maybe Later",
-  install_app_ios_title: "Install on iPhone / iPad",
-  install_app_ios_step1: "1. Tap the Share icon (⎋) in Safari bottom bar.",
-  install_app_ios_step2: "2. Scroll down and tap 'Add to Home Screen'.",
-  install_app_ios_step3: "3. Tap 'Add' in the top-right corner.",
-  install_app_already_installed: "App Installed",
-  install_app_ready: "Installed & Ready Offline",
     settings_faqs: "Frequently Asked Questions",
     settings_account: "Account & Profile",
     settings_sign_out: "Sign Out",
@@ -529,16 +509,6 @@ export const translations: Record<SupportedLanguage, TranslationDictionary> = {
     settings_replay_tour: "ગાઇડ ફરીથી જુઓ",
     settings_reset_all: "બધો એપ ડેટા રીસેટ કરો",
     settings_reset_and_tour: "એપ રીસેટ કરો અને ટૂર ફરી જુઓ",
-  install_app_title: "PrintQ એપ ઇન્સ્ટોલ કરો",
-  install_app_desc: "ઝડપી ૧-ટેપ ઓર્ડર, લાઇવ કતાર એલર્ટ અને ઑફલાઇન ઍક્સેસ માટે તમારી મોબાઇલ હોમ સ્ક્રીન પર ઉમેરો.",
-  install_app_btn: "એપ ઇન્સ્ટોલ કરો",
-  install_app_later: "પછીથી",
-  install_app_ios_title: "iPhone / iPad પર ઇન્સ્ટોલ કરો",
-  install_app_ios_step1: "૧. સફારીના નીચેના બારમાં Share બટન (⎋) પર ટેપ કરો.",
-  install_app_ios_step2: "૨. નીચે સ્ક્રોલ કરીને 'Add to Home Screen' પસંદ કરો.",
-  install_app_ios_step3: "૩. ઉપર જમણા ખૂણે 'Add' પર ટેપ કરો.",
-  install_app_already_installed: "એપ ઇન્સ્ટોલ થયેલ છે",
-  install_app_ready: "ઇન્સ્ટોલ કરેલ અને ઑફલાઇન તૈયાર",
         settings_faqs: "વારંવાર પૂછાતા પ્રશ્નો (FAQs)",
     settings_account: "ખાતું અને પ્રોફાઇલ",
     settings_sign_out: "સાઇન આઉટ",
@@ -736,16 +706,6 @@ export const translations: Record<SupportedLanguage, TranslationDictionary> = {
     settings_replay_tour: "गाइड पुनः देखें",
     settings_reset_all: "सारा ऐप डेटा रीसेट करें",
     settings_reset_and_tour: "ऐप रीसेट करें और टूर दोबारा देखें",
-  install_app_title: "PrintQ ऐप इंस्टॉल करें",
-  install_app_desc: "त्वरित 1-टैप ऑर्डर, लाइव कतार अलर्ट और ऑफलाइन एक्सेस के लिए अपनी मोबाइल होम स्क्रीन पर जोड़ें।",
-  install_app_btn: "ऐप इंस्टॉल करें",
-  install_app_later: "बाद में",
-  install_app_ios_title: "iPhone / iPad पर इंस्टॉल करें",
-  install_app_ios_step1: "1. सफारी के निचले बार में Share बटन (⎋) पर टैप करें।",
-  install_app_ios_step2: "2. नीचे स्क्रॉल करके 'Add to Home Screen' चुनें।",
-  install_app_ios_step3: "3. ऊपर दाएं कोने में 'Add' पर टैप करें।",
-  install_app_already_installed: "ऐप इंस्टॉल है",
-  install_app_ready: "इंस्टॉल किया गया और ऑफलाइन तैयार",
         settings_faqs: "अक्सर पूछे जाने वाले प्रश्न (FAQs)",
     settings_account: "खाता और प्रोफाइल",
     settings_sign_out: "साइन आउट",

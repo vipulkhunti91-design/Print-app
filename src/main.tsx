@@ -102,30 +102,14 @@ class RootErrorBoundary extends Component<
 }
 
 if ('serviceWorker' in navigator) {
-  if (import.meta.env.DEV) {
-    // In dev mode, unregister any active service worker and clear cache to prevent stale scripts
-    navigator.serviceWorker.getRegistrations().then((registrations) => {
-      for (const registration of registrations) {
-        registration.unregister()
-      }
-    })
-    if ('caches' in window) {
-      caches.keys().then((names) => {
-        for (const name of names) {
-          caches.delete(name)
-        }
-      })
-    }
-  } else {
-    const appBase = new URL(import.meta.env.BASE_URL, window.location.href)
-    if (appBase.origin === window.location.origin) {
-      window.addEventListener('load', () => {
-        void navigator.serviceWorker
-          .register(new URL('sw.js', appBase), { scope: appBase.pathname })
-          .catch(() => undefined)
-      }, { once: true })
-    }
-  }
+  window.addEventListener('load', () => {
+    const swUrl = new URL('sw.js', window.location.href);
+    navigator.serviceWorker
+      .register(swUrl)
+      .catch((err) => {
+        console.warn('Service Worker registration skipped:', err);
+      });
+  }, { once: true });
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

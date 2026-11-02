@@ -53,7 +53,6 @@ import PaymentPage from "./components/PaymentPage";
 import AdminMasterControl from "./components/AdminMasterControl";
 import { securityEngine, type FirebaseOrderRecord } from "./services/securityEngine";
 import OnboardingFlow from "./components/OnboardingFlow";
-import InstallAppPrompt, { usePwaInstall } from "./components/InstallAppPrompt";
 
 const A = `${import.meta.env.BASE_URL}assets`;
 
@@ -222,6 +221,7 @@ type FilePreviewData = {
   size: string;
   pages?: number;
   pagesEstimated?: boolean;
+  settings?: Partial<PrintJob>;
 } | null;
 
 type UploadedFileData = NonNullable<FilePreviewData>;
@@ -4288,7 +4288,6 @@ function Help({ go }: { go: (screen: Screen) => void }) {
 }
 
 export default function App() {
-  const { isStandalone, promptInstall } = usePwaInstall();
   useEffect(() => {
     document.title = "PrintQ | Campus Print Ordering and Notifications";
     let themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
@@ -5171,7 +5170,6 @@ export default function App() {
         setIsAuthModalOpen(false);
       }}
     />
-    <InstallAppPrompt language={language} />
   </>
 );
 
@@ -5970,100 +5968,176 @@ export default function App() {
             </div>
           </section>
 
-                    {/* Mobile & Desktop App Installation */}
+                    {/* 6. Data Actions & Version */}
           <section className="bill-card settings-section-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 10px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 18 }}>📲</span>
-                <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: 0 }}>
-                  {language === "gu" ? "મોબાઇલ એપ ઇન્સ્ટોલેશન" : language === "hi" ? "मोबाइल ऐप इंस्टॉलेशन" : "Mobile App Installation"}
-                </h2>
-              </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 12px" }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: 0 }}>
+                {getTranslation(language, "settings_data_reset")}
+              </h2>
               <span
                 style={{
-                  fontSize: 10.5,
-                  fontWeight: 700,
-                  color: isStandalone ? "var(--status-ready)" : "var(--accent)",
-                  background: isStandalone ? "rgba(167, 232, 189, 0.12)" : "var(--accent-tint)",
-                  padding: "2px 8px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "var(--accent)",
+                  background: "rgba(244, 215, 121, 0.1)",
+                  padding: "3px 8px",
                   borderRadius: 6,
+                  border: "1px solid rgba(244, 215, 121, 0.2)",
                 }}
               >
-                {isStandalone ? "Installed" : "PWA / Mobile"}
+                v2.4.0 · Campus
               </span>
             </div>
 
-            <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 14px", lineHeight: 1.4 }}>
-              {isStandalone
-                ? (language === "gu"
-                    ? "PrintQ આ ડિવાઇસ પર સફળતાપૂર્વક ઇન્સ્ટોલ કરેલ છે. તમે તેને હોમ સ્ક્રીનથી સીધું ખોલી શકો છો."
-                    : language === "hi"
-                    ? "PrintQ इस डिवाइस पर सफलतापूर्वक इंस्टॉल है। आप इसे सीधे होम स्क्रीन से खोल सकते हैं।"
-                    : "PrintQ is running as an installed standalone app with full offline support.")
-                : (language === "gu"
-                    ? "ઝડપી ૧-ટેપ પ્રિન્ટિંગ, લાઇવ કતાર નોટિફિકેશન અને ઑફલાઇન ઍક્સેસ માટે PrintQ ને તમારી ફોન હોમ સ્ક્રીન પર ઉમેરો."
-                    : language === "hi"
-                    ? "त्वरित 1-टैप प्रिंटिंग, लाइव कतार नोटिफिकेशन और ऑफलाइन एक्सेस के लिए PrintQ को अपने फोन की होम स्क्रीन पर जोड़ें।"
-                    : "Install PrintQ on your mobile home screen for 1-tap fast ordering, real-time queue tracking, and offline support.")}
-            </p>
-
-            <button
-              type="button"
-              className="track-action-btn"
-              style={{
-                background: isStandalone ? "var(--surface-raised)" : "var(--accent)",
-                color: isStandalone ? "var(--text-secondary)" : "var(--on-accent)",
-                border: isStandalone ? "1px solid var(--border)" : "none",
-                fontWeight: 700,
-              }}
-              onClick={() => {
-                promptInstall();
-              }}
-            >
-              {isStandalone
-                ? (language === "gu" ? "✓ એપ પહેલેથી ઇન્સ્ટોલ છે" : language === "hi" ? "✓ ऐप पहले से इंस्टॉल है" : "✓ App Already Installed")
-                : (language === "gu" ? "⬇️ ફોનમાં એપ ઇન્સ્ટોલ કરો" : language === "hi" ? "⬇️ फोन में ऐप इंस्टॉल करें" : "⬇️ Install App on Mobile")}
-            </button>
-          </section>
-
-          {/* 6. Data Actions & Version */}
-          <section className="bill-card settings-section-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 12px" }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", margin: 0 }}>{getTranslation(language, "settings_data_reset")}</h2>
-              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>v2.4.0 (Campus)</span>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {hasDemoData && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Row 1: Replay Tour */}
+              <div className="settings-pref-row" style={{ alignItems: "center" }}>
+                <div className="settings-pref-text">
+                  <span className="settings-pref-title">{getTranslation(language, "settings_replay_tour")}</span>
+                  <span className="settings-pref-desc">
+                    {language === "gu"
+                      ? "પ્રિન્ટિંગ અને ટોકન માર્ગદર્શિકા ફરી જુઓ"
+                      : language === "hi"
+                      ? "प्रिंटिंग और टोकन गाइड दोबारा देखें"
+                      : "Interactive walkthrough of campus printing & tokens"}
+                  </span>
+                </div>
                 <button
                   type="button"
-                  className="track-action-btn"
-                  onClick={clearDemoData}
+                  onClick={() => setIsOnboardingOpen(true)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "7px 12px",
+                    borderRadius: 8,
+                    border: "1px solid var(--border)",
+                    background: "var(--surface-raised)",
+                    color: "var(--text)",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    transition: "all 120ms ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "var(--accent)";
+                    e.currentTarget.style.color = "var(--accent)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "var(--border)";
+                    e.currentTarget.style.color = "var(--text)";
+                  }}
+                  aria-label="Replay Onboarding Tour"
                 >
-                  {getTranslation(language, "settings_clear_demo")}
+                  <span>↺</span>
+                  <span>{language === "gu" ? "ફરી શરૂ કરો" : language === "hi" ? "शुरू करें" : "Replay"}</span>
                 </button>
+              </div>
+
+              {/* Row 2: Clear Demo (if available) */}
+              {hasDemoData && (
+                <div className="settings-pref-row" style={{ alignItems: "center" }}>
+                  <div className="settings-pref-text">
+                    <span className="settings-pref-title">{getTranslation(language, "settings_clear_demo")}</span>
+                    <span className="settings-pref-desc">
+                      {language === "gu"
+                        ? "નમૂના ઓર્ડર અને કતાર ડેટા દૂર કરો"
+                        : language === "hi"
+                        ? "डेमो ऑर्डर और कतार डेटा हटाएं"
+                        : "Remove sample tokens & test queue records"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearDemoData}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "7px 12px",
+                      borderRadius: 8,
+                      border: "1px solid var(--border)",
+                      background: "var(--surface-raised)",
+                      color: "var(--text)",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      transition: "all 120ms ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "var(--accent)";
+                      e.currentTarget.style.color = "var(--accent)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "var(--border)";
+                      e.currentTarget.style.color = "var(--text)";
+                    }}
+                    aria-label="Clear Demo Orders"
+                  >
+                    <span>{language === "gu" ? "સાફ કરો" : language === "hi" ? "हटाएं" : "Clear"}</span>
+                  </button>
+                </div>
               )}
-              <button
-                type="button"
-                className="track-action-btn"
-                style={{ color: "var(--error)", borderColor: "rgba(248, 113, 113, 0.3)" }}
-                onClick={async () => {
-                  const confirmed = window.confirm(
-                    language === "gu"
-                      ? "શું તમે બધો એપ ડેટા રીસેટ કરીને ફરીથી ઓનબોર્ડિંગ ટૂર શરૂ કરવા માંગો છો?"
+
+              {/* Row 3: Reset All App Data */}
+              <div className="settings-pref-row" style={{ alignItems: "center" }}>
+                <div className="settings-pref-text">
+                  <span className="settings-pref-title" style={{ color: "var(--error)" }}>
+                    {getTranslation(language, "settings_reset_all")}
+                  </span>
+                  <span className="settings-pref-desc">
+                    {language === "gu"
+                      ? "બધા સાચવેલા ડેટા, સેટિંગ્સ અને ટોકન્સ સાફ કરો"
                       : language === "hi"
-                      ? "क्या आप सारा ऐप डेटा रीसेट करके दोबारा ऑनबोर्डिंग टूर शुरू करना चाहते हैं?"
-                      : "Reset all app data and replay the onboarding tour from the beginning?"
-                  );
-                  if (!confirmed) return;
-                  await deleteAllUserData();
-                  try {
-                    window.localStorage.removeItem("onboardingCompleted");
-                  } catch {}
-                  setIsOnboardingOpen(true);
-                }}
-              >
-                {getTranslation(language, "settings_reset_and_tour")}
-              </button>
+                      ? "सभी सहेजे गए डेटा, सेटिंग्स और टोकन साफ़ करें"
+                      : "Erase saved settings, active tokens & local cache"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const confirmed = window.confirm(
+                      language === "gu"
+                        ? "શું તમે બધો એપ ડેટા રીસેટ કરવા માંગો છો?"
+                        : language === "hi"
+                        ? "क्या आप सारा ऐप डेटा रीसेट करना चाहते हैं?"
+                        : "Are you sure you want to reset all app data and local storage?"
+                    );
+                    if (!confirmed) return;
+                    await deleteAllUserData();
+                    try {
+                      window.localStorage.removeItem("onboardingCompleted");
+                    } catch {}
+                    window.location.reload();
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "7px 12px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(248, 113, 113, 0.35)",
+                    background: "rgba(248, 113, 113, 0.08)",
+                    color: "var(--error)",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    transition: "all 120ms ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(248, 113, 113, 0.16)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(248, 113, 113, 0.08)";
+                  }}
+                  aria-label="Reset All App Data"
+                >
+                  <span>{language === "gu" ? "રીસેટ કરો" : language === "hi" ? "રીસેટ કરેં" : "Reset"}</span>
+                </button>
+              </div>
             </div>
           </section>
         </main>
