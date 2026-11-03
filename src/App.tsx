@@ -2979,8 +2979,23 @@ function Document({
           {/* Fixed Bottom Checkout Bar */}
           <div className="settings-bottom-bar" role="region" aria-label="Order total">
             <div className="settings-bottom-total">
-              <small>Total · Ready in ~{currentEstimate.minutes} mins</small>
-              <strong>₹{calculatedTotal.toFixed(2)}</strong>
+              <small className="settings-bottom-sub">
+                TOTAL · READY IN ~{currentEstimate.minutes} MINS
+              </small>
+              <div className="settings-bottom-price-row">
+                <strong className="settings-bottom-price">₹{calculatedTotal.toFixed(2)}</strong>
+                {!job.colour && (
+                  <button
+                    type="button"
+                    className="settings-bottom-colour-btn"
+                    onClick={() => updateJob({ colour: true })}
+                    title="Switch to Colour printing (₹8)"
+                    aria-label="Switch to Colour printing for ₹8"
+                  >
+                    Switch to Colour (₹8)
+                  </button>
+                )}
+              </div>
             </div>
             <button
               type="button"

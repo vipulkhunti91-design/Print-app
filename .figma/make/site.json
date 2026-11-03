@@ -1,11 +1,11 @@
 {
-  "title": "Phopy Print Studio",
-  "description": "Create stunning print designs for college projects with customizable templates and color options, streamlining the design process for students.",
+  "title": "PrintQ - Campus Smart Printing",
+  "description": "Instant campus document printing with zero wait. Upload files, customize print settings, track live queue, and pick up with your digital token.",
   "icons": {
     "icon": "pwa-icon.svg"
   },
   "robots": {
-    "index": false
+    "index": true
   },
   "accessibility": {
     "addBypassLinks": false,

@@ -88,7 +88,10 @@ export function LegibilityChecker({
     <div
       className="bw-legibility-alert-card"
       style={{
-        background: "rgba(244, 215, 121, 0.08)",
+        background: "#171510",
+        boxShadow: "0 4px 16px rgba(0, 0, 0, 0.35)",
+        position: "relative",
+        zIndex: 10,
         border: "1px solid rgba(244, 215, 121, 0.28)",
         borderRadius: 12,
         padding: "12px 14px",
@@ -169,9 +172,22 @@ export function LegibilityChecker({
         )}
       </div>
 
-      <small style={{ display: "block", fontSize: 10.5, color: "var(--text-muted)", marginTop: 8 }}>
-        Note: Automated contrast screening detects common low-contrast gray shades and backgrounds. Not all complex charts or subtle color contrasts can be detected automatically; manual visual verification is always recommended.
-      </small>
+            <p
+        style={{
+          display: "block",
+          fontSize: 11.5,
+          fontWeight: 500,
+          color: "rgba(242, 243, 247, 0.85)",
+          lineHeight: 1.45,
+          margin: "12px 0 0 0",
+          padding: "8px 12px",
+          borderRadius: 8,
+          background: "rgba(0, 0, 0, 0.35)",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+        }}
+      >
+        <strong style={{ color: "var(--accent)", fontWeight: 700 }}>Note:</strong> Automated contrast screening detects common low-contrast gray shades and backgrounds. Not all complex charts or subtle color contrasts can be detected automatically; manual visual verification is always recommended.
+      </p>
     </div>
   );
 }
