@@ -2977,11 +2977,12 @@ function Document({
           </div>
 
           {/* Fixed Bottom Checkout Bar */}
+          {/* Fixed Bottom Checkout Bar */}
           <div className="settings-bottom-bar" role="region" aria-label="Order total">
             <div className="settings-bottom-total">
-              <small className="settings-bottom-sub">
+              <span className="settings-bottom-sub">
                 TOTAL · READY IN ~{currentEstimate.minutes} MINS
-              </small>
+              </span>
               <div className="settings-bottom-price-row">
                 <strong className="settings-bottom-price">₹{calculatedTotal.toFixed(2)}</strong>
                 {!job.colour && (
@@ -2992,7 +2993,7 @@ function Document({
                     title="Switch to Colour printing (₹8)"
                     aria-label="Switch to Colour printing for ₹8"
                   >
-                    Switch to Colour (₹8)
+                    Colour (₹8)
                   </button>
                 )}
               </div>

@@ -88,14 +88,14 @@ export function LegibilityChecker({
     <div
       className="bw-legibility-alert-card"
       style={{
-        background: "#171510",
-        boxShadow: "0 4px 16px rgba(0, 0, 0, 0.35)",
+        background: "#16181F",
+        boxShadow: "0 6px 20px rgba(0, 0, 0, 0.45)",
         position: "relative",
-        zIndex: 10,
-        border: "1px solid rgba(244, 215, 121, 0.28)",
-        borderRadius: 12,
-        padding: "12px 14px",
-        margin: "12px 0",
+        zIndex: 5,
+        border: "1px solid rgba(244, 215, 121, 0.32)",
+        borderRadius: 14,
+        padding: "14px 16px",
+        margin: "14px 0 18px",
         boxSizing: "border-box",
       }}
       role="region"
@@ -172,22 +172,27 @@ export function LegibilityChecker({
         )}
       </div>
 
-            <p
+      <div
         style={{
-          display: "block",
-          fontSize: 11.5,
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 8,
+          fontSize: 12,
           fontWeight: 500,
-          color: "rgba(242, 243, 247, 0.85)",
-          lineHeight: 1.45,
-          margin: "12px 0 0 0",
-          padding: "8px 12px",
+          color: "#F3F4F6",
+          lineHeight: 1.5,
+          marginTop: 12,
+          padding: "10px 12px",
           borderRadius: 8,
-          background: "rgba(0, 0, 0, 0.35)",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
+          background: "rgba(244, 215, 121, 0.08)",
+          border: "1px solid rgba(244, 215, 121, 0.22)",
         }}
       >
-        <strong style={{ color: "var(--accent)", fontWeight: 700 }}>Note:</strong> Automated contrast screening detects common low-contrast gray shades and backgrounds. Not all complex charts or subtle color contrasts can be detected automatically; manual visual verification is always recommended.
-      </p>
+        <span style={{ color: "var(--accent)", fontSize: 13, flexShrink: 0, marginTop: 1 }} aria-hidden="true">ℹ️</span>
+        <div>
+          <strong style={{ color: "var(--accent)", fontWeight: 800 }}>Note:</strong> Automated contrast screening detects common low-contrast gray shades and backgrounds. Not all complex charts or subtle color contrasts can be detected automatically; manual visual verification is always recommended.
+        </div>
+      </div>
     </div>
   );
 }
