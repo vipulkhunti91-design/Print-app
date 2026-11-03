@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "otp-server": "node server/otpServer.js",
     "format": "oxfmt"
   },
   "dependencies": {

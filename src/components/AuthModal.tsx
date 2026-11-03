@@ -1,5 +1,16 @@
 import { useState, useEffect, useRef, type ClipboardEvent, type KeyboardEvent } from "react";
 import { securityEngine, type FirebaseUserProfile } from "../services/securityEngine";
+import {
+  OTP_CODE_PATTERN,
+  OTP_LENGTH,
+  clearPreviewOtp,
+  otpErrorMessage,
+  sendOtp,
+  verifyOtp,
+} from "../services/otpService";
+import { useSmsOtpAutoFill } from "../hooks/useSmsOtpAutoFill";
+
+const emptyOtp = () => Array.from({ length: OTP_LENGTH }, () => "");
 
 export type AuthUser = {
   id: string; // Unique Firebase UID
@@ -157,14 +168,18 @@ export default function AuthModal({
   const [googlePasswordError, setGooglePasswordError] = useState("");
 
   // OTP state
-  const [otpDigits, setOtpDigits] = useState(["", "", "", ""]);
+  const [otpDigits, setOtpDigits] = useState<string[]>(emptyOtp);
   const [otpError, setOtpError] = useState("");
   const [resendSeconds, setResendSeconds] = useState(30);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [previewCode, setPreviewCode] = useState("");
+  const [autoFilled, setAutoFilled] = useState(false);
   const [pendingUser, setPendingUser] = useState<Partial<AuthUser> | null>(null);
 
   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
-  const verifyTimerRef = useRef<number | null>(null);
+  const verifyingRef = useRef(false);
+  const otpAutoFillHandlerRef = useRef<(digits: string) => void>(() => {});
 
   useEffect(() => {
     if (authMode === "otp_verify" && resendSeconds > 0) {
@@ -175,11 +190,42 @@ export default function AuthModal({
 
   useEffect(() => {
     return () => {
-      if (verifyTimerRef.current !== null) window.clearTimeout(verifyTimerRef.current);
+      clearPreviewOtp();
     };
   }, []);
 
+  useEffect(() => {
+    if (!isOpen) {
+      clearPreviewOtp();
+      setOtpDigits(emptyOtp());
+      setOtpError("");
+      setPreviewCode("");
+      setAutoFilled(false);
+    }
+  }, [isOpen]);
+
+  useSmsOtpAutoFill(isOpen && authMode === "otp_verify", (digits) => otpAutoFillHandlerRef.current(digits));
+
   if (!isOpen) return null;
+
+  const requestOtp = async (cleanNumber: string) => {
+    setIsSendingOtp(true);
+    setMobileError("");
+    setOtpError("");
+    try {
+      const result = await sendOtp(cleanNumber);
+      setPreviewCode(result.devCode || "");
+      setAutoFilled(false);
+      setOtpDigits(emptyOtp());
+      setResendSeconds(30);
+      setAuthMode("otp_verify");
+      window.setTimeout(() => otpInputRefs.current[0]?.focus(), 100);
+    } catch (err) {
+      setMobileError(otpErrorMessage(err));
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
 
   // 1. Google Step 1: Submit Email -> Go to Password Step
   const handleGoogleEmailNext = (e?: React.FormEvent) => {
@@ -265,12 +311,7 @@ export default function AuthModal({
 
         if (knownPhone && knownPhone.length === 10) {
           setMobileNumber(knownPhone);
-          setMobileError("");
-          setOtpDigits(["", "", "", ""]);
-          setOtpError("");
-          setResendSeconds(30);
-          setAuthMode("otp_verify");
-          window.setTimeout(() => otpInputRefs.current[0]?.focus(), 100);
+          await requestOtp(knownPhone);
         } else {
           setMobileNumber("");
           setMobileError("");
@@ -283,7 +324,7 @@ export default function AuthModal({
   };
 
   // 3. Submit Name & Phone Number to receive OTP
-  const handleSendOtp = (e?: React.FormEvent) => {
+  const handleSendOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const nameVal = fullName.trim() || (document.getElementById("auth-name-input") as HTMLInputElement)?.value?.trim() || "";
     const rawVal = mobileNumber || (document.getElementById("auth-mobile-input") as HTMLInputElement)?.value || "";
@@ -308,32 +349,31 @@ export default function AuthModal({
 
     setFullName(nameVal);
     setMobileNumber(cleanNumber);
-    setOtpDigits(["", "", "", ""]);
-    setOtpError("");
-    setResendSeconds(30);
-    setAuthMode("otp_verify");
-    window.setTimeout(() => otpInputRefs.current[0]?.focus(), 100);
+    await requestOtp(cleanNumber);
   };
 
-  // 4. Auto-Verify OTP when 4 digits are completed
+  // 4. Verify the entered OTP with the OTP server (or the local preview fallback)
   const handleVerifyOtp = async (codeArr: string[]) => {
     const code = codeArr.join("");
-    if (code.length !== 4 || isVerifying) return;
-    if (!/^\d{4}$/.test(code)) {
-      setOtpError("Please enter 4 valid numbers.");
+    if (code.length !== OTP_LENGTH || verifyingRef.current) return;
+    if (!OTP_CODE_PATTERN.test(code)) {
+      setOtpError(`Please enter ${OTP_LENGTH} valid numbers (1000-9999).`);
       return;
     }
 
+    verifyingRef.current = true;
     setIsVerifying(true);
     setOtpError("");
 
-    if (verifyTimerRef.current !== null) window.clearTimeout(verifyTimerRef.current);
-    verifyTimerRef.current = window.setTimeout(async () => {
-      setIsVerifying(false);
-
+    try {
       const nameToUse = fullName.trim() || (document.getElementById("auth-name-input") as HTMLInputElement)?.value?.trim() || pendingUser?.name || "PrintQ Student";
-      const cleanMobile = mobileNumber || (document.getElementById("auth-mobile-input") as HTMLInputElement)?.value?.replace(/\D/g, "") || "9876543210";
-      
+      const cleanMobile = mobileNumber || (document.getElementById("auth-mobile-input") as HTMLInputElement)?.value?.replace(/\D/g, "") || "";
+
+      if (cleanMobile.length !== 10) {
+        throw new Error("We could not read the verified number. Please try again.");
+      }
+
+      await verifyOtp(cleanMobile, code);
       const profile = await securityEngine.handlePhoneAuthSuccess(nameToUse, cleanMobile);
 
       const fullUser: AuthUser = {
@@ -352,8 +392,27 @@ export default function AuthModal({
       saveAuthSession(fullUser);
       onAuthSuccess(fullUser);
       onClose();
-    }, 450);
+    } catch (error) {
+      setOtpError(otpErrorMessage(error));
+      setOtpDigits(emptyOtp());
+      window.setTimeout(() => otpInputRefs.current[0]?.focus(), 50);
+    } finally {
+      verifyingRef.current = false;
+      setIsVerifying(false);
+    }
   };
+
+  const applyAndVerifyOtp = (digits: string) => {
+    if (authMode !== "otp_verify") return;
+    const normalized = digits.replace(/\D/g, "").slice(0, OTP_LENGTH);
+    if (normalized.length !== OTP_LENGTH) return;
+    const next = Array.from({ length: OTP_LENGTH }, (_, index) => normalized[index] ?? "");
+    setOtpDigits(next);
+    setOtpError("");
+    setAutoFilled(true);
+    void handleVerifyOtp(next);
+  };
+  otpAutoFillHandlerRef.current = applyAndVerifyOtp;
 
   const handleOtpChange = (index: number, val: string) => {
     const sanitized = val.replace(/\D/g, "").slice(-1);
@@ -361,12 +420,13 @@ export default function AuthModal({
     newDigits[index] = sanitized;
     setOtpDigits(newDigits);
     setOtpError("");
+    setAutoFilled(false);
 
-    if (sanitized && index < 3) {
+    if (sanitized && index < OTP_LENGTH - 1) {
       otpInputRefs.current[index + 1]?.focus();
     }
 
-    if (sanitized && index === 3 && newDigits.every((d) => d !== "")) {
+    if (sanitized && index === OTP_LENGTH - 1 && newDigits.every((d) => d !== "")) {
       handleVerifyOtp(newDigits);
     }
   };
@@ -379,17 +439,35 @@ export default function AuthModal({
 
   const handleOtpPaste = (e: ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
     if (!pasted) return;
-    const newDigits = ["", "", "", ""];
+    const newDigits = emptyOtp();
     for (let i = 0; i < pasted.length; i++) {
       newDigits[i] = pasted[i];
     }
     setOtpDigits(newDigits);
-    if (pasted.length === 4) {
+    setAutoFilled(false);
+    if (pasted.length === OTP_LENGTH) {
       handleVerifyOtp(newDigits);
     } else {
-      otpInputRefs.current[Math.min(3, pasted.length)]?.focus();
+      otpInputRefs.current[Math.min(OTP_LENGTH - 1, pasted.length)]?.focus();
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setIsSendingOtp(true);
+    setOtpError("");
+    try {
+      const result = await sendOtp(mobileNumber);
+      setPreviewCode(result.devCode || "");
+      setAutoFilled(false);
+      setOtpDigits(emptyOtp());
+      setResendSeconds(30);
+      window.setTimeout(() => otpInputRefs.current[0]?.focus(), 100);
+    } catch (error) {
+      setOtpError(otpErrorMessage(error));
+    } finally {
+      setIsSendingOtp(false);
     }
   };
 
@@ -671,7 +749,7 @@ export default function AuthModal({
             <div className="auth-hero-copy">
               <h2 id="auth-modal-title" className="auth-title">Register &amp; Sign In</h2>
               <p className="auth-subtitle">
-                Enter your full name and 10-digit mobile number for order pickup notifications.
+                Enter your full name and 10-digit mobile number. We will text a {OTP_LENGTH}-digit verification code to confirm your number.
               </p>
             </div>
 
@@ -737,8 +815,8 @@ export default function AuthModal({
               {mobileError && <span className="auth-field-error" role="alert">{mobileError}</span>}
             </div>
 
-            <button type="submit" id="auth-submit-btn" className="auth-primary-action-btn">
-              Send Verification Code
+            <button type="submit" id="auth-submit-btn" className="auth-primary-action-btn" disabled={isSendingOtp}>
+              {isSendingOtp ? "Sending OTP…" : "Send Verification Code"}
             </button>
 
             <button
@@ -771,9 +849,28 @@ export default function AuthModal({
             <div className="auth-hero-copy">
               <h2 id="auth-modal-title" className="auth-title">Enter Verification Code</h2>
               <p className="auth-subtitle">
-                Enter the 4-digit code sent to <strong>+91 {mobileNumber || "7096447726"}</strong>
+                Enter the {OTP_LENGTH}-digit code sent to <strong>+91 {mobileNumber || "your number"}</strong>
               </p>
             </div>
+
+            {previewCode && (
+              <div
+                style={{
+                  background: "rgba(244, 215, 121, 0.08)",
+                  border: "1px solid rgba(244, 215, 121, 0.22)",
+                  borderRadius: 8,
+                  padding: "9px 12px",
+                  marginBottom: 12,
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                  color: "var(--text-secondary)",
+                }}
+                role="status"
+              >
+                Preview mode: SMS gateway not configured. Use code{" "}
+                <strong style={{ color: "var(--accent)" }}>{previewCode}</strong>.
+              </div>
+            )}
 
             <div className="auth-otp-row" onPaste={handleOtpPaste}>
               {otpDigits.map((digit, idx) => (
@@ -783,6 +880,7 @@ export default function AuthModal({
                   type="text"
                   inputMode="numeric"
                   maxLength={1}
+                  autoComplete={idx === 0 ? "one-time-code" : "off"}
                   className="auth-otp-cell"
                   value={digit}
                   onChange={(e) => handleOtpChange(idx, e.target.value)}
@@ -799,31 +897,35 @@ export default function AuthModal({
                 <span className="auth-verifying-text">
                   <span className="auth-inline-spinner" /> Verifying code…
                 </span>
-              ) : resendSeconds > 0 ? (
-                <span className="auth-resend-countdown">Resend code in {resendSeconds}s</span>
+              ) : isSendingOtp ? (
+                <span className="auth-verifying-text">
+                  <span className="auth-inline-spinner" /> Sending new code…
+                </span>
               ) : (
-                <button
-                  type="button"
-                  className="auth-resend-active-btn"
-                  onClick={() => {
-                    setResendSeconds(30);
-                    setOtpError("");
-                    setOtpDigits(["", "", "", ""]);
-                    window.setTimeout(() => otpInputRefs.current[0]?.focus(), 100);
-                  }}
-                >
-                  Resend code
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="auth-resend-active-btn"
+                    onClick={handleResendOtp}
+                  >
+                    Resend code
+                  </button>
+                  {autoFilled && (
+                    <span style={{ color: "var(--status-ready)", marginLeft: 8 }}>
+                      ✓ OTP auto-filled from SMS
+                    </span>
+                  )}
+                </>
               )}
             </div>
 
             <button
               type="button"
               className="auth-primary-action-btn"
-              disabled={isVerifying}
+              disabled={isVerifying || isSendingOtp || otpDigits.join("").length !== OTP_LENGTH}
               onClick={() => {
                 const domDigits = Array.from(document.querySelectorAll<HTMLInputElement>(".auth-otp-cell")).map((c) => c.value);
-                const codeArr = otpDigits.every((d) => d) ? otpDigits : domDigits.some((d) => d) ? domDigits : ["4", "8", "6", "8"];
+                const codeArr = otpDigits.every((d) => d) ? otpDigits : domDigits;
                 handleVerifyOtp(codeArr);
               }}
             >
@@ -834,8 +936,12 @@ export default function AuthModal({
               type="button"
               className="auth-back-link"
               onClick={() => {
+                clearPreviewOtp();
                 setAuthMode("name_and_phone");
                 setOtpError("");
+                setOtpDigits(emptyOtp());
+                setPreviewCode("");
+                setAutoFilled(false);
               }}
             >
               Change phone number
@@ -862,6 +968,7 @@ export default function AuthModal({
             </button>
           </div>
         )}
+
       </div>
     </div>
   );

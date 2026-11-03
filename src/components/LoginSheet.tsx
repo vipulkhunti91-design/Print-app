@@ -1,4 +1,15 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
+import {
+  OTP_CODE_PATTERN,
+  OTP_LENGTH,
+  clearPreviewOtp,
+  otpErrorMessage,
+  sendOtp,
+  verifyOtp,
+} from "../services/otpService";
+import { useSmsOtpAutoFill } from "../hooks/useSmsOtpAutoFill";
+
+const emptyOtp = () => Array.from({ length: OTP_LENGTH }, () => "");
 
 export type LoginSummary = {
   fileName: string;
@@ -33,15 +44,19 @@ export default function LoginSheet({ summary, onClose, onPaymentContinue }: { su
   const [nameTouched, setNameTouched] = useState(false);
   const [mobileTouched, setMobileTouched] = useState(false);
   const [detailsAttempted, setDetailsAttempted] = useState(false);
-  const [otp, setOtp] = useState(["", "", "", ""]);
+  const [otp, setOtp] = useState<string[]>(emptyOtp);
   const [seconds, setSeconds] = useState(30);
   const [verifying, setVerifying] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [previewCode, setPreviewCode] = useState("");
+  const [autoFilled, setAutoFilled] = useState(false);
+  const [sendError, setSendError] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [useAnotherNumber, setUseAnotherNumber] = useState(false);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const nameRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
-  const verifyTimer = useRef<number | null>(null);
+  const verifyingRef = useRef(false);
 
   const maskedMobile = mobile.length === 10 ? `${mobile.slice(0, 2)}xxxxxx${mobile.slice(-2)}` : "";
   const nameInvalid = !name.trim();
@@ -55,7 +70,7 @@ export default function LoginSheet({ summary, onClose, onPaymentContinue }: { su
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "";
-      if (verifyTimer.current !== null) window.clearTimeout(verifyTimer.current);
+      clearPreviewOtp();
     };
   }, []);
 
@@ -82,43 +97,95 @@ export default function LoginSheet({ summary, onClose, onPaymentContinue }: { su
   const [otpStatus, setOtpStatus] = useState<"idle" | "verifying" | "success" | "error">("idle");
   const [otpError, setOtpError] = useState("");
 
-  const submitDetails = () => {
+  const submitDetails = async () => {
     setDetailsAttempted(true);
-    if (nameInvalid || mobileInvalid) return;
-    setOtp(["", "", "", ""]);
-    setSeconds(30);
+    if (nameInvalid || mobileInvalid || sendingOtp) return;
+    setSendingOtp(true);
+    setSendError("");
     setOtpStatus("idle");
     setOtpError("");
-    setStep("otp");
+    try {
+      const result = await sendOtp(mobile);
+      setPreviewCode(result.devCode || "");
+      setAutoFilled(false);
+      setOtp(emptyOtp());
+      setSeconds(30);
+      setStep("otp");
+    } catch (error) {
+      setSendError(otpErrorMessage(error));
+    } finally {
+      setSendingOtp(false);
+    }
   };
 
-  const triggerAutoVerify = (newOtp: string[]) => {
+  const resendOtp = async () => {
+    if (sendingOtp) return;
+    setSendingOtp(true);
+    setSendError("");
+    setOtpError("");
+    try {
+      const result = await sendOtp(mobile);
+      setPreviewCode(result.devCode || "");
+      setAutoFilled(false);
+      setOtp(emptyOtp());
+      setSeconds(30);
+      setOtpStatus("idle");
+      inputRefs.current[0]?.focus();
+    } catch (error) {
+      setOtpError(otpErrorMessage(error));
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const triggerAutoVerify = async (newOtp: string[]) => {
     const code = newOtp.join("");
-    if (code.length !== 4 || verifying) return;
-    if (!/^\d{4}$/.test(code)) {
+    if (code.length !== OTP_LENGTH || verifyingRef.current) return;
+    if (!OTP_CODE_PATTERN.test(code)) {
       setOtpStatus("error");
-      setOtpError("Please enter valid 4 digits.");
+      setOtpError(`Please enter valid ${OTP_LENGTH} digits.`);
       return;
     }
+    verifyingRef.current = true;
     setVerifying(true);
     setOtpStatus("verifying");
     setOtpError("");
 
-    if (verifyTimer.current !== null) window.clearTimeout(verifyTimer.current);
-    verifyTimer.current = window.setTimeout(() => {
+    try {
+      await verifyOtp(mobile, code);
       setOtpStatus("success");
-      setVerifying(false);
       const user = { name: name.trim(), mobile };
       try { window.localStorage.setItem(rememberedUserKey, JSON.stringify(user)); } catch { /* Remember the user for this session. */ }
       setRememberedUser(user);
 
       // Auto-navigate to Bill Review (checkout) upon successful verification
-      verifyTimer.current = window.setTimeout(() => {
+      window.setTimeout(() => {
         onPaymentContinue();
         onClose();
       }, 400);
-    }, 450);
+    } catch (error) {
+      setOtpStatus("error");
+      setOtpError(otpErrorMessage(error));
+      setOtp(emptyOtp());
+      window.setTimeout(() => inputRefs.current[0]?.focus(), 50);
+    } finally {
+      verifyingRef.current = false;
+      setVerifying(false);
+    }
   };
+
+  const applyAndVerifyOtp = (digits: string) => {
+    if (step !== "otp") return;
+    const normalized = digits.replace(/\D/g, "").slice(0, OTP_LENGTH);
+    if (normalized.length !== OTP_LENGTH) return;
+    const next = Array.from({ length: OTP_LENGTH }, (_, index) => normalized[index] ?? "");
+    setOtp(next);
+    setOtpError("");
+    setAutoFilled(true);
+    void triggerAutoVerify(next);
+  };
+
+  useSmsOtpAutoFill(step === "otp", applyAndVerifyOtp);
 
 
   const changeDigit = (index: number, value: string) => {
@@ -126,22 +193,24 @@ export default function LoginSheet({ summary, onClose, onPaymentContinue }: { su
     const updated = otp.map((item, itemIndex) => itemIndex === index ? digit : item);
     setOtp(updated);
     setOtpError("");
-    if (digit && index < 3) {
+    setAutoFilled(false);
+    if (digit && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
-    if (updated.join("").length === 4) {
+    if (updated.join("").length === OTP_LENGTH) {
       triggerAutoVerify(updated);
     }
   };
 
   const pasteCode = (event: ClipboardEvent<HTMLInputElement>) => {
-    const digits = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
-    if (digits.length !== 4) return;
+    const digits = event.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
+    if (digits.length !== OTP_LENGTH) return;
     event.preventDefault();
     const splitDigits = digits.split("");
     setOtp(splitDigits);
     setOtpError("");
-    inputRefs.current[3]?.focus();
+    setAutoFilled(false);
+    inputRefs.current[OTP_LENGTH - 1]?.focus();
     triggerAutoVerify(splitDigits);
   };
 
@@ -176,9 +245,13 @@ export default function LoginSheet({ summary, onClose, onPaymentContinue }: { su
     setRememberedUser(null);
     setShowRemembered(false);
     setUseAnotherNumber(true);
+    clearPreviewOtp();
     setName("");
     setMobile("");
-    setOtp(["", "", "", ""]);
+    setOtp(emptyOtp());
+    setPreviewCode("");
+    setAutoFilled(false);
+    setSendError("");
     setDetailsAttempted(false);
     setNameTouched(false);
     setMobileTouched(false);
@@ -247,25 +320,28 @@ export default function LoginSheet({ summary, onClose, onPaymentContinue }: { su
               {showMobileError && <small id="login-mobile-error" className="login-sheet-error" role="alert">Enter a valid 10-digit number</small>}
             </label>
             <p className="login-sheet-muted">We use your number only to send your token and ready alerts.</p>
-            <button type="submit" className="login-sheet-primary" disabled={!name.trim() || !/^\d{10}$/.test(mobile)}>Get OTP</button>
+            {sendError && <p className="login-sheet-error" role="alert">{sendError}</p>}
+            <button type="submit" className="login-sheet-primary" disabled={!name.trim() || !/^\d{10}$/.test(mobile) || sendingOtp}>
+              {sendingOtp ? "Sending OTP…" : "Get OTP"}
+            </button>
           </form>
           <p className="login-sheet-terms">By continuing you agree to the Terms and Privacy Policy.</p>
-          <p className="login-sheet-demo-hint">Demo example: name a · mobile 1234567890 · OTP 321 (example only; normal digit requirements still apply).</p>
         </> : step === "otp" ? <>
           <h2 id="login-sheet-title">Enter OTP</h2>
-          <p className="login-sheet-sent">Sent to +91 {maskedMobile} <button type="button" className="login-sheet-text-link inline" onClick={() => setStep("details")}>Edit</button></p>
-          <div className="login-sheet-otp" role="group" aria-label="4-digit one-time password">
-            {otp.map((digit, index) => <input key={index} ref={(element) => { inputRefs.current[index] = element; }} type="text" inputMode="numeric" pattern="[0-9]*" maxLength={1} value={digit} aria-label={`OTP digit ${index + 1} of 4`} onChange={(event) => changeDigit(index, event.target.value)} onPaste={pasteCode} onKeyDown={(event) => handleOtpKeyDown(event, index)} />)}
+          <p className="login-sheet-sent">Sent to +91 {maskedMobile} <button type="button" className="login-sheet-text-link inline" onClick={() => { clearPreviewOtp(); setOtp(emptyOtp()); setPreviewCode(""); setAutoFilled(false); setOtpStatus("idle"); setStep("details"); }}>Edit</button></p>
+          <div className="login-sheet-otp" role="group" aria-label={`${OTP_LENGTH}-digit one-time password`}>
+            {otp.map((digit, index) => <input key={index} ref={(element) => { inputRefs.current[index] = element; }} type="text" inputMode="numeric" pattern="[0-9]*" maxLength={1} autoComplete={index === 0 ? "one-time-code" : "off"} value={digit} aria-label={`OTP digit ${index + 1} of ${OTP_LENGTH}`} onChange={(event) => changeDigit(index, event.target.value)} onPaste={pasteCode} onKeyDown={(event) => handleOtpKeyDown(event, index)} />)}
           </div>
+          {previewCode && <p className="login-sheet-demo-hint" role="status">Preview mode: SMS gateway not configured. Use code <strong style={{ color: "var(--accent)" }}>{previewCode}</strong>.</p>}
           {otpError && <p className="login-sheet-error" role="alert" style={{ textAlign: "center", marginTop: "8px" }}>{otpError}</p>}
-          <p className="login-sheet-resend">{seconds > 0 ? `Resend in ${seconds}s` : <button type="button" className="login-sheet-text-link" onClick={() => { setSeconds(30); setOtp(["", "", "", ""]); setOtpStatus("idle"); setOtpError(""); inputRefs.current[0]?.focus(); }}>Resend OTP</button>}</p>
-          <div className="login-sheet-status-indicator" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", minHeight: "24px", margin: "6px 0", fontSize: "13px", color: otpStatus === "success" ? "var(--success, #A7E8BD)" : "var(--text-muted, #A3A3A3)" }}>
+          <p className="login-sheet-resend">{seconds > 0 ? `Resend in ${seconds}s` : <button type="button" className="login-sheet-text-link" disabled={sendingOtp} onClick={resendOtp}>{sendingOtp ? "Sending…" : "Resend OTP"}</button>}</p>
+          <div className="login-sheet-status-indicator" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", minHeight: "24px", margin: "6px 0", fontSize: "13px", color: otpStatus === "success" ? "var(--status-ready)" : "var(--text-muted)" }}>
             {verifying && <span className="login-sheet-spinner" aria-hidden="true" />}
             {otpStatus === "verifying" && <span>Verifying OTP…</span>}
-            {otpStatus === "success" && <span style={{ fontWeight: 600 }}>✓ OTP Verified successfully! Redirecting…</span>}
-            {otpStatus === "idle" && <span>Enter any 4 digits · Auto-verifies automatically</span>}
+            {otpStatus === "success" && <span style={{ fontWeight: 600 }}>{autoFilled ? "✓ OTP auto-verified from SMS!" : "✓ OTP verified successfully! Redirecting…"}</span>}
+            {otpStatus === "idle" && <span>{OTP_LENGTH}-digit code · Auto-verifies automatically</span>}
           </div>
-          <button type="button" className="login-sheet-primary" disabled={otp.join("").length !== 4 || verifying} onClick={verifyCode}>
+          <button type="button" className="login-sheet-primary" disabled={otp.join("").length !== OTP_LENGTH || verifying || sendingOtp} onClick={verifyCode}>
             {verifying ? "Verifying…" : otpStatus === "success" ? "Verified!" : "Continue"}
           </button>
         </> : <>

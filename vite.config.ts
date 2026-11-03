@@ -1,4 +1,4 @@
-import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type HtmlTagDescriptor, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
@@ -16,6 +16,8 @@ const publicBaseUrl = process.env.FIGMA_PUBLIC_URL
 export default defineConfig(({ mode }) => {
   // .figma/make/deploy-preview passes `--mode development` for cached-preview builds.
   const emitSourcemaps = mode === 'development'
+  const env = loadEnv(mode, projectRoot, '')
+  const otpServerUrl = env.OTP_SERVER_URL || 'http://localhost:8787'
 
   return {
     base: publicBaseUrl,
@@ -41,6 +43,12 @@ react(),
       port: parseInt(process.env.PORT || '8443'),
       strictPort: true,
       allowedHosts: true,
+      proxy: {
+        '/api': {
+          target: otpServerUrl,
+          changeOrigin: true,
+        },
+      },
       watch: {
         ignored: [
           '**/.figma/**',
@@ -50,6 +58,12 @@ react(),
     preview: {
       host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
       port: parseInt(process.env.PORT || '8443'),
+      proxy: {
+        '/api': {
+          target: otpServerUrl,
+          changeOrigin: true,
+        },
+      },
     },
   }
 })
