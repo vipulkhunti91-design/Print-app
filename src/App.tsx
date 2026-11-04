@@ -1226,14 +1226,20 @@ function FilePreview({
   }
 
   if (previewData && isPdf) {
+    const baseUrl = (previewData.url || "").split("#")[0];
+    const cleanPdfUrl = `${baseUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
     return (
       <object
         className={`uploaded-preview-document${previewClass}`}
-        data={previewData.url}
+        data={cleanPdfUrl}
         type="application/pdf"
         aria-label={`Preview of ${previewData.name}`}
         onLoad={onReady}
         onError={handleImageError}
+        style={{
+          border: "none",
+          outline: "none",
+        }}
       >
         <PaperPreview
           page={page}

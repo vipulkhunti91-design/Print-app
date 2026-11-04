@@ -1844,6 +1844,10 @@ select:focus-visible, textarea:focus-visible {
   position: relative;
 }
 
+.settings-preview-viewport .uploaded-preview-document {
+  pointer-events: none;
+}
+
 /* Document Preview Page Orientation: Portrait & Landscape */
 .paper {
   background: var(--surface) !important;
