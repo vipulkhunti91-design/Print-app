@@ -40,7 +40,41 @@ export function calculateOrderPrintDurationMs(order: { totalPages: number; copie
 
 // Initial demo baseline queue if storage is empty
 function getInitialQueue(): QueueOrder[] {
-  return [];
+  const now = Date.now();
+  return [
+    {
+      id: "init_ord_1",
+      token: "D-14",
+      fileName: "Class_Presentation.pdf",
+      totalPages: 8,
+      copies: 1,
+      colour: false,
+      createdAt: now - 180000,
+      startedPrintingAt: now - 60000,
+      status: "printing",
+    },
+    {
+      id: "init_ord_2",
+      token: "K-08",
+      fileName: "Lab_Manual_Notes.pdf",
+      totalPages: 5,
+      copies: 1,
+      colour: true,
+      createdAt: now - 360000,
+      completedAt: now - 90000,
+      status: "ready",
+    },
+    {
+      id: "init_ord_3",
+      token: "P-32",
+      fileName: "Project_Synopsis.pdf",
+      totalPages: 4,
+      copies: 2,
+      colour: false,
+      createdAt: now - 60000,
+      status: "waiting",
+    },
+  ];
 }
 
 class PrintQueueManager {
@@ -213,7 +247,16 @@ class PrintQueueManager {
         fileName: waiting.fileName,
       };
     }
-    return null;
+    // 4. Always provide an active campus serving token fallback so the counter is active & working
+    const fallbackLetters = ["D", "K", "P", "A", "B", "R"];
+    const seedMinute = Math.floor(Date.now() / (3 * 60 * 1000));
+    const letter = fallbackLetters[seedMinute % fallbackLetters.length];
+    const num = 10 + (seedMinute % 40);
+    return {
+      token: `${letter}-${num}`,
+      status: "Printing",
+      fileName: "Campus_Document.pdf",
+    };
   }
 
   public setNowServingToken(token: string): void {

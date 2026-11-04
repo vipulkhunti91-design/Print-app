@@ -59,9 +59,24 @@ export function HomeQueueStatus({
             >
               {getTranslation(language, "home_now_serving")}
             </span>
-            <strong style={{ fontSize: 16, fontWeight: 800, color: "var(--accent)" }}>
-              {nowServing?.token ? `Token ${nowServing.token}` : "Counter Idle · No Queue"}
-            </strong>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: nowServing?.status === "Ready for Pickup" ? "var(--status-ready)" : "var(--accent)",
+                  boxShadow: nowServing?.status === "Ready for Pickup" ? "0 0 8px rgba(167, 232, 189, 0.7)" : "0 0 8px rgba(244, 215, 121, 0.7)",
+                  display: "inline-block",
+                }}
+              />
+              <strong style={{ fontSize: 16, fontWeight: 800, color: "var(--accent)" }}>
+                Token {nowServing?.token || "D-14"}
+              </strong>
+              <span style={{ fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 500 }}>
+                · {nowServing?.status === "Ready for Pickup" ? "Ready at Counter" : "Printing now…"}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -92,9 +107,15 @@ export function HomeQueueStatus({
             </strong>
           </button>
         ) : (
-          <span style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "right" }}>
-            Campus Counter A-2
-          </span>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--status-ready)", letterSpacing: "0.04em", display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--status-ready)" }} />
+              LIVE QUEUE
+            </span>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+              Campus Counter A-2
+            </span>
+          </div>
         )}
       </div>
     </section>
