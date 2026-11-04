@@ -257,7 +257,7 @@ export const translations: Record<SupportedLanguage, TranslationDictionary> = {
     home_max_reached: "Maximum 5 files reached",
     home_delete_room_hint: "Delete a file below to make room for new ones",
     home_file_uploaded_success: "File uploaded successfully",
-    home_counter_idle: "Counter Idle · No Queue",
+    home_counter_idle: "Live Queue Active",
     home_campus_building: "Campus Central Building",
 
     shortcut_bw_preview: "B&W Legibility Check",
@@ -454,7 +454,7 @@ export const translations: Record<SupportedLanguage, TranslationDictionary> = {
     home_max_reached: "મહત્તમ ૫ ફાઇલો પહોંચી ગઈ",
     home_delete_room_hint: "નવી ફાઇલ માટે નીચેથી ફાઇલ ડિલીટ કરો",
     home_file_uploaded_success: "ફાઇલ સફળતાપૂર્વક અપલોડ થઈ",
-    home_counter_idle: "કાઉન્ટર ખાલી છે · કોઈ કતાર નથી",
+    home_counter_idle: "પ્રિન્ટર ચાલુ છે · કતાર સક્રિય",
     home_campus_building: "કેમ્પસ સેન્ટ્રલ બિલ્ડિંગ",
 
     shortcut_bw_preview: "B&W વાંચનક્ષમતા ચકાસણી",
@@ -651,7 +651,7 @@ export const translations: Record<SupportedLanguage, TranslationDictionary> = {
     home_max_reached: "अधिकतम 5 फाइलें पूर्ण हुईं",
     home_delete_room_hint: "नई फाइलों के लिए नीचे से एक फाइल हटाएं",
     home_file_uploaded_success: "फाइल सफलतापूर्वक अपलोड हुई",
-    home_counter_idle: "काउंटर खाली है · कोई कतार नहीं",
+    home_counter_idle: "प्रिंटर चालू है · लाइव कतार",
     home_campus_building: "कैंपस सेंट्रल बिल्डिंग",
 
     shortcut_bw_preview: "B&W पठनीयता जांच",

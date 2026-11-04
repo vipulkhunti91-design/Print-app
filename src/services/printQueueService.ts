@@ -1,4 +1,4 @@
-﻿// PrintQ Shared Live Queue Service & Engine
+// PrintQ Shared Live Queue Service & Engine
 
 export type QueueItemStatus = "waiting" | "printing" | "ready" | "completed" | "cancelled";
 
@@ -101,7 +101,13 @@ class PrintQueueManager {
         this.saveQueue(initial);
         return initial;
       }
-      return JSON.parse(data) as QueueOrder[];
+      const parsed = JSON.parse(data) as QueueOrder[];
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        const initial = getInitialQueue();
+        this.saveQueue(initial);
+        return initial;
+      }
+      return parsed;
     } catch {
       return getInitialQueue();
     }
