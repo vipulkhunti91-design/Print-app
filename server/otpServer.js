@@ -199,7 +199,7 @@ async function handleSendOtp(req, res) {
     const result = await sendSmsGateway(mobile, message, otp);
     const payload = {
       success: true,
-      message: "4-digit OTP sent",
+      message: `${digits}-digit OTP sent`,
       expiresIn: Math.floor(OTP_TTL_MS / 1000),
       delivery: result.delivery,
     };
@@ -223,8 +223,8 @@ async function handleVerifyOtp(req, res) {
   if (!/^\d{10}$/.test(mobile)) {
     return sendJson(res, 400, { success: false, error: "Invalid 10-digit mobile number" });
   }
-  if (!/^\d{4}$/.test(code)) {
-    return sendJson(res, 400, { success: false, error: "Enter the 4-digit OTP." });
+  if (!/^\d{4,6}$/.test(code)) {
+    return sendJson(res, 400, { success: false, error: "Enter the valid OTP." });
   }
 
   const record = otpStore.get(mobile);

@@ -868,7 +868,7 @@ export default function AuthModal({
                 role="status"
               >
                 Preview mode: SMS gateway not configured. Use code{" "}
-                <strong style={{ color: "var(--accent)" }}>{previewCode}</strong>.
+                <button type="button" onClick={() => applyAndVerifyOtp(previewCode)} style={{ background: "rgba(244, 215, 121, 0.15)", border: "1px solid var(--accent)", borderRadius: 4, padding: "1px 6px", color: "var(--accent)", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>{previewCode} (Tap to Auto-fill)</button>.
               </div>
             )}
 

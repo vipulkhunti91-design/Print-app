@@ -332,7 +332,32 @@ export default function LoginSheet({ summary, onClose, onPaymentContinue }: { su
           <div className="login-sheet-otp" role="group" aria-label={`${OTP_LENGTH}-digit one-time password`}>
             {otp.map((digit, index) => <input key={index} ref={(element) => { inputRefs.current[index] = element; }} type="text" inputMode="numeric" pattern="[0-9]*" maxLength={1} autoComplete={index === 0 ? "one-time-code" : "off"} value={digit} aria-label={`OTP digit ${index + 1} of ${OTP_LENGTH}`} onChange={(event) => changeDigit(index, event.target.value)} onPaste={pasteCode} onKeyDown={(event) => handleOtpKeyDown(event, index)} />)}
           </div>
-          {previewCode && <p className="login-sheet-demo-hint" role="status">Preview mode: SMS gateway not configured. Use code <strong style={{ color: "var(--accent)" }}>{previewCode}</strong>.</p>}
+          {previewCode && (
+            <p className="login-sheet-demo-hint" role="status" style={{ textAlign: "center", margin: "8px 0" }}>
+              Preview mode (SMS Gateway not configured in .env): Use code{" "}
+              <button
+                type="button"
+                onClick={() => applyAndVerifyOtp(previewCode)}
+                style={{
+                  background: "rgba(244, 215, 121, 0.15)",
+                  border: "1px solid var(--accent)",
+                  borderRadius: 6,
+                  padding: "2px 8px",
+                  color: "var(--accent)",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  verticalAlign: "middle",
+                }}
+                title="Click to auto-fill code"
+              >
+                <strong>{previewCode}</strong> (Tap to Auto-fill)
+              </button>
+            </p>
+          )}
           {otpError && <p className="login-sheet-error" role="alert" style={{ textAlign: "center", marginTop: "8px" }}>{otpError}</p>}
           <p className="login-sheet-resend">{seconds > 0 ? `Resend in ${seconds}s` : <button type="button" className="login-sheet-text-link" disabled={sendingOtp} onClick={resendOtp}>{sendingOtp ? "Sending…" : "Resend OTP"}</button>}</p>
           <div className="login-sheet-status-indicator" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", minHeight: "24px", margin: "6px 0", fontSize: "13px", color: otpStatus === "success" ? "var(--status-ready)" : "var(--text-muted)" }}>
