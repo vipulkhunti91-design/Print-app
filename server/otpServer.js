@@ -115,7 +115,6 @@ function generateOtp(digits = 6) {
  */
 function buildWebOtpMessage(otp, domain) {
   return `Your PrintQ verification OTP is ${otp}. It will expire in 5 minutes. Do not share your OTP with anyone.\n\n@${domain} #${otp}`;
-}. Valid for 5 minutes.\n\n@${domain} #${otp}`;
 }
 
 async function sendSmsGateway(mobile, message, otp) {
