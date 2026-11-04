@@ -1227,7 +1227,7 @@ function FilePreview({
 
   if (previewData && isPdf) {
     const baseUrl = (previewData.url || "").split("#")[0];
-    const cleanPdfUrl = `${baseUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
+    const cleanPdfUrl = `${baseUrl}#toolbar=0&navpanes=0&view=FitH`;
     return (
       <object
         className={`uploaded-preview-document${previewClass}`}
@@ -2336,18 +2336,7 @@ function Document({
 
             <div
               className={`settings-preview-viewport${(job.orientation ?? "Portrait") === "Landscape" ? " is-landscape" : " is-portrait"}`}
-              onClick={preview}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  preview();
-                }
-              }}
-              role="button"
-              tabIndex={0}
-              aria-label="Tap to view full page preview"
-              style={{ cursor: "pointer" }}
-              title="Click to view full screen preview"
+              aria-label="Document Preview"
             >
               <FilePreview
                 previewData={activeFile}

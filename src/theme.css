@@ -1838,14 +1838,10 @@ select:focus-visible, textarea:focus-visible {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-height: 350px;
+  min-height: 420px;
   padding: 16px 12px;
   transition: min-height 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
   position: relative;
-}
-
-.settings-preview-viewport .uploaded-preview-document {
-  pointer-events: none;
 }
 
 /* Document Preview Page Orientation: Portrait & Landscape */
@@ -1950,16 +1946,20 @@ select:focus-visible, textarea:focus-visible {
 }
 
 .uploaded-preview-document.is-portrait {
-  width: 240px;
-  max-width: 92%;
-  height: 320px;
+  width: 100%;
+  max-width: 320px;
+  height: 400px;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   transition: width 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .uploaded-preview-document.is-landscape {
-  width: 320px;
-  max-width: 95%;
-  height: 225px;
+  width: 100%;
+  max-width: 360px;
+  height: 260px;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   transition: width 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
