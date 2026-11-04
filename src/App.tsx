@@ -2330,8 +2330,15 @@ function Document({
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 
-                <span className="settings-files-counter-badge">
-                  {uploadedFiles.length}/5 Files
+                <span
+                  className="settings-files-counter-badge"
+                  title={`Upload batch: ${uploadedFiles.length} of 5 maximum files`}
+                >
+                  {uploadedFiles.length === 1
+                    ? (language === "gu" ? "૧ / ૫ ફાઇલ" : language === "hi" ? "1 / 5 फाइल" : "1 of 5 Files")
+                    : uploadedFiles.length >= 5
+                    ? (language === "gu" ? "૫/૫ ફાઇલો (મહત્તમ)" : language === "hi" ? "5/5 फाइलें (अधिकतम)" : "5 of 5 Files (Max)")
+                    : (language === "gu" ? `${uploadedFiles.length} / ૫ ફાઇલો` : language === "hi" ? `${uploadedFiles.length} / 5 फाइलें` : `${uploadedFiles.length} of 5 Files`)}
                 </span>
               </div>
             </div>
@@ -2396,7 +2403,13 @@ function Document({
           {uploadedFiles.length > 1 && (
             <div className="settings-files-tray" role="region" aria-label="All uploaded files">
               <div className="settings-files-tray-header">
-                <span>Uploaded Files ({uploadedFiles.length}/5)</span>
+                <span>
+                  {language === "gu"
+                    ? `અપલોડ કરેલ ફાઇલો (${uploadedFiles.length}/૫)`
+                    : language === "hi"
+                    ? `अपलोड की गई फाइलें (${uploadedFiles.length}/5)`
+                    : `Uploaded Files (${uploadedFiles.length} of 5)`}
+                </span>
                 {uploadedFiles.length < 5 ? (
                   <button
                     type="button"

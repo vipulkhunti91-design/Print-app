@@ -1825,14 +1825,15 @@ body:has(.login-sheet-overlay) .printq-paybar {
   align-items: center;
   justify-content: center;
   padding: 4px 10px;
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
+  background: rgba(244, 215, 121, 0.08);
+  border: 1px solid rgba(244, 215, 121, 0.28);
   border-radius: 20px;
   font-size: 11px;
   font-weight: 700;
   color: var(--accent);
   white-space: nowrap;
   flex-shrink: 0;
+  letter-spacing: 0.02em;
 }
 
 .settings-preview-viewport {
