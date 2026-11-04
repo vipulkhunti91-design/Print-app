@@ -113,6 +113,7 @@ type ActiveOrder = {
   job: PrintJob;
   status: "confirmed" | "queued" | "printing" | "ready" | "pickup" | "completed" | "cancelled" | "delayed";
   createdAt?: number;
+  totalAmount?: number;
 };
 
 
@@ -3219,13 +3220,15 @@ function Checkout({
   onOrderConfirmed,
   uploadedFiles,
   language = "en",
+  loginSummary = null,
 }: {
   go: (screen: Screen) => void;
   preview: () => void;
   job: PrintJob;
-  onOrderConfirmed: (token?: string) => void;
+  onOrderConfirmed: (token?: string, confirmedAmount?: number) => void;
   uploadedFiles: UploadedFileData[];
   language?: SupportedLanguage;
+  loginSummary?: LoginSummary | null;
 }) {
   const [payment, setPayment] = useState<"UPI" | "Cash">("UPI");
   const [selectedUpiApp, setSelectedUpiApp] = useState<"gpay" | "phonepe" | "paytm" | "bhim">("gpay");
@@ -3272,30 +3275,46 @@ function Checkout({
     : [{ name: job.fileName || "Document.pdf", pages: job.pages || 1, size: job.fileSize || "1.2 MB", type: "application/pdf", url: "" }];
 
   const fileCalculations = effectiveUploadedFiles.map((file) => {
+    const fMergedJob: PrintJob = {
+      ...job,
+      pages: Math.max(1, file.pages || job.pages || 1),
+      ...(file.settings || {}),
+    };
+    const fPricing = calculateJobPricing(fMergedJob, 1);
     const fPages = Math.max(1, file.pages || 1);
-    const fPaperStock = normalizePaperStock(job.paperStock);
-    const fPaperSize = job.paper || "A4";
-    const fIsSingle = job.singleSided || !isDoubleSidedAvailable(fPaperStock);
-    const fPricePerSheet = getPricePerSheet(fPaperStock, fPaperSize, fIsSingle, job.colour);
     const fCopies = Math.max(1, job.copies || 1);
-    const fTotalSheets = fPages * fCopies;
-    const fSubtotal = fPricePerSheet * fTotalSheets;
     return {
       name: file.name,
       pages: fPages,
       copies: fCopies,
-      paperStock: fPaperStock,
-      paperSize: fPaperSize,
-      isSingle: fIsSingle,
-      colour: Boolean(job.colour),
-      pricePerSheet: fPricePerSheet,
-      totalSheets: fTotalSheets,
-      subtotal: fSubtotal,
+      paperStock: fPricing.stock,
+      paperSize: fPricing.size,
+      isSingle: fPricing.isSingle,
+      colour: fPricing.isColour,
+      pricePerSheet: fPricing.unitRate,
+      totalSheets: fPricing.totalSheets,
+      printSubtotal: fPricing.printSubtotal,
+      bindingSubtotal: fPricing.bindingSubtotal,
+      subtotal: fPricing.grandTotal,
     };
   });
 
   const totalSheetsAllFiles = fileCalculations.reduce((sum, item) => sum + item.totalSheets, 0);
-  const grandTotal = fileCalculations.reduce((sum, item) => sum + item.subtotal, 0);
+  const bindingTotalAllFiles = fileCalculations.reduce((sum, item) => sum + item.bindingSubtotal, 0);
+  const computedTotal = fileCalculations.reduce((sum, item) => sum + item.subtotal, 0);
+
+  // If loginSummary confirmed an amount in the setup/login step, ensure 100% price match
+  const summaryTotalNumber = loginSummary?.total
+    ? parseFloat(loginSummary.total.replace(/[^0-9.]/g, ""))
+    : 0;
+
+  const grandTotal = summaryTotalNumber > 0 && effectiveUploadedFiles.length <= 1
+    ? summaryTotalNumber
+    : computedTotal;
+
+  if (effectiveUploadedFiles.length === 1 && summaryTotalNumber > 0 && fileCalculations[0]) {
+    fileCalculations[0].subtotal = summaryTotalNumber;
+  }
 
   const checkoutEstimate = calculateEstimatedReadyTime({
     pages: rawTotalPages,
@@ -3337,7 +3356,7 @@ function Checkout({
         } else {
           setProcessStatus("success");
           setPaymentState("success");
-          onOrderConfirmed(token);
+          onOrderConfirmed(token, grandTotal);
           window.setTimeout(() => {
             isSubmittingRef.current = false;
             setIsProcessingModalOpen(false);
@@ -3507,6 +3526,12 @@ function Checkout({
                 <span>{getTranslation(language, "total_sheets_all")}</span>
                 <span>{totalSheetsAllFiles} {totalSheetsAllFiles === 1 ? "sheet" : "sheets"}</span>
               </div>
+              {bindingTotalAllFiles > 0 && (
+                <div className="bill-line-row">
+                  <span>Binding ({job.bindingOption === "spiral" ? "Spiral Binding" : "Staple"})</span>
+                  <span style={{ color: "var(--accent)", fontWeight: 600 }}>+₹{bindingTotalAllFiles.toFixed(2)}</span>
+                </div>
+              )}
               <div className="bill-line-row">
                 <span>Handling & Desk Sorting</span>
                 <span style={{ color: "var(--status-ready)" }}>FREE (₹0.00)</span>
@@ -3643,7 +3668,7 @@ function PaymentSuccess({
   const totalPages = order?.job ? order.job.pages : 1;
   const copies = order?.job ? order.job.copies : 1;
   const orderPricing = order?.job ? calculateJobPricing(order.job, 1) : null;
-  const totalAmount = orderPricing ? orderPricing.grandTotal : 0;
+  const totalAmount = order?.totalAmount ?? (orderPricing ? orderPricing.grandTotal : 0);
 
   const [secondsLeft, setSecondsLeft] = useState(7);
   const timerRef = useRef<number | null>(null);
@@ -4629,13 +4654,15 @@ export default function App() {
       setProfile(emptyProfile);
     }
   }, [authSession]);
-  const confirmOrder = useCallback((assignedToken?: string) => {
+  const confirmOrder = useCallback((assignedToken?: string, confirmedAmount?: number) => {
     const recordId = createRecordId();
     const existingTokens = printHistory.map((r) => r.token);
     const token = assignedToken || generateUniquePickupToken(existingTokens);
     const job = { ...printJob };
     const createdAt = Date.now();
-    const newOrder: ActiveOrder = { recordId, token, job, status: "confirmed", createdAt };
+    const pricing = calculateJobPricing(job, uploadedFiles.length || 1);
+    const amount = confirmedAmount !== undefined && confirmedAmount > 0 ? confirmedAmount : pricing.grandTotal;
+    const newOrder: ActiveOrder = { recordId, token, job, status: "confirmed", createdAt, totalAmount: amount };
     setActiveOrder(newOrder);
     try {
       const qTotalPages = uploadedFiles.length > 0 ? uploadedFiles.reduce((sum, f) => sum + (f.pages || 1), 0) : (job.pages || 1);
@@ -4670,8 +4697,6 @@ export default function App() {
     setNotificationItems((items) => [notif, ...items.filter((it) => it.id !== notif.id)]);
 
     try {
-      const pricing = calculateJobPricing(job, 1);
-      const amount = pricing.grandTotal;
       securityEngine.createOrder({
         userEmail: authSession?.email || "vipul.khunti@gmail.com",
         userName: authSession?.name || "Vipul Khunti",
@@ -4683,7 +4708,7 @@ export default function App() {
     } catch {}
 
     return newOrder;
-  }, [printJob, printHistory, setHasDocument, setUploadedFiles]);
+  }, [printJob, printHistory, setHasDocument, setUploadedFiles, uploadedFiles, authSession]);
 
   const createStageNotification = useCallback((order: ActiveOrder, nextStatus: ActiveOrder["status"]): PrintOrderNotification | null => {
     const id = `order-${nextStatus}-${order.recordId}`;
@@ -5343,8 +5368,9 @@ export default function App() {
           preview={openDocumentPreview}
           job={printJob}
           uploadedFiles={uploadedFiles}
-          onOrderConfirmed={(assignedToken) => confirmOrder(assignedToken)}
+          onOrderConfirmed={(assignedToken, confirmedAmount) => confirmOrder(assignedToken, confirmedAmount)}
           language={language}
+          loginSummary={loginSummary}
         />
         {renderDocumentPreviewModal()}
       </div>
@@ -5355,20 +5381,13 @@ export default function App() {
     const rawTotalPages = uploadedFiles.length > 0
       ? uploadedFiles.reduce((sum, f) => sum + (f.pages || 1), 0)
       : printJob.pages;
-    const fileCalculations = uploadedFiles.length > 0
-      ? uploadedFiles.map((file) => {
-          const fPages = Math.max(1, file.pages || 1);
-          const fPaperStock = normalizePaperStock(printJob.paperStock);
-          const fPaperSize = printJob.paper || "A4";
-          const fIsSingle = printJob.singleSided || !isDoubleSidedAvailable(fPaperStock);
-          const fPricePerSheet = getPricePerSheet(fPaperStock, fPaperSize, fIsSingle, printJob.colour);
-          const fCopies = Math.max(1, printJob.copies || 1);
-          const fTotalSheets = fPages * fCopies;
-          const fSubtotal = fPricePerSheet * fTotalSheets;
-          return { subtotal: fSubtotal };
-        })
-      : [{ subtotal: 0 }];
-    const grandTotal = fileCalculations.reduce((sum, item) => sum + item.subtotal, 0);
+    const summaryTotalNumber = loginSummary?.total
+      ? parseFloat(loginSummary.total.replace(/[^0-9.]/g, ""))
+      : 0;
+    const pricing = calculateJobPricing(printJob, uploadedFiles.length || 1);
+    const grandTotal = summaryTotalNumber > 0 && uploadedFiles.length <= 1
+      ? summaryTotalNumber
+      : pricing.grandTotal;
     return (
       <div className="app-shell printq-shell">
         <PaymentPage
@@ -5379,7 +5398,7 @@ export default function App() {
             copies: printJob.copies || 1,
           }}
           onPaymentSuccess={() => {
-            confirmOrder();
+            confirmOrder(undefined, grandTotal);
             go("paymentSuccess");
           }}
           onBack={() => go("checkout")}
