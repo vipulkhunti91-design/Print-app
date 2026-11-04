@@ -255,27 +255,32 @@ export function UnifiedTokenSwipeCard({
             style={{
               fontSize: 12.5,
               fontWeight: 700,
-              color: secondsLeft <= 0 || isCompleted ? "var(--status-ready)" : "var(--accent)",
+              color: isReady || isCompleted ? "var(--status-ready)" : "var(--accent)",
               margin: "6px auto 10px",
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
               padding: "6px 14px",
-              background: secondsLeft <= 0 || isCompleted ? "rgba(167, 232, 189, 0.12)" : "rgba(244, 215, 121, 0.08)",
+              background: isReady || isCompleted ? "rgba(167, 232, 189, 0.12)" : "rgba(244, 215, 121, 0.08)",
               borderRadius: 999,
-              border: `1px solid ${secondsLeft <= 0 || isCompleted ? "rgba(167, 232, 189, 0.35)" : "rgba(244, 215, 121, 0.28)"}`,
+              border: `1px solid ${isReady || isCompleted ? "rgba(167, 232, 189, 0.35)" : "rgba(244, 215, 121, 0.28)"}`,
               cursor: onOpenCustomTime ? "pointer" : "default",
               transition: "all 180ms ease",
-              boxShadow: secondsLeft <= 0 || isCompleted ? "0 0 14px rgba(167, 232, 189, 0.22)" : "0 0 12px rgba(244, 215, 121, 0.12)",
+              boxShadow: isReady || isCompleted ? "0 0 14px rgba(167, 232, 189, 0.22)" : "0 0 12px rgba(244, 215, 121, 0.12)",
             }}
           >
             <span style={{ fontSize: 13 }}>
-              {secondsLeft <= 0 || isCompleted ? "🎉" : "⏱️"}
+              {isReady || isCompleted ? "🎉" : "⏱️"}
             </span>
 
-            {secondsLeft <= 0 || isCompleted ? (
+            {isReady || isCompleted ? (
               <span>
                 {language === "gu" ? "પ્રિન્ટ તૈયાર છે · કાઉન્ટર પર મેળવો" : language === "hi" ? "प्रिंट तैयार है · काउंटर पर प्राप्त करें" : "Ready for Pickup at Counter!"}
+              </span>
+            ) : secondsLeft <= 0 ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <span>{language === "gu" ? "પ્રિન્ટ પૂર્ણ થવાના આરે છે" : language === "hi" ? "प्रिंट लगभग तैयार" : "Finishing Up · Ready Any Second"}</span>
+                <span style={{ color: "var(--text-muted)", fontSize: 11 }}>({readyTimeFormatted || etaText.replace(/^⏱\s*/, "")})</span>
               </span>
             ) : (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -317,7 +322,7 @@ export function UnifiedTokenSwipeCard({
             }}
             title={fileName}
           >
-            {fileName} · {pages} {pages === 1 ? "pg" : "pgs"} ({colour ? "Colour" : "B&W"})
+            {fileName.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i, "")} · {pages} {pages === 1 ? "pg" : "pgs"} ({colour ? "Colour" : "B&W"})
           </div>
         </div>
       )}

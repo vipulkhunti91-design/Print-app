@@ -4,6 +4,16 @@ import App from './App'
 import './index.css'
 import './theme.css'
 
+// Global safety fallback for language preference
+if (typeof window !== 'undefined') {
+  try {
+    const storedLang = window.localStorage.getItem('printq_language_preference');
+    (window as any).language = storedLang || 'en';
+  } catch {
+    (window as any).language = 'en';
+  }
+}
+
 class RootErrorBoundary extends Component<
   { children: ReactNode },
   { hasError: boolean; error: Error | null }
@@ -21,9 +31,21 @@ class RootErrorBoundary extends Component<
     console.error('App uncaught error:', error, errorInfo)
   }
 
-  handleReset = () => {
-    localStorage.clear()
-    sessionStorage.clear()
+  handleReset = async () => {
+    try {
+      localStorage.clear()
+      sessionStorage.clear()
+      if ('caches' in window) {
+        const cacheKeys = await caches.keys()
+        await Promise.all(cacheKeys.map((key) => caches.delete(key)))
+      }
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(registrations.map((r) => r.unregister()))
+      }
+    } catch (e) {
+      console.warn('Error clearing caches during reset:', e)
+    }
     window.location.reload()
   }
 

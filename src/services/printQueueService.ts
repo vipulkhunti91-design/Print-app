@@ -26,10 +26,16 @@ export const PRINTER_SPEED_BW_MS = 2500;
 export const PRINTER_SPEED_COLOUR_MS = 4500;
 export const PRINTER_STARTUP_OVERHEAD_MS = 3000;
 
-export function calculateOrderPrintDurationMs(order: { totalPages: number; copies: number; colour: boolean }): number {
+export function calculateOrderPrintDurationMs(order: { totalPages: number; copies: number; colour: boolean; paperStock?: string }): number {
   const pages = Math.max(1, order.totalPages) * Math.max(1, order.copies);
-  const msPerPage = order.colour ? PRINTER_SPEED_COLOUR_MS : PRINTER_SPEED_BW_MS;
-  return PRINTER_STARTUP_OVERHEAD_MS + pages * msPerPage;
+  // Realistic campus turnaround duration in minutes: base minutes + colour extra + queue buffer
+  const baseMinutes = pages * 0.5;
+  const colourExtra = order.colour ? pages * 0.3 : 0;
+  const isSpecialPaper = /premium|glossy|matte|photo/i.test(order.paperStock || '');
+  const paperExtra = isSpecialPaper ? pages * 0.2 : 0;
+  const queueBuffer = 3;
+  const totalMinutes = Math.max(5, Math.round(baseMinutes + colourExtra + paperExtra + queueBuffer));
+  return totalMinutes * 60 * 1000;
 }
 
 // Initial demo baseline queue if storage is empty

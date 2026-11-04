@@ -391,6 +391,24 @@ export function getPricePerSheet(paperStock: string, paperSize: string, singleSi
   const stockEntry = PAPER_PRICES[stock] ?? PAPER_PRICES["Regular Paper"];
   const sizeEntry = stockEntry[paperSize] ?? stockEntry["A4"];
   const baseRate = (singleSided || sizeEntry.double === null) ? sizeEntry.single : sizeEntry.double;
+
+  try {
+    const adminPricing = securityEngine.getPaperPricing();
+    const matchedStock = adminPricing.stocks.find(
+      (s) => s.title.toLowerCase() === stock.toLowerCase() || s.id.toLowerCase() === stock.toLowerCase()
+    );
+    const matchedSize = adminPricing.sizes.find(
+      (sz) => sz.size.toUpperCase() === paperSize.toUpperCase()
+    );
+    if (matchedStock || matchedSize) {
+      const stockSurcharge = matchedStock?.surcharge !== undefined ? Math.max(0, matchedStock.surcharge) : 0;
+      const sizeSurcharge = matchedSize?.surcharge !== undefined ? Math.max(0, matchedSize.surcharge) : 0;
+      const baseSheetRate = Math.max(1, (singleSided ? 2 : 3) + stockSurcharge + sizeSurcharge);
+      const colourAddon = colour ? (singleSided ? 6 : 11) : 0;
+      return baseSheetRate + colourAddon;
+    }
+  } catch {}
+
   if (!colour) {
     return baseRate;
   }
@@ -2761,17 +2779,30 @@ function Document({
                 <div className="settings-paper-menu">
                   {PAPER_STOCK_CONFIG.map(({ name, gsm, detail, doubleAllowed }) => {
                     const isSelected = name === activeStockName;
+                    let isOutOfStock = false;
+                    try {
+                      const adminPricing = securityEngine.getPaperPricing();
+                      const match = adminPricing.stocks.find((s) => s.title.toLowerCase() === name.toLowerCase());
+                      if (match && match.inStock === false) isOutOfStock = true;
+                    } catch {}
                     const rate = getPricePerSheet(name, job.paper || "A4", job.singleSided || !doubleAllowed, job.colour);
                     return (
                       <button
                         key={name}
                         type="button"
-                        className={`settings-paper-menu-option${isSelected ? " is-selected" : ""}`}
-                        onClick={() => handleSelectPaperType(name)}
+                        disabled={isOutOfStock}
+                        className={`settings-paper-menu-option${isSelected ? " is-selected" : ""}${isOutOfStock ? " is-disabled" : ""}`}
+                        style={isOutOfStock ? { opacity: 0.55, cursor: "not-allowed" } : undefined}
+                        onClick={() => {
+                          if (!isOutOfStock) handleSelectPaperType(name);
+                        }}
                       >
                         <span className="settings-paper-menu-text">
                           <span className="settings-paper-menu-head">
-                            <span className="settings-paper-menu-name">{name}</span>
+                            <span className="settings-paper-menu-name">
+                              {name}
+                              {isOutOfStock && <span style={{ marginLeft: 6, color: "var(--error)", fontSize: 11, fontWeight: 700 }}>(Out of Stock)</span>}
+                            </span>
                             <span className="settings-paper-menu-price">₹{rate.toFixed(2)}/sheet</span>
                           </span>
                           <span className="settings-paper-menu-gsm">{gsm}</span>
@@ -4425,6 +4456,19 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [searchQuery, setSearchQuery] = useState("");
   const [language, setLanguage] = useState<SupportedLanguage>(() => getStoredLanguage());
+  const [queuePauseState, setQueuePauseState] = useState(() => securityEngine.isQueuePaused());
+
+  useEffect(() => {
+    const handlePauseChange = () => {
+      setQueuePauseState(securityEngine.isQueuePaused());
+    };
+    window.addEventListener("storage", handlePauseChange);
+    window.addEventListener("printq-queue-pause-changed", handlePauseChange as any);
+    return () => {
+      window.removeEventListener("storage", handlePauseChange);
+      window.removeEventListener("printq-queue-pause-changed", handlePauseChange as any);
+    };
+  }, []);
   const [nowServing, setNowServing] = useState(() => printQueueManager.getNowServing());
 
   useEffect(() => {
@@ -6178,6 +6222,10 @@ export default function App() {
             onNotifications={() => go("notifications")}
             unreadCount={unreadCount}
             onPay={(summary) => {
+              if (queuePauseState.paused) {
+                alert(queuePauseState.reason || "The print queue is temporarily paused for servicing. Please try again in a few minutes.");
+                return;
+              }
               setLoginSummary(summary);
               const remembered = readRememberedPayUser();
               if (remembered) {
@@ -6237,6 +6285,32 @@ export default function App() {
         onSwipeEnd={handleSwipeEnd}
       >
         <main className="printq-home">
+          {queuePauseState.paused && (
+            <div
+              className="home-queue-paused-banner"
+              role="alert"
+              style={{
+                background: "rgba(248, 113, 113, 0.12)",
+                border: "1px solid rgba(248, 113, 113, 0.35)",
+                borderRadius: 14,
+                padding: "12px 14px",
+                margin: "0 0 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <span style={{ fontSize: 22 }}>⏸️</span>
+              <div>
+                <strong style={{ color: "var(--error)", fontSize: 13, display: "block" }}>
+                  Print Shop Queue Intake Paused
+                </strong>
+                <span style={{ color: "var(--text-secondary)", fontSize: 11.5, lineHeight: 1.4, display: "block" }}>
+                  {queuePauseState.reason || "The campus print desk is temporarily paused for servicing or paper refilling. Please check back shortly."}
+                </span>
+              </div>
+            </div>
+          )}
           {activeOrder && activeOrder.status !== "completed" && activeOrder.status !== "cancelled" && (
             <div
               className="home-active-order-banner"

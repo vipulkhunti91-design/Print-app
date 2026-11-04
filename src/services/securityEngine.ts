@@ -71,6 +71,16 @@ export interface FirebaseDocumentRecord {
   uploadedAt: number;
 }
 
+export type PrinterHardwareStatus = "online" | "offline" | "error" | "paper_jam" | "out_of_paper";
+
+export interface PrinterHardwareState {
+  status: PrinterHardwareStatus;
+  name: string;
+  isRealConnection: boolean;
+  lastChecked: number;
+  note?: string;
+}
+
 export interface AdminAuditLogEntry {
   id: string;
   timestamp: number;
@@ -85,7 +95,10 @@ export interface AdminAuditLogEntry {
     | "USER_ACTIVATED"
     | "SHOP_STATUS_OVERRIDE"
     | "RATES_OVERRIDE"
-    | "EMERGENCY_QUEUE_PAUSED";
+    | "EMERGENCY_QUEUE_PAUSED"
+    | "QUEUE_PAUSED"
+    | "QUEUE_RESUMED"
+    | "PRINTER_STATE_OVERRIDE";
   targetId?: string;
   details: string;
   clientIpHash: string;
@@ -115,6 +128,8 @@ const DB_DOCS_KEY = "printq_db_documents";
 const DB_AUDIT_KEY = "printq_db_audit_logs";
 const DB_ADMIN_ROLES_KEY = "printq_db_admin_roles";
 const ACTIVE_ADMIN_TOKEN_KEY = "printq_active_admin_token";
+const QUEUE_PAUSED_STORAGE_KEY = "printq_queue_paused";
+const PRINTER_STATE_STORAGE_KEY = "printq_printer_state";
 
 // Pre-provisioned Admin email accounts (enforced in admin_roles, not by hardcoded frontend toggles)
 const PROVISIONED_ADMINS: Array<{ uid: string; email: string }> = [
@@ -770,6 +785,60 @@ class SecurityEngine {
    * Privileged: Retrieve entire campus operational dashboard data.
    * Requires verified admin session token!
    */
+    public isQueuePaused(): { paused: boolean; reason?: string; timestamp?: number } {
+    try {
+      const data = window.localStorage.getItem(QUEUE_PAUSED_STORAGE_KEY);
+      if (data) return JSON.parse(data);
+    } catch {}
+    return { paused: false };
+  }
+
+  public setQueuePaused(paused: boolean, reason?: string): void {
+    if (!this.hasVerifiedAdminSession()) {
+      throw new Error("Security Violation: Administrator authorization token required.");
+    }
+    const val = { paused, reason: reason || (paused ? "Print shop queue paused for maintenance" : "Queue intake resumed"), timestamp: Date.now() };
+    window.localStorage.setItem(QUEUE_PAUSED_STORAGE_KEY, JSON.stringify(val));
+    window.dispatchEvent(new CustomEvent("printq-queue-pause-changed", { detail: val }));
+    this.appendAuditLog({
+      action: paused ? "QUEUE_PAUSED" : "QUEUE_RESUMED",
+      details: paused ? `Queue paused by admin. Reason: ${val.reason}` : "Queue resumed normal operations.",
+    });
+  }
+
+  public getPrinterState(): PrinterHardwareState {
+    try {
+      const data = window.localStorage.getItem(PRINTER_STATE_STORAGE_KEY);
+      if (data) return JSON.parse(data);
+    } catch {}
+    return {
+      status: "online",
+      name: "Campus Print Engine (HP PageWide Pro)",
+      isRealConnection: false,
+      lastChecked: Date.now(),
+      note: "Standard WebPrint Spooler (Hardware Telemetry: Standalone Fallback)",
+    };
+  }
+
+  public setPrinterState(status: PrinterHardwareStatus, note?: string): void {
+    if (!this.hasVerifiedAdminSession()) {
+      throw new Error("Security Violation: Administrator authorization token required.");
+    }
+    const current = this.getPrinterState();
+    const updated: PrinterHardwareState = {
+      ...current,
+      status,
+      lastChecked: Date.now(),
+      note: note || (status === "online" ? "Printer is operational" : `Printer status changed to ${status}`),
+    };
+    window.localStorage.setItem(PRINTER_STATE_STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent("printq-printer-state-changed", { detail: updated }));
+    this.appendAuditLog({
+      action: "PRINTER_STATE_OVERRIDE",
+      details: `Printer hardware state changed to ${status.toUpperCase()}: ${updated.note}`,
+    });
+  }
+
   public getAdminMasterData(): {
     users: FirebaseUserProfile[];
     orders: FirebaseOrderRecord[];
@@ -777,9 +846,19 @@ class SecurityEngine {
     metrics: {
       totalUsers: number;
       activeQueue: number;
+      pendingCount: number;
+      printingCount: number;
+      readyCount: number;
       completedToday: number;
+      cancelledCount: number;
       revenue: number;
+      collectedRevenue: number;
+      pendingCashRevenue: number;
+      verifiedOnlineRevenue: number;
       printerStatus: "online" | "warning" | "offline";
+      printerHardware: PrinterHardwareState;
+      queuePaused: boolean;
+      queuePauseReason?: string;
     };
   } {
     if (!this.hasVerifiedAdminSession()) {
@@ -790,9 +869,44 @@ class SecurityEngine {
     const orders = this.getAllOrdersList();
     const auditLogs = this.getAllAuditLogsList();
 
-    const activeQueue = orders.filter((o) => o.status === "confirmed" || o.status === "queued" || o.status === "printing").length;
-    const completedToday = orders.filter((o) => o.status === "completed").length;
-    const revenue = orders.reduce((sum, o) => sum + (o.status !== "cancelled" ? o.totalAmount : 0), 0);
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const startOfDayMs = startOfDay.getTime();
+
+    const activeOrders = orders.filter((o) => o.status === "confirmed" || o.status === "queued" || o.status === "printing");
+    const pendingCount = orders.filter((o) => o.status === "confirmed" || o.status === "queued").length;
+    const printingCount = orders.filter((o) => o.status === "printing").length;
+    const readyCount = orders.filter((o) => o.status === "ready").length;
+    const completedToday = orders.filter((o) => o.status === "completed" && (o.updatedAt || o.createdAt) >= startOfDayMs).length;
+    const cancelledCount = orders.filter((o) => o.status === "cancelled").length;
+
+    // Real collected revenue: completed orders OR verified online payments
+    const collectedRevenue = orders.reduce((sum, o) => {
+      if (o.status === "cancelled") return sum;
+      if (o.status === "completed" || (o as any).paymentMode === "online" || (o as any).paymentStatus === "success") {
+        return sum + (o.totalAmount || 0);
+      }
+      return sum;
+    }, 0);
+
+    const pendingCashRevenue = orders.reduce((sum, o) => {
+      if (o.status === "cancelled" || o.status === "completed") return sum;
+      if ((o as any).paymentMode === "cash" || !(o as any).paymentMode) {
+        return sum + (o.totalAmount || 0);
+      }
+      return sum;
+    }, 0);
+
+    const verifiedOnlineRevenue = orders.reduce((sum, o) => {
+      if (o.status === "cancelled") return sum;
+      if ((o as any).paymentMode === "online") {
+        return sum + (o.totalAmount || 0);
+      }
+      return sum;
+    }, 0);
+
+    const printerState = this.getPrinterState();
+    const queuePauseState = this.isQueuePaused();
 
     return {
       users,
@@ -800,10 +914,20 @@ class SecurityEngine {
       auditLogs,
       metrics: {
         totalUsers: users.length,
-        activeQueue,
+        activeQueue: activeOrders.length,
+        pendingCount,
+        printingCount,
+        readyCount,
         completedToday,
-        revenue,
-        printerStatus: "online",
+        cancelledCount,
+        revenue: collectedRevenue,
+        collectedRevenue,
+        pendingCashRevenue,
+        verifiedOnlineRevenue,
+        printerStatus: printerState.status === "online" ? "online" : printerState.status === "offline" ? "offline" : "warning",
+        printerHardware: printerState,
+        queuePaused: queuePauseState.paused,
+        queuePauseReason: queuePauseState.reason,
       },
     };
   }
