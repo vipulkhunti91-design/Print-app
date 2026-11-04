@@ -1583,6 +1583,7 @@ function Document({
   authSession = null,
   onOpenAuth,
   language = "en",
+  isLoginOpen = false,
 }: {
   onBack: () => void;
   onPay: (summary: LoginSummary) => void;
@@ -1607,6 +1608,7 @@ function Document({
   authSession?: AuthUser | null;
   onOpenAuth?: () => void;
   language?: SupportedLanguage;
+  isLoginOpen?: boolean;
 }) {
   const [uploadComplete, setUploadComplete] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -3003,41 +3005,42 @@ function Document({
             </span>
           </div>
 
-          {/* Fixed Bottom Checkout Bar */}
-          {/* Fixed Bottom Checkout Bar */}
-          <div className="settings-bottom-bar" role="region" aria-label="Order total">
-            <div className="settings-bottom-total">
-              <span className="settings-bottom-sub">
-                TOTAL · READY IN ~{currentEstimate.minutes} MINS
-              </span>
-              <div className="settings-bottom-price-row">
-                <strong className="settings-bottom-price">₹{calculatedTotal.toFixed(2)}</strong>
-                {!job.colour && (
-                  <button
-                    type="button"
-                    className="settings-bottom-colour-btn"
-                    onClick={() => updateJob({ colour: true })}
-                    title="Switch to Colour printing (₹8)"
-                    aria-label="Switch to Colour printing for ₹8"
-                  >
-                    Colour (₹8)
-                  </button>
-                )}
+          {/* Fixed Bottom Checkout Bar (hidden when login sheet is open) */}
+          {!isLoginOpen && (
+            <div className="settings-bottom-bar" role="region" aria-label="Order total">
+              <div className="settings-bottom-total">
+                <span className="settings-bottom-sub">
+                  TOTAL · READY IN ~{currentEstimate.minutes} MINS
+                </span>
+                <div className="settings-bottom-price-row">
+                  <strong className="settings-bottom-price">₹{calculatedTotal.toFixed(2)}</strong>
+                  {!job.colour && (
+                    <button
+                      type="button"
+                      className="settings-bottom-colour-btn"
+                      onClick={() => updateJob({ colour: true })}
+                      title="Switch to Colour printing (₹8)"
+                      aria-label="Switch to Colour printing for ₹8"
+                    >
+                      Colour (₹8)
+                    </button>
+                  )}
+                </div>
               </div>
+              <button
+                type="button"
+                className="settings-bottom-btn"
+                onClick={() => onPay({
+                  fileName: uploadedFiles.length > 1 ? `${uploadedFiles[0].name} + ${uploadedFiles.length - 1} more` : displayedName,
+                  pages: totalPages,
+                  copies: job.copies,
+                  total: `₹${calculatedTotal.toFixed(2)}`
+                })}
+              >
+                {getTranslation(language, "continue_to_pay")}
+              </button>
             </div>
-            <button
-              type="button"
-              className="settings-bottom-btn"
-              onClick={() => onPay({
-                fileName: uploadedFiles.length > 1 ? `${uploadedFiles[0].name} + ${uploadedFiles.length - 1} more` : displayedName,
-                pages: totalPages,
-                copies: job.copies,
-                total: `₹${calculatedTotal.toFixed(2)}`
-              })}
-            >
-              {getTranslation(language, "continue_to_pay")}
-            </button>
-          </div>
+          )}
         </div>
       )}
     </section>
@@ -6211,6 +6214,7 @@ export default function App() {
         <main className="printq-home has-uploaded-file">
           <Document
             language={language}
+            isLoginOpen={isLoginOpen}
             onBack={() => {
               setHasDocument(false);
               setUploadedFiles([]);
@@ -6352,6 +6356,7 @@ export default function App() {
 
           <Document
             language={language}
+            isLoginOpen={isLoginOpen}
             onBack={() => go("home")}
             onNotifications={() => go("notifications")}
             unreadCount={unreadCount}
