@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "phopy-shell-";
-const CACHE_NAME = `${CACHE_PREFIX}v12`;
+const CACHE_NAME = `${CACHE_PREFIX}v13`;
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {

@@ -154,7 +154,7 @@ export function CustomPickupTimeCard({
               borderRadius: 6,
             }}
           >
-            {language === "gu" ? "ઝડપથી" : language === "hi" ? "शीघ्र" : "ASAP"}
+            {language === "gu" ? "અત્યારે જ" : language === "hi" ? "अभी चाहिए" : "Right Now"}
           </span>
         )}
       </div>
@@ -630,7 +630,7 @@ export function CustomPickupTimeCard({
               padding: 0,
             }}
           >
-            Reset to ASAP
+            {language === "gu" ? "અત્યારે જ પર રીસેટ કરો" : language === "hi" ? "अभी चाहिए पर रीसेट करें" : "Reset to Right Now"}
           </button>
         </div>
       )}
