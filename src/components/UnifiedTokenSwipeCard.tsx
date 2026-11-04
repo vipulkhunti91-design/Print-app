@@ -3,6 +3,7 @@ import { TrackingStatusIllustration } from "./AppIllustrations";
 import type { SupportedLanguage } from "../utils/i18n";
 import { getTranslation } from "../utils/i18n";
 import { sanitizeDisplayFileName } from "../utils/sanitizeFileName";
+import { RealQRCode } from "./RealQRCode";
 
 interface UnifiedTokenSwipeCardProps {
   token: string;
@@ -376,59 +377,22 @@ export function UnifiedTokenSwipeCard({
             </span>
           </div>
 
-          {/* Central QR Code Container */}
+          {/* Central Real Scannable QR Code Container */}
           <div
             style={{
               background: "#FFFFFF",
               borderRadius: 16,
-              padding: 16,
+              padding: 12,
               display: "inline-block",
               margin: "0 auto 12px",
               boxShadow: "0 8px 24px rgba(0, 0, 0, 0.5)",
             }}
           >
-            <svg
-              viewBox="0 0 120 120"
-              width="130"
-              height="130"
-              style={{ display: "block" }}
-              aria-label={`Verification QR code for order ${orderRef}`}
-            >
-              {/* Corner position markers */}
-              <rect x="10" y="10" width="30" height="30" rx="4" fill="#000000" />
-              <rect x="16" y="16" width="18" height="18" rx="2" fill="#FFFFFF" />
-              <rect x="20" y="20" width="10" height="10" fill="#000000" />
-
-              <rect x="80" y="10" width="30" height="30" rx="4" fill="#000000" />
-              <rect x="86" y="16" width="18" height="18" rx="2" fill="#FFFFFF" />
-              <rect x="90" y="20" width="10" height="10" fill="#000000" />
-
-              <rect x="10" y="80" width="30" height="30" rx="4" fill="#000000" />
-              <rect x="16" y="86" width="18" height="18" rx="2" fill="#FFFFFF" />
-              <rect x="20" y="90" width="10" height="10" fill="#000000" />
-
-              {/* Data blocks */}
-              <rect x="50" y="14" width="8" height="8" fill="#000000" />
-              <rect x="62" y="22" width="8" height="8" fill="#000000" />
-              <rect x="48" y="34" width="8" height="8" fill="#000000" />
-              <rect x="70" y="32" width="6" height="6" fill="#000000" />
-
-              <rect x="20" y="50" width="8" height="8" fill="#000000" />
-              <rect x="34" y="58" width="8" height="8" fill="#000000" />
-              <rect x="50" y="50" width="20" height="20" rx="4" fill="#000000" />
-              <rect x="54" y="54" width="12" height="12" rx="2" fill="#FFFFFF" />
-              <rect x="58" y="58" width="4" height="4" fill="#000000" />
-
-              <rect x="80" y="52" width="8" height="8" fill="#000000" />
-              <rect x="94" y="60" width="8" height="8" fill="#000000" />
-
-              <rect x="48" y="80" width="8" height="8" fill="#000000" />
-              <rect x="62" y="88" width="8" height="8" fill="#000000" />
-              <rect x="52" y="100" width="8" height="8" fill="#000000" />
-              <rect x="78" y="96" width="14" height="6" fill="#000000" />
-              <rect x="98" y="84" width="8" height="8" fill="#000000" />
-              <rect x="92" y="102" width="8" height="8" fill="#000000" />
-            </svg>
+            <RealQRCode
+              value={`PHTOPY://VERIFY?token=${encodeURIComponent(token)}&ref=${encodeURIComponent(orderRef)}&status=${encodeURIComponent(statusText)}`}
+              size={130}
+              alt={`Verification QR code for order ${orderRef}`}
+            />
           </div>
 
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 2 }}>

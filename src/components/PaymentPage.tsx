@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { RealQRCode } from "./RealQRCode";
 
 export type OrderSummary = {
   files: number;
@@ -236,6 +237,44 @@ export default function PaymentPage({
                     />
                   </div>
                 )}
+
+                {/* Real Dynamic UPI QR Code */}
+                <div
+                  style={{
+                    marginTop: 14,
+                    padding: 12,
+                    background: "rgba(255, 255, 255, 0.03)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 12,
+                    textAlign: "center",
+                  }}
+                >
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", display: "block", marginBottom: 8 }}>
+                    OR SCAN REAL UPI QR CODE WITH ANY APP
+                  </span>
+                  <div
+                    style={{
+                      background: "#FFFFFF",
+                      padding: 10,
+                      borderRadius: 12,
+                      display: "inline-block",
+                      boxShadow: "0 4px 16px rgba(0, 0, 0, 0.4)",
+                      margin: "0 auto 8px",
+                    }}
+                  >
+                    <RealQRCode
+                      value={`upi://pay?pa=campus.printq@icici&pn=Phtopy%20Campus%20Store&am=${totalAmount.toFixed(2)}&cu=INR&tn=Phtopy%20Print%20Order`}
+                      size={140}
+                      alt="UPI Payment QR Code"
+                    />
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--accent)", fontWeight: 700 }}>
+                    ₹{totalAmount.toFixed(2)} · Instant 0% Fee
+                  </div>
+                  <div style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 2 }}>
+                    Scan with Google Pay, PhonePe, Paytm, BHIM, Cred
+                  </div>
+                </div>
               </div>
             )}
           </div>

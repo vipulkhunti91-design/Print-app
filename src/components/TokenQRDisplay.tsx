@@ -1,4 +1,5 @@
 import React from "react";
+import { RealQRCode } from "./RealQRCode";
 
 interface TokenQRDisplayProps {
   token: string;
@@ -11,8 +12,9 @@ export function TokenQRDisplay({
   orderRef = "#PQ-CAMPUS",
   status,
 }: TokenQRDisplayProps) {
-  // SVG Vector QR Pattern Generator (Crisp, offline, privacy-safe)
-  // Encodes only the verified token string (no PII, no names, no payment details)
+  // 100% Real, scannable QR encoding the verified order & token
+  const qrData = `PHTOPY://VERIFY?token=${encodeURIComponent(token)}&ref=${encodeURIComponent(orderRef)}&status=${encodeURIComponent(status)}`;
+
   return (
     <div
       className="token-qr-card"
@@ -44,7 +46,7 @@ export function TokenQRDisplay({
         </span>
       </div>
 
-      {/* SVG QR Code */}
+      {/* Real High-Resolution Scannable QR Code */}
       <div
         style={{
           width: 148,
@@ -57,60 +59,14 @@ export function TokenQRDisplay({
           alignItems: "center",
           justifyContent: "center",
           border: "1px solid rgba(255, 255, 255, 0.12)",
+          boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
         }}
       >
-        <svg
-          viewBox="0 0 25 25"
-          width="132"
-          height="132"
-          shapeRendering="crispEdges"
-          aria-label={`QR Code for Token ${token}`}
-        >
-          {/* Top-left position marker */}
-          <rect x="1" y="1" width="7" height="7" fill="#0A0A0A" />
-          <rect x="2" y="2" width="5" height="5" fill="#FFFFFF" />
-          <rect x="3" y="3" width="3" height="3" fill="#0A0A0A" />
-
-          {/* Top-right position marker */}
-          <rect x="17" y="1" width="7" height="7" fill="#0A0A0A" />
-          <rect x="18" y="2" width="5" height="5" fill="#FFFFFF" />
-          <rect x="19" y="3" width="3" height="3" fill="#0A0A0A" />
-
-          {/* Bottom-left position marker */}
-          <rect x="1" y="17" width="7" height="7" fill="#0A0A0A" />
-          <rect x="2" y="18" width="5" height="5" fill="#FFFFFF" />
-          <rect x="3" y="19" width="3" height="3" fill="#0A0A0A" />
-
-          {/* Dynamic pseudo-bits based on token */}
-          <rect x="9" y="2" width="1" height="3" fill="#0A0A0A" />
-          <rect x="11" y="1" width="2" height="1" fill="#0A0A0A" />
-          <rect x="14" y="2" width="1" height="2" fill="#0A0A0A" />
-          <rect x="10" y="5" width="3" height="1" fill="#0A0A0A" />
-          <rect x="14" y="6" width="1" height="3" fill="#0A0A0A" />
-
-          {/* Timing stripes */}
-          <rect x="9" y="7" width="1" height="1" fill="#0A0A0A" />
-          <rect x="11" y="7" width="1" height="1" fill="#0A0A0A" />
-          <rect x="13" y="7" width="1" height="1" fill="#0A0A0A" />
-          <rect x="15" y="7" width="1" height="1" fill="#0A0A0A" />
-
-          {/* Data area representation */}
-          <rect x="10" y="10" width="2" height="2" fill="#0A0A0A" />
-          <rect x="13" y="11" width="3" height="1" fill="#0A0A0A" />
-          <rect x="9" y="13" width="2" height="2" fill="#0A0A0A" />
-          <rect x="12" y="14" width="2" height="1" fill="#0A0A0A" />
-          <rect x="15" y="13" width="2" height="3" fill="#0A0A0A" />
-          <rect x="18" y="10" width="3" height="2" fill="#0A0A0A" />
-          <rect x="22" y="13" width="1" height="2" fill="#0A0A0A" />
-
-          {/* Bottom Data */}
-          <rect x="9" y="18" width="3" height="1" fill="#0A0A0A" />
-          <rect x="13" y="17" width="2" height="2" fill="#0A0A0A" />
-          <rect x="16" y="18" width="2" height="1" fill="#0A0A0A" />
-          <rect x="19" y="19" width="3" height="2" fill="#0A0A0A" />
-          <rect x="10" y="21" width="2" height="2" fill="#0A0A0A" />
-          <rect x="14" y="22" width="4" height="1" fill="#0A0A0A" />
-        </svg>
+        <RealQRCode
+          value={qrData}
+          size={132}
+          alt={`Real QR Code for Token ${token}`}
+        />
       </div>
 
       <strong style={{ fontSize: 13, color: "var(--text)", display: "block" }}>
@@ -122,4 +78,4 @@ export function TokenQRDisplay({
     </div>
   );
 }
-
+export default TokenQRDisplay;
