@@ -4,8 +4,8 @@
  * Strictly 4 digits, range 1000-9999. When the API server is unreachable the
  * app falls back to a labelled preview code so local previews keep working.
  */
-export const OTP_LENGTH = 4;
-export const OTP_CODE_PATTERN = /^[1-9]\d{3}$/;
+export const OTP_LENGTH = 6;
+export const OTP_CODE_PATTERN = /^\d{4,6}$/;
 
 const PREVIEW_STORAGE_KEY = "printq_preview_otp";
 const PREVIEW_TTL_MS = 5 * 60 * 1000;
@@ -61,7 +61,7 @@ export function clearPreviewOtp() {
 }
 
 function generatePreviewCode(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 function createPreviewResult(mobile: string): SendOtpResult {
@@ -70,13 +70,13 @@ function createPreviewResult(mobile: string): SendOtpResult {
   return { delivery: "preview", devCode, expiresIn: Math.floor(PREVIEW_TTL_MS / 1000) };
 }
 
-export async function sendOtp(mobile: string): Promise<SendOtpResult> {
+export async function sendOtp(mobile: string, digits: number = 6): Promise<SendOtpResult> {
   let response: Response;
   try {
     response = await fetch("/api/auth/send-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mobile, domain: getDomain() }),
+      body: JSON.stringify({ mobile, domain: getDomain(), digits }),
     });
   } catch {
     return createPreviewResult(mobile);

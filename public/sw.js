@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "phopy-shell-";
-const CACHE_NAME = `${CACHE_PREFIX}v3`;
+const CACHE_NAME = `${CACHE_PREFIX}v4`;
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
@@ -72,11 +72,14 @@ self.addEventListener("fetch", (event) => {
       }
     }
 
-    const cached = await cache.match(request);
-    if (cached) return cached;
-
-    const response = await fetch(request);
-    if (response.ok) await cache.put(request, response.clone());
-    return response;
+    try {
+      const response = await fetch(request);
+      if (response.ok) await cache.put(request, response.clone());
+      return response;
+    } catch {
+      const cached = await cache.match(request);
+      if (cached) return cached;
+      return Response.error();
+    }
   })());
 });

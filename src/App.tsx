@@ -28,6 +28,7 @@ import LoginSheet, { type LoginSummary } from "./components/LoginSheet";
 import { formatTimeRemaining, getShopStatus, type ShopStatus } from "./config/shopHours";
 import { demoActiveOrder, demoOldDocuments, demoProfile } from "./data/demoData";
 import { calculateEstimatedReadyTime } from "./utils/estimatedTime";
+import { sanitizeDisplayFileName } from "./utils/sanitizeFileName";
 import {
   UploadHeroIllustration,
   EmptyHistoryIllustration,
@@ -3994,7 +3995,7 @@ function Token({
             <div className="bill-line-row">
               <span style={{ color: "var(--text-secondary)" }}>Current Order Details</span>
               <span style={{ color: "var(--text)", fontSize: 12 }}>
-                {queueMetrics.currentlyPrinting.fileName} ({queueMetrics.currentlyPrinting.details})
+                {sanitizeDisplayFileName(queueMetrics.currentlyPrinting.fileName)} ({queueMetrics.currentlyPrinting.details})
               </span>
             </div>
           )}
@@ -4336,7 +4337,7 @@ function Help({ go }: { go: (screen: Screen) => void }) {
 
 export default function App() {
   useEffect(() => {
-    document.title = "PrintQ | Campus Print Ordering and Notifications";
+    document.title = "Phtopy | Campus Print Ordering and Notifications";
     let themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     if (!themeColor) {
       themeColor = document.createElement("meta");
@@ -4351,7 +4352,7 @@ export default function App() {
       description.name = "description";
       document.head.append(description);
     }
-    description.content = "PrintQ campus print ordering with print status and ready notifications.";
+    description.content = "Phtopy campus print ordering with print status and ready notifications.";
   }, []);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [loginSummary, setLoginSummary] = useState<LoginSummary | null>(null);

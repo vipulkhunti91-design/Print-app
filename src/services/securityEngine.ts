@@ -98,7 +98,8 @@ export interface AdminAuditLogEntry {
     | "EMERGENCY_QUEUE_PAUSED"
     | "QUEUE_PAUSED"
     | "QUEUE_RESUMED"
-    | "PRINTER_STATE_OVERRIDE";
+    | "PRINTER_STATE_OVERRIDE"
+    | "USER_CREATED_BY_ADMIN";
   targetId?: string;
   details: string;
   clientIpHash: string;
@@ -428,6 +429,59 @@ class SecurityEngine {
     this.saveUsersMap(users);
     return updated;
   }
+  public isMobileNumberRegistered(mobile: string): boolean {
+    const clean = mobile.replace(/\D/g, "").slice(-10);
+    if (!clean) return false;
+    const users = this.getAllUsersMap();
+    return Object.values(users).some((u) => {
+      const uMobile = (u.phoneNumber || "").replace(/\D/g, "").slice(-10);
+      return uMobile === clean;
+    });
+  }
+
+  public createUserAsAdmin(params: { name: string; mobileNumber: string }): FirebaseUserProfile {
+    if (!this.hasVerifiedAdminSession()) {
+      throw new Error("Permission Denied: Only authenticated administrators can add verified users.");
+    }
+    const cleanMobile = params.mobileNumber.replace(/\D/g, "").slice(-10);
+    if (!/^[6-9]\d{9}$/.test(cleanMobile)) {
+      throw new Error("Invalid mobile number. Please enter a valid 10-digit Indian mobile number.");
+    }
+    const cleanName = params.name.trim();
+    if (!cleanName) {
+      throw new Error("Full Name is required.");
+    }
+
+    if (this.isMobileNumberRegistered(cleanMobile)) {
+      throw new Error(`Mobile number +91 ${cleanMobile} is already registered.`);
+    }
+
+    const uid = `uid_ph_${cleanMobile}`;
+    const users = this.getAllUsersMap();
+    const newUser: FirebaseUserProfile = {
+      uid,
+      email: `${cleanMobile}@phtopy.student`,
+      displayName: cleanName,
+      role: "user",
+      phoneNumber: `+91 ${cleanMobile}`,
+      phoneVerified: true,
+      createdAt: Date.now(),
+      lastLoginAt: Date.now(),
+      isActive: true,
+    };
+
+    users[uid] = newUser;
+    this.saveUsersMap(users);
+
+    this.appendAuditLog({
+      action: "USER_CREATED_BY_ADMIN",
+      targetId: uid,
+      details: `Admin added verified student ${cleanName} (+91 ${cleanMobile}) via OTP verification.`,
+    });
+
+    return newUser;
+  }
+
 
   // ---------------------------------------------------------------------------
   // ORDERS MANAGEMENT (Scoped per-user + Admin master)

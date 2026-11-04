@@ -102,8 +102,11 @@ function hashOtp(otp, salt) {
 }
 
 /** Strict 4-digit code in the 1000-9999 range. */
-function generateOtp() {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+function generateOtp(digits = 6) {
+  if (digits === 4) {
+    return Math.floor(1000 + Math.random() * 9000).toString();
+  }
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 /**
@@ -111,7 +114,8 @@ function generateOtp() {
  *   @<domain> #<otp>
  */
 function buildWebOtpMessage(otp, domain) {
-  return `Your PrintQ verification code is ${otp}. Valid for 5 minutes.\n\n@${domain} #${otp}`;
+  return `Your PrintQ verification OTP is ${otp}. It will expire in 5 minutes. Do not share your OTP with anyone.\n\n@${domain} #${otp}`;
+}. Valid for 5 minutes.\n\n@${domain} #${otp}`;
 }
 
 async function sendSmsGateway(mobile, message, otp) {
@@ -179,7 +183,8 @@ async function handleSendOtp(req, res) {
     });
   }
 
-  const otp = generateOtp();
+  const digits = Number(body.digits) === 4 ? 4 : 6;
+  const otp = generateOtp(digits);
   const salt = crypto.randomBytes(8).toString("hex");
   otpStore.set(mobile, {
     otpHash: hashOtp(otp, salt),

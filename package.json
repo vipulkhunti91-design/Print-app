@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "node tests/suite.test.cjs",
     "otp-server": "node server/otpServer.js",
     "format": "oxfmt"
   },

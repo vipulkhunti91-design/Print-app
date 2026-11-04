@@ -6,6 +6,8 @@ import {
   type AdminAuditLogEntry,
   type PrinterHardwareStatus,
 } from "../services/securityEngine";
+import { sanitizeDisplayFileName } from "../utils/sanitizeFileName";
+import { sendOtp, verifyOtp } from "../services/otpService";
 
 export default function AdminMasterControl({
   onBack,
@@ -46,6 +48,136 @@ export default function AdminMasterControl({
   const [cancelModalOrder, setCancelModalOrder] = useState<FirebaseOrderRecord | null>(null);
   const [cancelReasonInput, setCancelReasonInput] = useState("");
   const [pauseReasonInput, setPauseReasonInput] = useState("");
+  // Add User with Mobile Number OTP Verification Modal State
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [addUserStep, setAddUserStep] = useState<"details" | "otp" | "success">("details");
+  const [addUserName, setAddUserName] = useState("");
+  const [addUserMobile, setAddUserMobile] = useState("");
+  const [addUserOtpDigits, setAddUserOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  const [addUserError, setAddUserError] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [otpResendCountdown, setOtpResendCountdown] = useState(0);
+  const [otpAttemptsLeft, setOtpAttemptsLeft] = useState(5);
+  const [previewOtpNotice, setPreviewOtpNotice] = useState<string | null>(null);
+  const [createdSuccessUser, setCreatedSuccessUser] = useState<FirebaseUserProfile | null>(null);
+
+  // Resend Countdown Timer effect
+  useEffect(() => {
+    if (otpResendCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpResendCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpResendCountdown]);
+
+  const handleOpenAddUser = () => {
+    setAddUserName("");
+    setAddUserMobile("");
+    setAddUserOtpDigits(["", "", "", "", "", ""]);
+    setAddUserError("");
+    setAddUserStep("details");
+    setOtpAttemptsLeft(5);
+    setPreviewOtpNotice(null);
+    setCreatedSuccessUser(null);
+    setIsAddUserModalOpen(true);
+  };
+
+  const handleSendOtpToAddUser = async () => {
+    setAddUserError("");
+    const cleanName = addUserName.trim();
+    if (!cleanName) {
+      setAddUserError("Please enter the student's full name.");
+      return;
+    }
+    const cleanMobile = addUserMobile.replace(/\D/g, "").slice(-10);
+    if (!/^[6-9]\d{9}$/.test(cleanMobile)) {
+      setAddUserError("Please enter a valid 10-digit Indian mobile number starting with 6-9.");
+      return;
+    }
+
+    if (securityEngine.isMobileNumberRegistered(cleanMobile)) {
+      setAddUserError(`A verified user with mobile +91 ${cleanMobile} already exists in the system.`);
+      return;
+    }
+
+    setIsSendingOtp(true);
+    try {
+      const res = await sendOtp(cleanMobile, 6);
+      setIsSendingOtp(false);
+      setAddUserStep("otp");
+      setOtpResendCountdown(30);
+      setOtpAttemptsLeft(5);
+      if (res.devCode) {
+        setPreviewOtpNotice(res.devCode);
+      }
+    } catch (err: any) {
+      setIsSendingOtp(false);
+      setAddUserError(err.message || "Failed to send OTP SMS. Please try again.");
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (otpResendCountdown > 0) return;
+    setAddUserError("");
+    const cleanMobile = addUserMobile.replace(/\D/g, "").slice(-10);
+    setIsSendingOtp(true);
+    try {
+      const res = await sendOtp(cleanMobile, 6);
+      setIsSendingOtp(false);
+      setOtpResendCountdown(30);
+      if (res.devCode) {
+        setPreviewOtpNotice(res.devCode);
+      }
+      showToast("A new 6-digit verification OTP has been sent.");
+    } catch (err: any) {
+      setIsSendingOtp(false);
+      setAddUserError(err.message || "Could not resend OTP right now.");
+    }
+  };
+
+  const handleVerifyOtpAndCreateUser = async () => {
+    setAddUserError("");
+    const enteredCode = addUserOtpDigits.join("");
+    if (enteredCode.length !== 6 || !/^\d{6}$/.test(enteredCode)) {
+      setAddUserError("Please enter the complete 6-digit OTP code.");
+      return;
+    }
+
+    const cleanMobile = addUserMobile.replace(/\D/g, "").slice(-10);
+    setIsVerifyingOtp(true);
+
+    try {
+      const isVerified = await verifyOtp(cleanMobile, enteredCode);
+      if (!isVerified) {
+        const remaining = otpAttemptsLeft - 1;
+        setOtpAttemptsLeft(remaining);
+        setIsVerifyingOtp(false);
+        if (remaining <= 0) {
+          setAddUserError("Too many incorrect attempts. This OTP has been invalidated. Please request a new one.");
+        } else {
+          setAddUserError(`Incorrect OTP code. ${remaining} ${remaining === 1 ? "attempt" : "attempts"} remaining.`);
+        }
+        return;
+      }
+
+      // Successful OTP Verification -> Create User Atomically
+      const newUser = securityEngine.createUserAsAdmin({
+        name: addUserName.trim(),
+        mobileNumber: cleanMobile,
+      });
+
+      setIsVerifyingOtp(false);
+      setCreatedSuccessUser(newUser);
+      setAddUserStep("success");
+      loadData();
+      showToast("Mobile number verified. User added successfully.");
+    } catch (err: any) {
+      setIsVerifyingOtp(false);
+      setAddUserError(err.message || "OTP verification failed. Please try again.");
+    }
+  };
+
 
   const showToast = (msg: string) => {
     setFeedbackToast(msg);
@@ -652,7 +784,7 @@ export default function AdminMasterControl({
                         <span className="admin-order-token">{order.token}</span>
                         <div>
                           <strong style={{ color: "var(--text)", fontSize: 13, display: "block" }}>
-                            {order.job.fileName}
+                            {sanitizeDisplayFileName(order.job.fileName)}
                           </strong>
                           <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
                             {order.userName} ({order.userEmail})
@@ -778,12 +910,24 @@ export default function AdminMasterControl({
         <section className="admin-tab-content">
           <div className="bill-card" style={{ padding: 0, overflow: "hidden" }}>
             <div style={{ padding: "16px", borderBottom: "1px solid var(--border)" }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
-                Verified User Directory & Access Control
-              </h3>
-              <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
-                Total {adminData.users.length} registered campus profiles.
-              </p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
+                    Verified User Directory & Access Control
+                  </h3>
+                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
+                    Total {adminData.users.length} registered campus profiles.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="admin-header-action-btn primary"
+                  onClick={handleOpenAddUser}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                >
+                  <span style={{ fontSize: 16, fontWeight: 700 }}>+</span> Add User
+                </button>
+              </div>
             </div>
 
             <div className="admin-table-wrapper">
@@ -1124,7 +1268,7 @@ export default function AdminMasterControl({
 
             <div style={{ padding: "14px", background: "var(--surface-raised)", borderRadius: 12, marginBottom: 14 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>
-                📄 {previewOrder.job.fileName}
+                📄 {sanitizeDisplayFileName(previewOrder.job.fileName)}
               </div>
               <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                 Student: {previewOrder.userName} ({previewOrder.userEmail})
@@ -1161,7 +1305,7 @@ export default function AdminMasterControl({
             >
               <div>
                 <strong style={{ fontSize: 13, display: "block", marginBottom: 4 }}>
-                  {previewOrder.job.fileName}
+                  {sanitizeDisplayFileName(previewOrder.job.fileName)}
                 </strong>
                 <p style={{ margin: 0, color: "#666" }}>
                   Document preview rendering verified for campus printing. Page 1 of {previewOrder.job.pages}.

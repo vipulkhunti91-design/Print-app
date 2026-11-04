@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { TrackingStatusIllustration } from "./AppIllustrations";
 import type { SupportedLanguage } from "../utils/i18n";
 import { getTranslation } from "../utils/i18n";
+import { sanitizeDisplayFileName } from "../utils/sanitizeFileName";
 
 interface UnifiedTokenSwipeCardProps {
   token: string;
@@ -273,9 +274,25 @@ export function UnifiedTokenSwipeCard({
               {isReady || isCompleted ? "🎉" : "⏱️"}
             </span>
 
-            {isReady || isCompleted ? (
+            {isCompleted ? (
               <span>
-                {language === "gu" ? "પ્રિન્ટ તૈયાર છે · કાઉન્ટર પર મેળવો" : language === "hi" ? "प्रिंट तैयार है · काउंटर पर प्राप्त करें" : "Ready for Pickup at Counter!"}
+                {language === "gu" ? "પ્રિન્ટ મેળવી લીધી (Completed)" : language === "hi" ? "प्रिंट प्राप्त किया गया (Completed)" : "Collected & Completed"}
+              </span>
+            ) : isReady ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span>
+                  {language === "gu" ? "પ્રિન્ટ તૈયાર છે · કાઉન્ટર પર મેળવો" : language === "hi" ? "प्रिंट तैयार है · काउंटर पर प्राप्त करें" : "Ready for Pickup at Counter!"}
+                </span>
+                <strong
+                  style={{
+                    color: "var(--accent)",
+                    fontVariantNumeric: "tabular-nums",
+                    letterSpacing: "0.04em",
+                    fontSize: 12.5,
+                  }}
+                >
+                  · ⏱️ {secondsLeft > 0 ? formatCountdown(secondsLeft) : "Counter Open"}
+                </strong>
               </span>
             ) : secondsLeft <= 0 ? (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -314,15 +331,15 @@ export function UnifiedTokenSwipeCard({
             style={{
               fontSize: 12,
               color: "var(--text-secondary)",
-              maxWidth: 280,
+              maxWidth: 340,
               margin: "0 auto 12px",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
             }}
-            title={fileName}
+            title={sanitizeDisplayFileName(fileName)}
           >
-            {fileName.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i, "")} · {pages} {pages === 1 ? "pg" : "pgs"} ({colour ? "Colour" : "B&W"})
+            {sanitizeDisplayFileName(fileName)} · {pages} {pages === 1 ? "pg" : "pgs"} ({colour ? "Colour" : "B&W"})
           </div>
         </div>
       )}

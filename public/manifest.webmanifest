@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "PrintQ - Campus Smart Printing",
-  "short_name": "PrintQ",
+  "name": "Phtopy - Campus Smart Printing",
+  "short_name": "Phtopy",
   "description": "Instant campus printing with pickup tokens, live queue tracking, and custom print settings.",
   "start_url": "./",
   "scope": "./",

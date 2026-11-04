@@ -6,39 +6,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
     <!-- Primary Title & SEO Meta Tags -->
-    <title>PrintQ - Campus Smart Printing</title>
-    <meta name="title" content="PrintQ - Campus Smart Printing" />
+    <title>Phtopy - Campus Smart Printing</title>
+    <meta name="title" content="Phtopy - Campus Smart Printing" />
     <meta name="description" content="Instant campus document printing with zero wait. Upload files, customize print settings, track live queue, and pick up with your digital token." />
-    <meta name="keywords" content="PrintQ, campus printing, college printing, student print shop, print queue, instant pickup token, document printing" />
-    <meta name="author" content="PrintQ" />
-    <meta name="application-name" content="PrintQ" />
+    <meta name="keywords" content="Phtopy, PrintQ, campus printing, college printing, student print shop, print queue, instant pickup token, document printing" />
+    <meta name="author" content="Phtopy" />
+    <meta name="application-name" content="Phtopy" />
 
     <!-- Open Graph / Facebook / WhatsApp / LinkedIn Preview Tags -->
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="PrintQ" />
-    <meta property="og:title" content="PrintQ - Campus Smart Printing" />
+    <meta property="og:site_name" content="Phtopy" />
+    <meta property="og:title" content="Phtopy - Campus Smart Printing" />
     <meta property="og:description" content="Instant campus document printing with zero wait. Upload files, customize print settings, track live queue, and pick up with your digital token." />
     <meta property="og:image" content="%BASE_URL%og-image.png" />
     <meta property="og:image:secure_url" content="%BASE_URL%og-image.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="PrintQ - Campus Smart Printing Application Preview" />
+    <meta property="og:image:alt" content="Phtopy - Campus Smart Printing Application Preview" />
     <meta property="og:locale" content="en_US" />
 
     <!-- Twitter / X Card Preview Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="PrintQ - Campus Smart Printing" />
+    <meta name="twitter:title" content="Phtopy - Campus Smart Printing" />
     <meta name="twitter:description" content="Instant campus document printing with zero wait. Upload files, customize print settings, track live queue, and pick up with your digital token." />
     <meta name="twitter:image" content="%BASE_URL%og-image.png" />
-    <meta name="twitter:image:alt" content="PrintQ - Campus Smart Printing Application Preview" />
+    <meta name="twitter:image:alt" content="Phtopy - Campus Smart Printing Application Preview" />
 
     <!-- PWA & Mobile Icons -->
     <meta name="theme-color" content="#0A0A0A" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="PrintQ" />
+    <meta name="apple-mobile-web-app-title" content="Phtopy" />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
     <link rel="apple-touch-icon" sizes="180x180" href="%BASE_URL%apple-touch-icon.png" />
@@ -46,6 +46,17 @@
   </head>
   <body>
     <!-- figma:body-start -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('printq_language_preference');
+          var chosen = (saved === 'gu' || saved === 'hi' || saved === 'en') ? saved : 'en';
+          window.language = chosen;
+        } catch (e) {
+          window.language = 'en';
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <!-- figma:body-end -->

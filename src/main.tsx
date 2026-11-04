@@ -5,12 +5,19 @@ import './index.css'
 import './theme.css'
 
 // Global safety fallback for language preference
+declare global {
+  var language: string;
+}
+
 if (typeof window !== 'undefined') {
   try {
     const storedLang = window.localStorage.getItem('printq_language_preference');
-    (window as any).language = storedLang || 'en';
+    const validLang = (storedLang === 'gu' || storedLang === 'hi' || storedLang === 'en') ? storedLang : 'en';
+    (window as any).language = validLang;
+    (globalThis as any).language = validLang;
   } catch {
     (window as any).language = 'en';
+    (globalThis as any).language = 'en';
   }
 }
 
