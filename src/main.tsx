@@ -141,10 +141,17 @@ if ('serviceWorker' in navigator) {
   }, { once: true });
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+const rootElement = document.getElementById('root')!;
+let reactRoot = (window as any).__reactRoot;
+if (!reactRoot) {
+  reactRoot = ReactDOM.createRoot(rootElement);
+  (window as any).__reactRoot = reactRoot;
+}
+
+reactRoot.render(
   <React.StrictMode>
     <RootErrorBoundary>
       <App />
     </RootErrorBoundary>
   </React.StrictMode>,
-)
+);

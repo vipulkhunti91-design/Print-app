@@ -168,7 +168,7 @@ function createRecordId() {
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-export function generateUniquePickupToken(existingTokens: string[] = []): string {
+function generateUniquePickupToken(existingTokens: string[] = []): string {
   const letters = ["K", "M", "P", "R", "T", "B", "D", "G", "H", "J", "L", "N", "S", "W", "A"];
   const existingSet = new Set(existingTokens.map((t) => t.toUpperCase()));
   for (let attempts = 0; attempts < 100; attempts++) {
@@ -244,28 +244,28 @@ type SavedPrintSettings = {
 };
 
 const printSettingsStorageKey = "printq-last-print-settings";
-export const userCustomPresetKey = "printq-user-custom-preset";
+const userCustomPresetKey = "printq-user-custom-preset";
 
-export const BINDING_CONFIG = [
+const BINDING_CONFIG = [
   { id: "none", title: "No Binding", detail: "Loose printed sheets, neatly sorted", priceTag: "+₹0.00", surcharge: 0 },
   { id: "staple-left", title: "Staple: Top Left", detail: "Heavy-duty staple in top-left corner", priceTag: "+₹2.00 / set", surcharge: 2 },
   { id: "staple-right", title: "Staple: Top Right", detail: "Corner staple in top-right corner", priceTag: "+₹2.00 / set", surcharge: 2 },
   { id: "spiral", title: "Spiral Binding", detail: "Front transparent & back black card", priceTag: "+₹25.00 / set", surcharge: 25 },
 ] as const;
 
-export const PRINT_QUALITY_CONFIG = [
+const PRINT_QUALITY_CONFIG = [
   { id: "Draft", title: "Draft", detail: "Faster printing, lower toner usage", speedBadge: "⚡ Fast Speed", indicator: "fast" },
   { id: "Standard", title: "Standard", detail: "Balanced speed & crisp print quality", speedBadge: "⏱ Normal Speed", indicator: "normal" },
   { id: "High", title: "High", detail: "Higher-resolution output for fine details", speedBadge: "✨ High Detail", indicator: "quality" },
 ] as const;
 
-export const MARGIN_CONFIG = [
+const MARGIN_CONFIG = [
   { id: "normal", title: "Normal Margins", detail: "Standard 0.75\" printable margins", thumbClass: "normal" },
   { id: "narrow", title: "Narrow Margins", detail: "Reduced 0.3\" margins for more room", thumbClass: "narrow" },
   { id: "none", title: "No Margins", detail: "Edge-to-edge full bleed (where supported)", thumbClass: "none" },
 ] as const;
 
-export const PAPER_PRICES: Record<
+const PAPER_PRICES: Record<
   string,
   Record<string, { single: number; double: number | null }>
 > = {
@@ -313,7 +313,7 @@ export const PAPER_PRICES: Record<
   }
 };
 
-export const PAPER_STOCK_CONFIG = [
+const PAPER_STOCK_CONFIG = [
   {
     name: "Regular Paper",
     gsm: "70–75 GSM",
@@ -358,7 +358,7 @@ export const PAPER_STOCK_CONFIG = [
   },
 ] as const;
 
-export const PAPER_SIZE_CONFIG: readonly {
+const PAPER_SIZE_CONFIG: readonly {
   readonly size: string;
   readonly dim: string;
   readonly isLargeFormat: boolean;
@@ -370,7 +370,7 @@ export const PAPER_SIZE_CONFIG: readonly {
   { size: "A1", dim: "594 × 841 mm", isLargeFormat: true, note: "Requires large-format printer" },
 ] as const;
 
-export function normalizePaperStock(name?: string): string {
+function normalizePaperStock(name?: string): string {
   if (!name) return "Regular Paper";
   if (name === "Regular") return "Regular Paper";
   if (name === "Premium") return "Premium Paper";
@@ -381,13 +381,13 @@ export function normalizePaperStock(name?: string): string {
   return name;
 }
 
-export function isDoubleSidedAvailable(paperStock?: string): boolean {
+function isDoubleSidedAvailable(paperStock?: string): boolean {
   const stock = normalizePaperStock(paperStock);
   const a4Entry = PAPER_PRICES[stock]?.["A4"];
   return a4Entry?.double !== null && a4Entry?.double !== undefined;
 }
 
-export function getPricePerSheet(paperStock: string, paperSize: string, singleSided: boolean, colour = false): number {
+function getPricePerSheet(paperStock: string, paperSize: string, singleSided: boolean, colour = false): number {
   const stock = normalizePaperStock(paperStock);
   const stockEntry = PAPER_PRICES[stock] ?? PAPER_PRICES["Regular Paper"];
   const sizeEntry = stockEntry[paperSize] ?? stockEntry["A4"];
@@ -418,7 +418,7 @@ export function getPricePerSheet(paperStock: string, paperSize: string, singleSi
   return baseRate + colourAddon;
 }
 
-export function calculateJobPricing(job: PrintJob, uploadedFilesCount = 1) {
+function calculateJobPricing(job: PrintJob, uploadedFilesCount = 1) {
   const stock = normalizePaperStock(job.paperStock);
   const size = job.paper || "A4";
   const isSingle = job.singleSided || !isDoubleSidedAvailable(stock);
@@ -463,7 +463,7 @@ export function calculateJobPricing(job: PrintJob, uploadedFilesCount = 1) {
   };
 }
 
-export const QUICK_PRESETS_CONFIG = [
+const QUICK_PRESETS_CONFIG = [
   {
     id: "assignment",
     name: "Assignment",
@@ -510,7 +510,7 @@ export const QUICK_PRESETS_CONFIG = [
   },
 ] as const;
 
-export const PICKUP_TIME_CONFIG = [
+const PICKUP_TIME_CONFIG = [
   { time: "10 Minutes", desc: "Ready in approximately 10 minutes", minutes: 10, badge: "Express" },
   { time: "30 Minutes", desc: "Ready in approximately 30 minutes", minutes: 30, badge: "Standard" },
   { time: "1 Hour", desc: "Ready in approximately 1 hour", minutes: 60, badge: "Flexible" },
