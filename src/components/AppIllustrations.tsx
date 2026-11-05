@@ -508,3 +508,151 @@ export function PrinterPaymentProcessingIllustration() {
     </svg>
   );
 }
+
+/**
+ * Animated Illustration for Mobile Number / Auth screens.
+ * Features a friendly floating smartphone with ambient glow,
+ * incoming OTP sparkle wave, and verified security shield.
+ */
+export function MobileLoginIllustration() {
+  return (
+    <svg
+      className="mobile-login-illustration"
+      viewBox="0 0 160 110"
+      role="img"
+      aria-label="Secure mobile phone authentication illustration"
+      style={{ width: "100%", maxWidth: 150, height: "auto", margin: "0 auto 10px", display: "block" }}
+    >
+      <defs>
+        <radialGradient id="phoneGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.2" />
+          <stop offset="100%" stopColor="transparent" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="phoneBodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#222220" />
+          <stop offset="100%" stopColor="#141412" />
+        </linearGradient>
+        <linearGradient id="screenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#2A2A26" />
+          <stop offset="100%" stopColor="#181816" />
+        </linearGradient>
+      </defs>
+
+      {/* Ambient background glow */}
+      <circle cx="80" cy="55" r="48" fill="url(#phoneGlow)" />
+
+      {/* Sparkles & Twinkles */}
+      <g className="anime-sparkles">
+        <path
+          className="anime-sparkle-1"
+          d="M 136 18 Q 136 23 141 23 Q 136 23 136 28 Q 136 23 131 23 Q 136 23 136 18 Z"
+          fill="var(--accent)"
+        />
+        <path
+          className="anime-sparkle-2"
+          d="M 24 36 Q 24 40 28 40 Q 24 40 24 44 Q 24 40 20 40 Q 24 40 24 36 Z"
+          fill="var(--status-ready)"
+        />
+        <circle cx="134" cy="76" r="2" fill="var(--accent)" opacity="0.8" />
+        <circle cx="28" cy="80" r="1.5" fill="#FFF" opacity="0.5" />
+      </g>
+
+      {/* Floating Smartphone */}
+      <g className="anime-phone-body" style={{ transformOrigin: "80px 58px" }}>
+        {/* Soft phone shadow */}
+        <rect
+          x="54"
+          y="18"
+          width="52"
+          height="80"
+          rx="12"
+          fill="none"
+          stroke="rgba(244, 215, 121, 0.2)"
+          strokeWidth="3"
+        />
+
+        {/* Outer Phone Frame */}
+        <rect
+          x="54"
+          y="18"
+          width="52"
+          height="80"
+          rx="12"
+          fill="url(#phoneBodyGrad)"
+          stroke="var(--border)"
+          strokeWidth="1.6"
+        />
+
+        {/* Screen */}
+        <rect
+          x="58"
+          y="24"
+          width="44"
+          height="68"
+          rx="8"
+          fill="url(#screenGrad)"
+          stroke="rgba(255,255,255,0.06)"
+          strokeWidth="1"
+        />
+
+        {/* Speaker notch */}
+        <rect x="74" y="21" width="12" height="2" rx="1" fill="rgba(255,255,255,0.3)" />
+
+        {/* Shield / Keyhole Badge on Screen */}
+        <circle cx="80" cy="42" r="10" fill="rgba(244, 215, 121, 0.12)" stroke="var(--accent)" strokeWidth="1.2" />
+        <path
+          d="M 76 41 L 76 38 A 4 4 0 0 1 84 38 L 84 41"
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+        />
+        <rect x="74" y="41" width="12" height="9" rx="2" fill="var(--accent)" />
+        <circle cx="80" cy="45.5" r="1.2" fill="#0A0A0A" />
+
+        {/* Pulsing SMS OTP Code Dots */}
+        <g className="anime-otp-dots">
+          <circle cx="69" cy="62" r="2.2" fill="var(--accent)" />
+          <circle cx="76.5" cy="62" r="2.2" fill="var(--accent)" />
+          <circle cx="84" cy="62" r="2.2" fill="var(--accent)" />
+          <circle cx="91.5" cy="62" r="2.2" fill="rgba(244, 215, 121, 0.4)" />
+        </g>
+
+        {/* Animated Input Cursor */}
+        <rect x="67" y="72" width="26" height="4" rx="2" fill="rgba(255, 255, 255, 0.1)" />
+        <rect className="anime-cursor-pulse" x="67" y="72" width="10" height="4" rx="2" fill="var(--status-ready)" />
+
+        {/* Home bar */}
+        <rect x="73" y="86" width="14" height="2" rx="1" fill="rgba(255,255,255,0.2)" />
+      </g>
+
+      {/* Floating Animated SMS Message Pill (Left) */}
+      <g className="anime-sms-float">
+        <rect
+          x="12"
+          y="46"
+          width="46"
+          height="24"
+          rx="8"
+          fill="#1C1C1A"
+          stroke="var(--accent)"
+          strokeWidth="1.2"
+        />
+        <text x="18" y="62" fill="var(--accent)" fontSize="9.5" fontWeight="800" fontFamily="var(--font-app)">+91 💬</text>
+      </g>
+
+      {/* Floating Verified Shield Badge (Right) */}
+      <g className="anime-shield-float">
+        <circle cx="126" cy="48" r="13" fill="#181816" stroke="var(--status-ready)" strokeWidth="1.4" />
+        <path
+          d="M 121 48 L 125 52 L 132 44"
+          fill="none"
+          stroke="var(--status-ready)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+    </svg>
+  );
+}

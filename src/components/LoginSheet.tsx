@@ -8,6 +8,7 @@ import {
   verifyOtp,
 } from "../services/otpService";
 import { useSmsOtpAutoFill } from "../hooks/useSmsOtpAutoFill";
+import { MobileLoginIllustration } from "./AppIllustrations";
 
 const emptyOtp = () => Array.from({ length: OTP_LENGTH }, () => "");
 
@@ -304,6 +305,7 @@ export default function LoginSheet({ summary, onClose, onPaymentContinue }: { su
           <button type="button" className="login-sheet-primary" onClick={continueRemembered}>Continue</button>
           <button type="button" className="login-sheet-text-link" onClick={chooseAnother}>Not you? Use another number</button>
         </> : step === "details" ? <>
+          <MobileLoginIllustration />
           <h2 id="login-sheet-title">Almost done</h2>
           <div className="login-sheet-summary">
             <strong title={summary.fileName}>{summary.fileName}</strong>
@@ -317,6 +319,12 @@ export default function LoginSheet({ summary, onClose, onPaymentContinue }: { su
             </label>
             <label>Mobile number
               <span className="login-sheet-mobile-input"><span aria-hidden="true">+91</span><input type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={10} value={mobile} onChange={(event) => setMobile(event.target.value.replace(/\D/g, "").slice(0, 10))} onBlur={() => setMobileTouched(true)} aria-label="10-digit mobile number" aria-invalid={showMobileError} aria-describedby={showMobileError ? "login-mobile-error" : undefined} /></span>
+              {mobile.length === 10 && !showMobileError && (
+                <small style={{ color: "var(--status-ready)", fontSize: 11, display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontWeight: 700 }}>
+                  <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--status-ready)" }} />
+                  Valid 10-digit mobile number
+                </small>
+              )}
               {showMobileError && <small id="login-mobile-error" className="login-sheet-error" role="alert">Enter a valid 10-digit number</small>}
             </label>
             <p className="login-sheet-muted">We use your number only to send your token and ready alerts.</p>

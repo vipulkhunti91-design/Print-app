@@ -5162,6 +5162,39 @@ body:has(.login-sheet-overlay) .printq-paybar {
   transform-origin: center;
 }
 
+/* Mobile Login Screen Animation Suite */
+.mobile-login-illustration {
+  overflow: visible;
+}
+.anime-phone-body {
+  animation: anime-float-gentle 3.6s ease-in-out infinite;
+}
+.anime-sms-float {
+  animation: anime-float-alt 3.2s ease-in-out infinite;
+}
+.anime-shield-float {
+  animation: anime-float-gentle 2.8s ease-in-out 0.4s infinite;
+}
+.anime-cursor-pulse {
+  animation: anime-pulse-beam 1.4s ease-in-out infinite;
+}
+.anime-otp-dots circle:nth-child(1) {
+  animation: anime-dot-scale 1.8s ease-in-out 0s infinite;
+}
+.anime-otp-dots circle:nth-child(2) {
+  animation: anime-dot-scale 1.8s ease-in-out 0.3s infinite;
+}
+.anime-otp-dots circle:nth-child(3) {
+  animation: anime-dot-scale 1.8s ease-in-out 0.6s infinite;
+}
+.anime-otp-dots circle:nth-child(4) {
+  animation: anime-dot-scale 1.8s ease-in-out 0.9s infinite;
+}
+@keyframes anime-dot-scale {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
 /* Track Stage Active Glow Enhancement */
 .track-stage-circle.is-active {
   animation: anime-pulse-beam 2.2s infinite;

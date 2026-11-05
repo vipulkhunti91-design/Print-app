@@ -9,6 +9,7 @@ import {
   verifyOtp,
 } from "../services/otpService";
 import { useSmsOtpAutoFill } from "../hooks/useSmsOtpAutoFill";
+import { MobileLoginIllustration } from "./AppIllustrations";
 
 const emptyOtp = () => Array.from({ length: OTP_LENGTH }, () => "");
 
@@ -747,6 +748,7 @@ export default function AuthModal({
         {(authMode === "name_and_phone" || authMode === "phone_prompt" || authMode === "direct_phone") && (
           <form className="auth-flow-content" onSubmit={handleSendOtp}>
             <div className="auth-hero-copy">
+              <MobileLoginIllustration />
               <h2 id="auth-modal-title" className="auth-title">Register &amp; Sign In</h2>
               <p className="auth-subtitle">
                 Enter your full name and 10-digit mobile number to sign in or register.
@@ -795,6 +797,12 @@ export default function AuthModal({
                   required
                 />
               </div>
+              {mobileNumber.length === 10 && !mobileError && (
+                <span style={{ fontSize: 11, color: "var(--status-ready)", display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontWeight: 700 }}>
+                  <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--status-ready)" }} />
+                  Valid 10-digit Mobile Number
+                </span>
+              )}
               {mobileError && <span className="auth-field-error" role="alert">{mobileError}</span>}
             </div>
 
