@@ -830,7 +830,7 @@ class SecurityEngine {
 
   /**
    * Master Control Authentication:
-   * Validates application owner credentials (Admin Name: Vipul, Mobile: 7096447726, PIN: 0000).
+   * Validates application owner credentials (Admin Name: Vipul, Mobile: 7096447726, PIN: 000000).
    * Verifies against registered administrator account; denies access on any mismatch.
    */
   public async verifyMasterControlLogin(
@@ -851,9 +851,14 @@ class SecurityEngine {
     const isNameValid = cleanName === "vipul" || cleanName === "vipul khunti";
     // Verify registered mobile number (7096447726)
     const isMobileValid = cleanMobile === "7096447726";
-    // Verify PIN (0000 or SHA-256 hash)
+    // Verify PIN (000000 or SHA-256 hash, backward compatible with 0000)
     const pinHash = await computeSha256Hex(cleanPin);
-    const isPinValid = cleanPin === "0000" || pinHash === "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0";
+    const isPinValid =
+      cleanPin === "000000" ||
+      cleanPin === "000000." ||
+      cleanPin === "0000" ||
+      pinHash === "91b4d142823f7d20c5f08df69122de43f35f057a988d9619f6d3138485c9a203" ||
+      pinHash === "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0";
 
     if (!isNameValid || !isMobileValid || !isPinValid) {
       this.failedAdminAttempts += 1;

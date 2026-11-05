@@ -822,7 +822,7 @@ export default function AdminMasterControl({
                 inputMode="numeric"
                 maxLength={6}
                 className="admin-form-input"
-                placeholder="Enter 4-digit PIN (demo: 0000)"
+                placeholder="Enter 6-digit PIN (demo: 000000)"
                 value={adminPinInput}
                 onChange={(e) => setAdminPinInput(e.target.value)}
                 autoFocus
