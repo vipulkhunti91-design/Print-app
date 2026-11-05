@@ -3591,7 +3591,7 @@ function Checkout({
             <h2 id="bill-queue-heading" className="bill-card-title-clean">Live Print Queue Status</h2>
           </div>
           <span className="bill-queue-status-badge">
-            {queueMetrics.currentlyPrinting ? "Printer Active (FIFO)" : "Printer Ready"}
+            {queueMetrics.currentlyPrinting ? "Printer Active" : "Printer Ready"}
           </span>
         </div>
         <div className="bill-queue-grid">
@@ -4159,7 +4159,7 @@ function Token({
           </div>
         </div>
         <p style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic", margin: "10px 0 0", lineHeight: 1.5 }}>
-          Queue is shared and processed strictly in FIFO order. Waiting time is an estimate calculated from total pages and color settings.
+          Queue is shared and processed in live order. Waiting time is an estimate calculated from total pages and color settings.
         </p>
       </section>
 
@@ -5781,7 +5781,7 @@ export default function App() {
                 style={{ color: "var(--accent)", borderColor: "var(--accent)" }}
                 onClick={() => setIsAuthModalOpen(true)}
               >
-                Sign in with Google
+                {getTranslation(language, "settings_sign_in") || "Sign In / Register"}
               </button>
             )}
           </section>

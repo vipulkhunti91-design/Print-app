@@ -749,25 +749,8 @@ export default function AuthModal({
             <div className="auth-hero-copy">
               <h2 id="auth-modal-title" className="auth-title">Register &amp; Sign In</h2>
               <p className="auth-subtitle">
-                Enter your full name and 10-digit mobile number. We will text a {OTP_LENGTH}-digit verification code to confirm your number.
+                Enter your full name and 10-digit mobile number to sign in or register.
               </p>
-            </div>
-
-            {/* Notice: Google Login Temporarily Offline */}
-            <div style={{
-              background: "rgba(244, 215, 121, 0.08)",
-              border: "1px solid rgba(244, 215, 121, 0.22)",
-              borderRadius: 8,
-              padding: "9px 12px",
-              marginBottom: 14,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 12,
-              color: "var(--accent)",
-            }}>
-              <span style={{ fontSize: 14 }}>ℹ️</span>
-              <span>Google Sign-In is temporarily offline for maintenance. Please register with your Full Name &amp; Mobile Number.</span>
             </div>
 
             {/* 1. Full Name */}
