@@ -3308,7 +3308,7 @@ function Checkout({
     ? parseFloat(loginSummary.total.replace(/[^0-9.]/g, ""))
     : 0;
 
-  const grandTotal = summaryTotalNumber > 0 && effectiveUploadedFiles.length <= 1
+  const grandTotal = summaryTotalNumber > 0
     ? summaryTotalNumber
     : computedTotal;
 
@@ -5385,7 +5385,7 @@ export default function App() {
       ? parseFloat(loginSummary.total.replace(/[^0-9.]/g, ""))
       : 0;
     const pricing = calculateJobPricing(printJob, uploadedFiles.length || 1);
-    const grandTotal = summaryTotalNumber > 0 && uploadedFiles.length <= 1
+    const grandTotal = summaryTotalNumber > 0
       ? summaryTotalNumber
       : pricing.grandTotal;
     return (
