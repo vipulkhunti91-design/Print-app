@@ -3256,7 +3256,7 @@ function Checkout({
   go: (screen: Screen) => void;
   preview: () => void;
   job: PrintJob;
-  onOrderConfirmed: (token?: string, confirmedAmount?: number) => void;
+  onOrderConfirmed: (token?: string, confirmedAmount?: number, paymentMethod?: "UPI" | "Cash") => void;
   uploadedFiles: UploadedFileData[];
   language?: SupportedLanguage;
   loginSummary?: LoginSummary | null;
@@ -3387,7 +3387,7 @@ function Checkout({
         } else {
           setProcessStatus("success");
           setPaymentState("success");
-          onOrderConfirmed(token, grandTotal);
+          onOrderConfirmed(token, grandTotal, payment);
           window.setTimeout(() => {
             isSubmittingRef.current = false;
             setIsProcessingModalOpen(false);
@@ -4013,14 +4013,22 @@ function Token({
 
   return (
     <main className="studio page" style={{ maxWidth: 420, margin: "0 auto", padding: "16px 16px calc(56px + env(safe-area-inset-bottom, 24px))" }}>
-      {/* Top Header */}
-      <div className="bill-header-nav" style={{ marginBottom: 14 }}>
-        <button type="button" className="bill-back-button" onClick={() => go("home")} aria-label="Back to Home">
+      {/* Top Header - Centered Title */}
+      <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 40, marginBottom: 16 }}>
+        <button
+          type="button"
+          className="bill-back-button"
+          onClick={() => go("home")}
+          aria-label="Back to Home"
+          style={{ position: "absolute", left: 0 }}
+        >
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
-        <h1 className="bill-header-title">{language === "gu" ? "લાઇવ ઓર્ડર અને કતાર ટ્રેકિંગ" : language === "hi" ? "लाइव ऑर्डर और कतार ट्रैकिंग" : "Live Order & Queue Tracking"}</h1>
+        <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", margin: 0, textAlign: "center", width: "100%", padding: "0 40px" }}>
+          {language === "gu" ? "લાઇવ ઓર્ડર અને કતાર ટ્રેકિંગ" : language === "hi" ? "लाइव ऑर्डर और कतार ट्रैकिंग" : "Live Order & Queue Tracking"}
+        </h1>
       </div>
 
       {/* 2-in-1 Swipeable Token & Counter QR Card */}
@@ -4039,6 +4047,9 @@ function Token({
         initialMinutes={readyEstimate.minutes || 5}
         isReady={isReady}
         isCompleted={isCompleted}
+        paymentMethod={order.paymentMethod || "UPI"}
+        paymentStatus={order.paymentStatus || (order.paymentMethod === "Cash" ? "unpaid" : "paid")}
+        totalAmount={order.totalAmount || (calculateJobPricing(job, 1).grandTotal)}
         onOpenCustomTime={() => {
           const el = document.getElementById("custom-pickup-time-section");
           if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -4079,6 +4090,61 @@ function Token({
             ? (language === "gu" ? "ટોકન વિગતો કૉપિ થઈ ગઈ!" : language === "hi" ? "टोकन विवरण कॉपी हो गया!" : "Token Details Copied!")
             : (language === "gu" ? "ટોકન શેર કરો (WhatsApp)" : language === "hi" ? "टोकन शेयर करें (WhatsApp)" : "Share Token with Friend")}
         </button>
+      </div>
+
+      {/* Payment Status Summary Card */}
+      <div
+        style={{
+          background: "var(--surface)",
+          border: `1px solid ${order.paymentMethod === "Cash" ? "rgba(244, 215, 121, 0.3)" : "rgba(167, 232, 189, 0.3)"}`,
+          borderRadius: 14,
+          padding: "12px 14px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          margin: "0 0 16px",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              background: order.paymentMethod === "Cash" ? "rgba(244, 215, 121, 0.12)" : "rgba(167, 232, 189, 0.12)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 16,
+              flexShrink: 0,
+            }}
+          >
+            {order.paymentMethod === "Cash" ? "💵" : "✓"}
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <span style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>
+              {language === "gu" ? "ચૂકવણીની વિગતો" : language === "hi" ? "भुगतान की जानकारी" : "Payment Information"}
+            </span>
+            <strong style={{ fontSize: 13.5, color: order.paymentMethod === "Cash" ? "var(--accent)" : "var(--status-ready)", display: "block", marginTop: 2 }}>
+              {order.paymentMethod === "Cash"
+                ? (language === "gu" ? `કાઉન્ટર પર રોકડ ચૂકવણી · ₹${(order.totalAmount || calculateJobPricing(job, 1).grandTotal).toFixed(2)} બાકી` : language === "hi" ? `काउंटर पर नकद भुगतान · ₹${(order.totalAmount || calculateJobPricing(job, 1).grandTotal).toFixed(2)} देय` : `Pay Cash at Counter · ₹${(order.totalAmount || calculateJobPricing(job, 1).grandTotal).toFixed(2)} Due`)
+                : (language === "gu" ? `ઓનલાઇન UPI ચૂકવણી સફળ · ₹${(order.totalAmount || calculateJobPricing(job, 1).grandTotal).toFixed(2)}` : language === "hi" ? `ऑनलाइन UPI भुगतान सफल · ₹${(order.totalAmount || calculateJobPricing(job, 1).grandTotal).toFixed(2)}` : `Paid Online via UPI · ₹${(order.totalAmount || calculateJobPricing(job, 1).grandTotal).toFixed(2)}`)}
+            </strong>
+          </div>
+        </div>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            padding: "4px 9px",
+            borderRadius: 8,
+            background: order.paymentMethod === "Cash" ? "rgba(244, 215, 121, 0.15)" : "rgba(167, 232, 189, 0.15)",
+            color: order.paymentMethod === "Cash" ? "var(--accent)" : "var(--status-ready)",
+            flexShrink: 0,
+          }}
+        >
+          {order.paymentMethod === "Cash" ? "UNPAID" : "PAID"}
+        </span>
       </div>
 
       {/* Custom Pickup Time Scheduler */}
@@ -4751,7 +4817,7 @@ export default function App() {
       setProfile(emptyProfile);
     }
   }, [authSession]);
-  const confirmOrder = useCallback((assignedToken?: string, confirmedAmount?: number) => {
+  const confirmOrder = useCallback((assignedToken?: string, confirmedAmount?: number, paymentMethod: "UPI" | "Cash" = "UPI") => {
     const recordId = createRecordId();
     const existingTokens = printHistory.map((r) => r.token);
     const token = assignedToken || generateUniquePickupToken(existingTokens);
@@ -4759,7 +4825,17 @@ export default function App() {
     const createdAt = Date.now();
     const pricing = calculateJobPricing(job, uploadedFiles.length || 1);
     const amount = confirmedAmount !== undefined && confirmedAmount > 0 ? confirmedAmount : pricing.grandTotal;
-    const newOrder: ActiveOrder = { recordId, token, job, status: "confirmed", createdAt, totalAmount: amount };
+    const isCash = paymentMethod === "Cash";
+    const newOrder: ActiveOrder = {
+      recordId,
+      token,
+      job,
+      status: "confirmed",
+      createdAt,
+      totalAmount: amount,
+      paymentMethod,
+      paymentStatus: isCash ? "unpaid" : "paid",
+    };
     setActiveOrder(newOrder);
     try {
       const qTotalPages = uploadedFiles.length > 0 ? uploadedFiles.reduce((sum, f) => sum + (f.pages || 1), 0) : (job.pages || 1);
@@ -5497,7 +5573,7 @@ export default function App() {
           preview={openDocumentPreview}
           job={printJob}
           uploadedFiles={uploadedFiles}
-          onOrderConfirmed={(assignedToken, confirmedAmount) => confirmOrder(assignedToken, confirmedAmount)}
+          onOrderConfirmed={(assignedToken, confirmedAmount, payMethod) => confirmOrder(assignedToken, confirmedAmount, payMethod)}
           language={language}
           loginSummary={loginSummary}
         />

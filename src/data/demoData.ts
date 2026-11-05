@@ -24,13 +24,19 @@ export interface ActiveOrder {
   job: any;
   status: "confirmed" | "queued" | "printing" | "ready" | "pickup" | "completed" | "cancelled" | "delayed";
   createdAt?: number;
+  totalAmount?: number;
+  paymentMethod?: "UPI" | "Cash" | string;
+  paymentStatus?: "paid" | "unpaid" | "pending";
 }
 
-export const demoActiveOrder = {
+export const demoActiveOrder: ActiveOrder = {
   recordId: "demo-active-A-26",
   token: "A-26",
   status: "queued" as const,
   job: { ...baseJob, fileName: "Assignment_Maths.pdf", pages: 1, colour: false },
+  totalAmount: 2.0,
+  paymentMethod: "UPI",
+  paymentStatus: "paid",
 };
 
 export const demoOldDocuments = [

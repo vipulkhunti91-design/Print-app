@@ -21,6 +21,9 @@ interface UnifiedTokenSwipeCardProps {
   initialMinutes?: number;
   isReady?: boolean;
   isCompleted?: boolean;
+  paymentMethod?: "UPI" | "Cash" | string;
+  paymentStatus?: "paid" | "unpaid" | "pending";
+  totalAmount?: number;
 }
 
 export function UnifiedTokenSwipeCard({
@@ -39,7 +42,12 @@ export function UnifiedTokenSwipeCard({
   initialMinutes = 5,
   isReady = false,
   isCompleted = false,
+  paymentMethod = "UPI",
+  paymentStatus,
+  totalAmount = 2.0,
 }: UnifiedTokenSwipeCardProps) {
+  const isCash = paymentMethod === "Cash" || paymentStatus === "unpaid";
+  const amount = totalAmount || 2.0;
   const [activeTab, setActiveTab] = useState<"token" | "qr">("token");
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
@@ -333,7 +341,7 @@ export function UnifiedTokenSwipeCard({
               fontSize: 12,
               color: "var(--text-secondary)",
               maxWidth: 340,
-              margin: "0 auto 12px",
+              margin: "0 auto 10px",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -341,6 +349,59 @@ export function UnifiedTokenSwipeCard({
             title={sanitizeDisplayFileName(fileName)}
           >
             {sanitizeDisplayFileName(fileName)} · {pages} {pages === 1 ? "pg" : "pgs"} ({colour ? "Colour" : "B&W"})
+          </div>
+
+          {/* Payment Method & Status Badge */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+            {isCash ? (
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  padding: "5px 13px",
+                  background: "rgba(244, 215, 121, 0.12)",
+                  border: "1px solid rgba(244, 215, 121, 0.35)",
+                  borderRadius: 20,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "var(--accent)",
+                }}
+              >
+                <span style={{ fontSize: 13 }}>💵</span>
+                <span>
+                  {language === "gu"
+                    ? `કાઉન્ટર પર રોકડ: ₹${amount.toFixed(2)} ચૂકવવાના બાકી`
+                    : language === "hi"
+                    ? `काउंटर पर नकद: ₹${amount.toFixed(2)} देय`
+                    : `Pay Cash at Counter · ₹${amount.toFixed(2)} Due`}
+                </span>
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  padding: "5px 13px",
+                  background: "rgba(167, 232, 189, 0.12)",
+                  border: "1px solid rgba(167, 232, 189, 0.35)",
+                  borderRadius: 20,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "var(--status-ready)",
+                }}
+              >
+                <span style={{ fontSize: 12 }}>✓</span>
+                <span>
+                  {language === "gu"
+                    ? `UPI દ્વારા ચૂકવેલ · ₹${amount.toFixed(2)}`
+                    : language === "hi"
+                    ? `UPI द्वारा भुगतान सफल · ₹${amount.toFixed(2)}`
+                    : `Paid Online via UPI · ₹${amount.toFixed(2)}`}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -366,14 +427,15 @@ export function UnifiedTokenSwipeCard({
             <span
               style={{
                 fontSize: 10,
-                color: "var(--status-ready)",
-                background: "rgba(167, 232, 189, 0.12)",
+                color: isCash ? "var(--accent)" : "var(--status-ready)",
+                background: isCash ? "rgba(244, 215, 121, 0.12)" : "rgba(167, 232, 189, 0.12)",
                 padding: "2px 8px",
                 borderRadius: 999,
-                border: "1px solid rgba(167, 232, 189, 0.25)",
+                border: `1px solid ${isCash ? "rgba(244, 215, 121, 0.3)" : "rgba(167, 232, 189, 0.25)"}`,
+                fontWeight: 700,
               }}
             >
-              Ready for Verification
+              {isCash ? `💵 Cash: ₹${amount.toFixed(2)} Due` : `✓ Paid: ₹${amount.toFixed(2)}`}
             </span>
           </div>
 
