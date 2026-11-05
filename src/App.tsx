@@ -1534,10 +1534,10 @@ function HomeExtras({ language = "en" }: { language?: SupportedLanguage }) {
             <h2 className="home-shop-status-title">{getTranslation(language, "settings_shop_hours_card")}</h2>
             <p className="home-shop-status-hours">
               {language === "gu"
-                ? "દરરોજ: 8:00 AM – 11:00 PM · 24/7 ઓનલાઇન કતાર"
+                ? "સોમ–શુક્ર: 9:30 AM – 5:00 PM · શનિ અને રવિ: બંધ"
                 : language === "hi"
-                ? "प्रतिदिन: 8:00 AM – 11:00 PM · 24/7 ऑनलाइन कतार"
-                : "Open Daily: 8:00 AM – 11:00 PM · 24/7 Online Queue"}
+                ? "सोम–शुक्र: 9:30 AM – 5:00 PM · शनि व रवि: बंद"
+                : "Mon–Fri: 9:30 AM – 5:00 PM · Sat & Sun: Closed"}
             </p>
           </div>
           <div className="shop-status-pill open">
@@ -1550,10 +1550,10 @@ function HomeExtras({ language = "en" }: { language?: SupportedLanguage }) {
         <div className="home-shop-status-meta">
           <span className="home-shop-status-next">
             {language === "gu"
-              ? "પ્રિન્ટ ઓર્ડર અને લાઈવ કતાર સક્રિય છે"
+              ? "આજે 5:00 PM સુધી ખુલ્લું છે"
               : language === "hi"
-              ? "प्रिंट ऑर्डर व लाइव कतार सक्रिय है"
-              : "Accepting print orders · Live queue active"}
+              ? "आज 5:00 PM तक खुला है"
+              : "Open today until 5:00 PM"}
           </span>
           <span className="home-shop-status-loc">{getTranslation(language, "home_campus_building")}</span>
         </div>
@@ -3431,7 +3431,7 @@ function Checkout({
 
       <div className="bill-shop-notice">
         <span className="bill-shop-dot" />
-        <span>{language === "gu" ? "કેમ્પસ સેન્ટ્રલ શોપ · ખુલ્લી (8:00 AM – 11:00 PM · 24/7 ઓનલાઇન)" : language === "hi" ? "कैंपस सेंट्रल शॉप · खुली (8:00 AM – 11:00 PM · 24/7 ऑनलाइन)" : "Campus Central Shop · Open (8:00 AM – 11:00 PM · 24/7 Online)"}</span>
+        <span>{language === "gu" ? "કેમ્પસ સેન્ટ્રલ શોપ · ખુલ્લી 9:30 AM – 5:00 PM (સોમ–શુક્ર)" : language === "hi" ? "कैंपस सेंट्रल शॉप · खुली 9:30 AM – 5:00 PM (सोम–शुक्र)" : "Campus Central Shop · Open 9:30 AM – 5:00 PM (Mon–Fri)"}</span>
       </div>
 
       {/* 1. Payment Method Selector (Top) */}
@@ -4462,7 +4462,7 @@ function Help({ go }: { go: (screen: Screen) => void }) {
       </section>
       <section className="support-card">
         <Asset name="fa4b6.svg" />
-        <div><b>Campus Print Shop</b><p>Campus Central Building</p><small>Open Daily, 8:00 AM–11:00 PM (24/7 Online Queue)</small></div>
+        <div><b>Campus Print Shop</b><p>Campus Central Building</p><small>Open Monday–Friday, 9:30 AM–5:00 PM</small></div>
       </section>
     </main>
   );
