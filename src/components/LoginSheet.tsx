@@ -8,7 +8,6 @@ import {
   verifyOtp,
 } from "../services/otpService";
 import { useSmsOtpAutoFill } from "../hooks/useSmsOtpAutoFill";
-import { MobileLoginIllustration } from "./AppIllustrations";
 
 const emptyOtp = () => Array.from({ length: OTP_LENGTH }, () => "");
 
@@ -305,7 +304,6 @@ export default function LoginSheet({ summary, onClose, onPaymentContinue }: { su
           <button type="button" className="login-sheet-primary" onClick={continueRemembered}>Continue</button>
           <button type="button" className="login-sheet-text-link" onClick={chooseAnother}>Not you? Use another number</button>
         </> : step === "details" ? <>
-          <MobileLoginIllustration />
           <h2 id="login-sheet-title">Almost done</h2>
           <div className="login-sheet-summary">
             <strong title={summary.fileName}>{summary.fileName}</strong>

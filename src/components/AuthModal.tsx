@@ -9,7 +9,6 @@ import {
   verifyOtp,
 } from "../services/otpService";
 import { useSmsOtpAutoFill } from "../hooks/useSmsOtpAutoFill";
-import { MobileLoginIllustration } from "./AppIllustrations";
 
 const emptyOtp = () => Array.from({ length: OTP_LENGTH }, () => "");
 
@@ -748,7 +747,6 @@ export default function AuthModal({
         {(authMode === "name_and_phone" || authMode === "phone_prompt" || authMode === "direct_phone") && (
           <form className="auth-flow-content" onSubmit={handleSendOtp}>
             <div className="auth-hero-copy">
-              <MobileLoginIllustration />
               <h2 id="auth-modal-title" className="auth-title">Register &amp; Sign In</h2>
               <p className="auth-subtitle">
                 Enter your full name and 10-digit mobile number to sign in or register.
