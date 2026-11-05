@@ -221,7 +221,7 @@ export type TranslationDictionary = {
 export const translations: Record<SupportedLanguage, TranslationDictionary> = {
   en: {
     nav_home: "Home",
-    nav_alerts: "Alerts",
+    nav_alerts: "Notifications",
     nav_history: "History",
     nav_settings: "Settings",
 

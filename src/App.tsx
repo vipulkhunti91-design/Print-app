@@ -1847,6 +1847,9 @@ function Document({
       if (autoNavTimerRef.current !== null) window.clearTimeout(autoNavTimerRef.current);
       autoNavTimerRef.current = window.setTimeout(() => {
         setHasFile(true);
+        try {
+          window.history.pushState({ screen: "setup", hasDocument: true }, "", "?screen=setup");
+        } catch {}
         autoNavTimerRef.current = null;
       }, 450);
     }
@@ -3803,6 +3806,32 @@ function Token({
   const [customPickupTime, setCustomPickupTime] = useState<string | null>(() => {
     return (order as any)?.customPickupTime || null;
   });
+  const [shareCopied, setShareCopied] = useState(false);
+
+  const handleShareToken = async () => {
+    if (!order) return;
+    const shareText = `🎓 Campus Print Order: Token ${order.token}\n📄 File: ${order.job?.fileName || "Document"}\n⏱ Ready: ${customPickupTime || "in ~5 mins"}\n📍 Pickup: Campus Central Counter\nTrack Live: ${window.location.origin}/?screen=token`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Print Token ${order.token}`,
+          text: shareText,
+        });
+        return;
+      } catch (err) {
+        if ((err as Error)?.name === "AbortError") return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(shareText);
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 2500);
+      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+      window.open(waUrl, "_blank");
+    } catch {
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`, "_blank");
+    }
+  };
 
   useEffect(() => {
     const unsub = printQueueManager.subscribe(() => {
@@ -3982,6 +4011,42 @@ function Token({
           if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
         }}
       />
+
+      {/* Share Token Action Row */}
+      <div style={{ display: "flex", gap: 8, margin: "0 0 16px" }}>
+        <button
+          type="button"
+          onClick={handleShareToken}
+          style={{
+            width: "100%",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            padding: "11px 16px",
+            background: "rgba(167, 232, 189, 0.12)",
+            border: "1px solid rgba(167, 232, 189, 0.3)",
+            borderRadius: 14,
+            color: "var(--status-ready)",
+            fontSize: 13.5,
+            fontWeight: 700,
+            cursor: "pointer",
+            transition: "all 150ms ease",
+          }}
+          aria-label="Share token on WhatsApp or copy details"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+          </svg>
+          {shareCopied
+            ? (language === "gu" ? "ટોકન વિગતો કૉપિ થઈ ગઈ!" : language === "hi" ? "टोकन विवरण कॉपी हो गया!" : "Token Details Copied!")
+            : (language === "gu" ? "ટોકન શેર કરો (WhatsApp)" : language === "hi" ? "टोकन शेयर करें (WhatsApp)" : "Share Token with Friend")}
+        </button>
+      </div>
 
       {/* Custom Pickup Time Scheduler */}
       <CustomPickupTimeCard
@@ -4964,6 +5029,9 @@ export default function App() {
       setScreen("home");
       setIsAuthModalOpen(false);
       window.scrollTo(0, 0);
+      try {
+        window.history.pushState({ screen: "home", hasDocument: false }, "", "?screen=home");
+      } catch {}
       return;
     }
     if (next === "home") {
@@ -4979,9 +5047,38 @@ export default function App() {
         setSlideDirection(null);
       }, 260);
     }
+    try {
+      const targetHasDoc = next === "setup" || (next === "home" && hasDocument);
+      if (!window.history.state || window.history.state.screen !== next) {
+        window.history.pushState({ screen: next, hasDocument: targetHasDoc }, "", `?screen=${next}`);
+      }
+    } catch {}
     setScreen(next);
     window.scrollTo(0, 0);
-  }, [screen]);
+  }, [screen, hasDocument]);
+
+  useEffect(() => {
+    try {
+      window.history.replaceState({ screen, hasDocument }, "", window.location.search || `?screen=${screen}`);
+    } catch {}
+
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state && typeof e.state.screen === "string") {
+        const destScreen = e.state.screen as Screen;
+        const destHasDoc = Boolean(e.state.hasDocument);
+        setHasDocument(destHasDoc);
+        setScreen(destScreen);
+        window.scrollTo(0, 0);
+      } else {
+        setHasDocument(false);
+        setScreen("home");
+        window.scrollTo(0, 0);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const handleSwipeStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     if (!isMainScreen) return;
@@ -6500,7 +6597,7 @@ function PrintQNavigation({
 }) {
   const tabs: { id: NavTab; label: string }[] = [
     { id: "home", label: getTranslation(language, "nav_home") || "Home" },
-    { id: "notifications", label: getTranslation(language, "nav_alerts") || "Alerts" },
+    { id: "notifications", label: getTranslation(language, "nav_alerts") || "Notifications" },
     { id: "history", label: getTranslation(language, "nav_history") || "History" },
     { id: "settings", label: getTranslation(language, "nav_settings") || "Settings" },
   ];
