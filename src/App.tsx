@@ -1533,25 +1533,27 @@ function HomeExtras({ language = "en" }: { language?: SupportedLanguage }) {
           <div>
             <h2 className="home-shop-status-title">{getTranslation(language, "settings_shop_hours_card")}</h2>
             <p className="home-shop-status-hours">
-              {language === "gu" ? "સોમ–શુક્ર: 9:30 AM – 5:00 PM · શનિ અને રવિ: બંધ" : language === "hi" ? "सोम–शुक्र: 9:30 AM – 5:00 PM · शनि व रवि: बंद" : "Mon–Fri: 9:30 AM – 5:00 PM · Sat & Sun: Closed"}
+              {language === "gu"
+                ? "દરરોજ: 8:00 AM – 11:00 PM · 24/7 ઓનલાઇન કતાર"
+                : language === "hi"
+                ? "प्रतिदिन: 8:00 AM – 11:00 PM · 24/7 ऑनलाइन कतार"
+                : "Open Daily: 8:00 AM – 11:00 PM · 24/7 Online Queue"}
             </p>
           </div>
-          <div className={`shop-status-pill ${isOpen ? "open" : "closed"}`}>
-            <span className={`status-dot ${isOpen ? "green" : "red"}`} />
+          <div className="shop-status-pill open">
+            <span className="status-dot green" />
             <span>
-              {isOpen
-                ? (shopStatus.state === "closing-soon"
-                    ? (language === "gu" ? "ટૂંક સમયમાં બંધ થશે" : language === "hi" ? "जल्द बंद होगा" : "Closing Soon")
-                    : (language === "gu" ? "હાલ ખુલ્લું છે" : language === "hi" ? "अभी खुला है" : "Open Now"))
-                : (language === "gu" ? "બંધ છે" : language === "hi" ? "बंद है" : "Closed")}
+              {language === "gu" ? "હાલ ખુલ્લું છે" : language === "hi" ? "अभी खुला है" : "Open Now"}
             </span>
           </div>
         </div>
         <div className="home-shop-status-meta">
           <span className="home-shop-status-next">
-            {isOpen
-              ? (language === "gu" ? `આજે ${shopStatus.closingTime || "5:00 PM"} સુધી ખુલ્લું છે` : language === "hi" ? `आज ${shopStatus.closingTime || "5:00 PM"} तक खुला है` : `Open today until ${shopStatus.closingTime || "5:00 PM"}`)
-              : (language === "gu" ? "સોમવારે સવારે ૯:૩૦ વાગ્યે ખુલશે" : language === "hi" ? "सोमवार सुबह 9:30 बजे खुलेगा" : (shopStatus.nextOpeningText || "Opens Monday at 9:30 AM"))}
+            {language === "gu"
+              ? "પ્રિન્ટ ઓર્ડર અને લાઈવ કતાર સક્રિય છે"
+              : language === "hi"
+              ? "प्रिंट ऑर्डर व लाइव कतार सक्रिय है"
+              : "Accepting print orders · Live queue active"}
           </span>
           <span className="home-shop-status-loc">{getTranslation(language, "home_campus_building")}</span>
         </div>
@@ -3429,7 +3431,7 @@ function Checkout({
 
       <div className="bill-shop-notice">
         <span className="bill-shop-dot" />
-        <span>{language === "gu" ? "કેમ્પસ સેન્ટ્રલ શોપ · ખુલ્લી 9:30 AM – 5:00 PM (સોમ–શુક્ર)" : language === "hi" ? "कैंपस सेंट्रल शॉप · खुली 9:30 AM – 5:00 PM (सोम–शुक्र)" : "Campus Central Shop · Open 9:30 AM – 5:00 PM (Mon–Fri)"}</span>
+        <span>{language === "gu" ? "કેમ્પસ સેન્ટ્રલ શોપ · ખુલ્લી (8:00 AM – 11:00 PM · 24/7 ઓનલાઇન)" : language === "hi" ? "कैंपस सेंट्रल शॉप · खुली (8:00 AM – 11:00 PM · 24/7 ऑनलाइन)" : "Campus Central Shop · Open (8:00 AM – 11:00 PM · 24/7 Online)"}</span>
       </div>
 
       {/* 1. Payment Method Selector (Top) */}
@@ -4460,7 +4462,7 @@ function Help({ go }: { go: (screen: Screen) => void }) {
       </section>
       <section className="support-card">
         <Asset name="fa4b6.svg" />
-        <div><b>Campus Print Shop</b><p>Campus Central Building</p><small>Open Monday–Friday, 9:30 AM–5:00 PM</small></div>
+        <div><b>Campus Print Shop</b><p>Campus Central Building</p><small>Open Daily, 8:00 AM–11:00 PM (24/7 Online Queue)</small></div>
       </section>
     </main>
   );

@@ -1,14 +1,15 @@
 /**
  * Campus Print Shop schedule.
- * Operates Monday to Friday, 9:30 AM to 5:00 PM. Saturday & Sunday closed.
+ * Operates Daily, 24/7 Online Queue & Smart Campus Kiosk.
+ * Counter staff available Monday to Sunday, 8:00 AM to 11:00 PM.
  * Times are interpreted in the configured shop timezone.
  */
 export const shopHours = {
   timeZone: "Asia/Kolkata",
-  openWeekdays: [1, 2, 3, 4, 5] as readonly number[], // Monday through Friday (1 to 5)
-  openingTime: "09:30", // 9:30 AM
-  closingTime: "17:00", // 5:00 PM
-  closingWarningMinutes: 45,
+  openWeekdays: [0, 1, 2, 3, 4, 5, 6] as readonly number[], // All 7 days active (Sunday through Saturday)
+  openingTime: "00:00", // Online queue & printing active 24/7
+  closingTime: "23:59",
+  closingWarningMinutes: 0,
 } as const;
 
 export type ShopStatus = {
@@ -18,7 +19,6 @@ export type ShopStatus = {
   remainingMs?: number;
   nextOpeningText?: string;
 };
-
 
 const getShopTimeParts = (date: Date) => {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -44,57 +44,16 @@ const getShopTimeParts = (date: Date) => {
   };
 };
 
-const weekdayNumbers: Record<string, number> = {
-  Mon: 1,
-  Tue: 2,
-  Wed: 3,
-  Thu: 4,
-  Fri: 5,
-  Sat: 6,
-  Sun: 7,
-};
-
 export function getShopStatus(now: Date = new Date()): ShopStatus {
-  if (!shopHours.timeZone || !shopHours.closingTime || !shopHours.openingTime) {
-    return { state: "unavailable" };
-  }
-
   const parts = getShopTimeParts(now);
-  const weekday = weekdayNumbers[parts.weekday];
   const dateKey = `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
-  const [openingHour, openingMinute] = shopHours.openingTime.split(":").map(Number);
-  const [closingHour, closingMinute] = shopHours.closingTime.split(":").map(Number);
-  const currentMinutes = parts.hour * 60 + parts.minute;
-  const openingMinutes = openingHour * 60 + openingMinute;
-  const closingMinutes = closingHour * 60 + closingMinute;
-  const remainingMs = ((closingMinutes - currentMinutes) * 60 - parts.second) * 1000;
-  const clockHour = closingHour % 12 || 12;
-  const closingTime = `${clockHour}:${String(closingMinute).padStart(2, "0")} ${closingHour < 12 ? "AM" : "PM"}`;
-
-  const isWeekday = weekday >= 1 && weekday <= 5;
-  const isBeforeOpenToday = isWeekday && currentMinutes < openingMinutes;
-  const isFridayAfterClose = weekday === 5 && (currentMinutes >= closingMinutes || remainingMs <= 0);
-  const isWeekend = weekday === 6 || weekday === 7;
-
-  let nextOpeningText = "Opens Monday at 9:30 AM";
-  if (isBeforeOpenToday) {
-    nextOpeningText = "Opens today at 9:30 AM";
-  } else if (isWeekday && !isFridayAfterClose && (currentMinutes >= closingMinutes || remainingMs <= 0)) {
-    nextOpeningText = "Opens tomorrow at 9:30 AM";
-  } else if (isFridayAfterClose || isWeekend) {
-    nextOpeningText = "Opens Monday at 9:30 AM";
-  }
-
-  if (!isWeekday || currentMinutes < openingMinutes || remainingMs <= 0) {
-    return { state: "closed", dateKey, closingTime, nextOpeningText };
-  }
 
   return {
-    state: remainingMs <= shopHours.closingWarningMinutes * 60_000 ? "closing-soon" : "open",
+    state: "open",
     dateKey,
-    closingTime,
-    remainingMs,
-    nextOpeningText,
+    closingTime: "11:00 PM",
+    remainingMs: 86400000,
+    nextOpeningText: "Open Daily · 24/7 Online Queue",
   };
 }
 
