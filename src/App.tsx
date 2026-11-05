@@ -422,14 +422,14 @@ function getPricePerSheet(paperStock: string, paperSize: string, singleSided: bo
 function calculateJobPricing(job: PrintJob, uploadedFilesCount = 1) {
   const stock = normalizePaperStock(job.paperStock);
   const size = job.paper || "A4";
-  const isSingle = job.singleSided || !isDoubleSidedAvailable(stock);
+  const rawPages = Math.max(1, job.pages || 1);
+  const isSingle = job.singleSided || !isDoubleSidedAvailable(stock) || rawPages === 1;
   const isColour = Boolean(job.colour);
 
   const unitRate = getPricePerSheet(stock, size, isSingle, isColour);
   const optionCost = isColour ? 8 : 2;
   const sideCost = isSingle ? getPricePerSheet(stock, size, true, isColour) : getPricePerSheet(stock, size, false, isColour);
 
-  const rawPages = Math.max(1, job.pages || 1);
   const pagesPerSheet = Math.max(1, job.pagesPerSheet || 1);
   const printableSides = Math.ceil(rawPages / pagesPerSheet);
   const sheetsPerFile = isSingle ? printableSides : Math.ceil(printableSides / 2);
@@ -2091,14 +2091,40 @@ function Document({
   const currentPricing = calculateJobPricing({
     ...job,
     pages: effectivePagesPerSet,
-  }, uploadedFiles.length || 1);
+  }, 1);
+
+  const calculatedTotal = useMemo(() => {
+    if (uploadedFiles.length > 0) {
+      return uploadedFiles.reduce((sum, file) => {
+        const fileJob: PrintJob = {
+          ...job,
+          pages: Math.max(1, file.pages || 1),
+          ...(file.settings || {}),
+        };
+        return sum + calculateJobPricing(fileJob, 1).grandTotal;
+      }, 0);
+    }
+    return currentPricing.grandTotal;
+  }, [uploadedFiles, job, currentPricing]);
+
+  const totalSheets = useMemo(() => {
+    if (uploadedFiles.length > 0) {
+      return uploadedFiles.reduce((sum, file) => {
+        const fileJob: PrintJob = {
+          ...job,
+          pages: Math.max(1, file.pages || 1),
+          ...(file.settings || {}),
+        };
+        return sum + calculateJobPricing(fileJob, 1).totalSheets;
+      }, 0);
+    }
+    return currentPricing.totalSheets;
+  }, [uploadedFiles, job, currentPricing]);
 
   const unitPageRate = currentPricing.unitRate;
   const sidesCount = currentPricing.sheetsPerFile;
-  const totalSheets = currentPricing.totalSheets;
   const printTotal = currentPricing.printSubtotal;
   const bindingTotal = currentPricing.bindingSubtotal;
-  const calculatedTotal = currentPricing.grandTotal;
 
   const currentEstimate = calculateEstimatedReadyTime({
     pages: hasFile ? effectivePagesPerSet : 0,
@@ -3014,7 +3040,7 @@ function Document({
 
             <div className="settings-summary-total">
               <span>{getTranslation(language, "total_price")}</span>
-              <strong>₹{currentPricing.grandTotal.toFixed(2)}</strong>
+              <strong>₹{calculatedTotal.toFixed(2)}</strong>
             </div>
 
             <span className="settings-summary-note">
@@ -3398,6 +3424,7 @@ function Checkout({
           </svg>
         </button>
         <h1 className="bill-header-title">{getTranslation(language, "checkout_title")}</h1>
+        <span className="bill-step-badge">Step 4 of 4</span>
       </div>
 
       <div className="bill-shop-notice">
@@ -3607,8 +3634,12 @@ function Checkout({
         </div>
       )}
 
-      {/* Fixed Sticky Bottom Pay Bar */}
+      {/* Fixed Sticky Bottom Pay Bar (Figma Node 794:3400) */}
       <div className="bill-fixed-bottom-bar" role="region" aria-label="Order payment action">
+        <div className="bill-bottom-total-col">
+          <span className="bill-bottom-total-lbl">{language === "gu" ? "કુલ રકમ" : language === "hi" ? "कुल राशि" : "Total Price"}</span>
+          <strong className="bill-bottom-total-val">₹{grandTotal.toFixed(2)}</strong>
+        </div>
         <button
           type="button"
           className="bill-pay-btn"
@@ -3618,12 +3649,12 @@ function Checkout({
           {paymentState === "processing" ? (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
               <span style={{ width: 16, height: 16, border: "2px solid rgba(10,10,10,0.3)", borderTopColor: "#0A0A0A", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-              {payment === "UPI" ? "Processing UPI…" : "Generating Token…"}
+              <span>{payment === "UPI" ? "Processing UPI…" : "Generating Token…"}</span>
             </span>
           ) : (
             payment === "UPI"
-              ? (language === "gu" ? `₹${grandTotal.toFixed(2)} ચૂકવો અને ઓર્ડર આપો` : language === "hi" ? `₹${grandTotal.toFixed(2)} भुगतान करें और ऑर्डर दें` : `Pay ₹${grandTotal.toFixed(2)} & Place Order`)
-              : (language === "gu" ? "ઓર્ડર પુષ્ટિ કરો (કાઉન્ટર પર ચૂકવો)" : language === "hi" ? "ऑर्डर पुष्टि करें (काउंटर पर भुगतान करें)" : "Confirm & Pay at Counter")
+              ? (language === "gu" ? "ઓર્ડર અને પેમેન્ટ →" : language === "hi" ? "ऑर्डर और भुगतान करें →" : "Confirm & Pay →")
+              : (language === "gu" ? "ઓર્ડર પુષ્ટિ કરો →" : language === "hi" ? "ऑर्डर पुष्टि करें →" : "Confirm Order →")
           )}
         </button>
       </div>
