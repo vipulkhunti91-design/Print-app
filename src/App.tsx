@@ -4759,6 +4759,39 @@ export default function App() {
     return unsub;
   }, []);
   const [headerPanel, setHeaderPanel] = useState<"search" | "notifications" | null>(null);
+  const [dynamicContent, setDynamicContent] = useState(() => securityEngine.getDynamicContent());
+
+  useEffect(() => {
+    const handleContentUpdate = (e: any) => {
+      if (e?.detail) setDynamicContent(e.detail);
+      else setDynamicContent(securityEngine.getDynamicContent());
+    };
+    window.addEventListener("printq:contentUpdated", handleContentUpdate);
+    return () => window.removeEventListener("printq:contentUpdated", handleContentUpdate);
+  }, []);
+
+  useEffect(() => {
+    const handleNotifReceived = () => {
+      const userNotifs = securityEngine.getNotificationsForCurrentUser();
+      if (userNotifs && userNotifs.length > 0) {
+        setNotificationItems(
+          userNotifs.map((n) => ({
+            id: n.id,
+            type: n.type as any,
+            title: n.title,
+            message: n.message,
+            timestamp: n.timestamp,
+            read: n.read,
+            orderToken: n.orderToken,
+            recordId: n.recordId,
+            iconType: (n.iconType || "bell") as any,
+          }))
+        );
+      }
+    };
+    window.addEventListener("printq:notificationReceived", handleNotifReceived);
+    return () => window.removeEventListener("printq:notificationReceived", handleNotifReceived);
+  }, []);
   const [authSession, setAuthSession] = useState<AuthUser | null>(() => readStoredAuthSession());
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
@@ -6676,6 +6709,80 @@ export default function App() {
                 <span style={{ color: "var(--text-secondary)", fontSize: 11.5, lineHeight: 1.4, display: "block" }}>
                   {queuePauseState.reason || "The campus print desk is temporarily paused for servicing or paper refilling. Please check back shortly."}
                 </span>
+              </div>
+            </div>
+          )}
+
+          {/* Dynamic Admin Announcement Banner (Feature 2: Content Control) */}
+          {dynamicContent.announcementBanner.enabled && (
+            <div
+              className="home-dynamic-announcement-banner"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "10px 14px",
+                borderRadius: 12,
+                background:
+                  dynamicContent.announcementBanner.type === "offer"
+                    ? "rgba(244, 215, 121, 0.12)"
+                    : dynamicContent.announcementBanner.type === "alert"
+                    ? "rgba(251, 146, 60, 0.14)"
+                    : dynamicContent.announcementBanner.type === "maintenance"
+                    ? "rgba(248, 113, 113, 0.14)"
+                    : "rgba(143, 163, 255, 0.12)",
+                border:
+                  dynamicContent.announcementBanner.type === "offer"
+                    ? "1px solid var(--accent)"
+                    : dynamicContent.announcementBanner.type === "alert"
+                    ? "1px solid var(--status-pending)"
+                    : dynamicContent.announcementBanner.type === "maintenance"
+                    ? "1px solid var(--error)"
+                    : "1px solid var(--border)",
+                margin: "0 0 14px",
+              }}
+            >
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <span style={{ fontSize: 18 }}>
+                  {dynamicContent.announcementBanner.type === "offer"
+                    ? "🎁"
+                    : dynamicContent.announcementBanner.type === "alert"
+                    ? "⚡"
+                    : dynamicContent.announcementBanner.type === "maintenance"
+                    ? "🛠"
+                    : "📢"}
+                </span>
+                <div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    {dynamicContent.announcementBanner.badgeText && (
+                      <span
+                        style={{
+                          fontSize: 9.5,
+                          fontWeight: 800,
+                          padding: "1px 5px",
+                          borderRadius: 4,
+                          background:
+                            dynamicContent.announcementBanner.type === "offer"
+                              ? "var(--accent)"
+                              : "var(--surface-raised)",
+                          color:
+                            dynamicContent.announcementBanner.type === "offer"
+                              ? "var(--on-accent)"
+                              : "var(--text)",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {dynamicContent.announcementBanner.badgeText}
+                      </span>
+                    )}
+                    <strong style={{ fontSize: 12.5, color: "var(--text)" }}>
+                      {dynamicContent.announcementBanner.title}
+                    </strong>
+                  </div>
+                  <span style={{ fontSize: 11.5, color: "var(--text-secondary)", lineHeight: 1.3, display: "block" }}>
+                    {dynamicContent.announcementBanner.message}
+                  </span>
+                </div>
               </div>
             </div>
           )}

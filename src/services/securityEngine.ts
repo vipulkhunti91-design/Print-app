@@ -20,6 +20,9 @@ export interface FirebaseUserProfile {
   lastLoginAt: number;
   role: "user" | "admin";
   isActive: boolean;
+  isBlocked?: boolean;
+  blockedReason?: string;
+  blockedAt?: number;
 }
 
 export interface FirebaseOrderRecord {
@@ -27,9 +30,15 @@ export interface FirebaseOrderRecord {
   userId: string; // Firebase UID of owner
   userEmail: string;
   userName: string;
+  userPhone?: string;
   token: string;
   status: "confirmed" | "queued" | "printing" | "ready" | "completed" | "cancelled" | "delayed";
   delayReason?: string;
+  paymentMode?: "online" | "cash";
+  paymentMethod?: "UPI" | "Cash" | string;
+  paymentStatus?: "paid" | "pending_cash" | "failed" | "refunded" | "unpaid" | string;
+  refundReason?: string;
+  refundedAt?: number;
   job: {
     fileName: string;
     pages: number;
@@ -46,6 +55,75 @@ export interface FirebaseOrderRecord {
   totalAmount: number;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface AdminTransactionRecord {
+  id: string;
+  orderId: string;
+  orderToken: string;
+  userId: string;
+  userName: string;
+  userPhone: string;
+  amount: number;
+  paymentMode: "online" | "cash";
+  paymentMethod: "UPI" | "Cash" | string;
+  paymentStatus: "paid" | "pending_cash" | "failed" | "refunded";
+  timestamp: number;
+  referenceId: string;
+  refundReason?: string;
+  refundedAt?: number;
+  fileName?: string;
+  pages?: number;
+}
+
+export interface AppBannerContent {
+  enabled: boolean;
+  title: string;
+  message: string;
+  type: "info" | "offer" | "alert" | "urgent" | "maintenance";
+  badgeText?: string;
+  actionLabel?: string;
+}
+
+export interface ServiceListingItem {
+  id: string;
+  title: string;
+  description: string;
+  priceTag: string;
+  category: "print" | "binding" | "special";
+  active: boolean;
+}
+
+export interface PromoOfferItem {
+  id: string;
+  code: string;
+  discountType: "percentage" | "flat";
+  discountValue: number;
+  minOrder: number;
+  active: boolean;
+  description: string;
+}
+
+export interface DynamicAppContent {
+  announcementBanner: AppBannerContent;
+  shopNotice: string;
+  services: ServiceListingItem[];
+  promos: PromoOfferItem[];
+  lastUpdated: number;
+  updatedBy: string;
+}
+
+export interface AdminBroadcastRecord {
+  id: string;
+  title: string;
+  message: string;
+  category: "announcement" | "offer" | "alert" | "maintenance";
+  targetAudience: "all" | "active" | string;
+  targetAudienceLabel: string;
+  sentAt: number;
+  sentBy: string;
+  recipientCount: number;
+  priority: "normal" | "high" | "urgent";
 }
 
 export interface FirebaseNotificationRecord {
@@ -93,13 +171,20 @@ export interface AdminAuditLogEntry {
     | "ORDER_CANCELLED"
     | "USER_SUSPENDED"
     | "USER_ACTIVATED"
+    | "USER_BLOCKED"
+    | "USER_UNBLOCKED"
+    | "USER_VERIFIED"
     | "SHOP_STATUS_OVERRIDE"
     | "RATES_OVERRIDE"
     | "EMERGENCY_QUEUE_PAUSED"
     | "QUEUE_PAUSED"
     | "QUEUE_RESUMED"
     | "PRINTER_STATE_OVERRIDE"
-    | "USER_CREATED_BY_ADMIN";
+    | "USER_CREATED_BY_ADMIN"
+    | "CONTENT_UPDATED"
+    | "CASH_COLLECTED"
+    | "PAYMENT_REFUNDED"
+    | "BROADCAST_SENT";
   targetId?: string;
   details: string;
   clientIpHash: string;
@@ -131,6 +216,36 @@ const DB_ADMIN_ROLES_KEY = "printq_db_admin_roles";
 const ACTIVE_ADMIN_TOKEN_KEY = "printq_active_admin_token";
 const QUEUE_PAUSED_STORAGE_KEY = "printq_queue_paused";
 const PRINTER_STATE_STORAGE_KEY = "printq_printer_state";
+const DYNAMIC_CONTENT_KEY = "printq_dynamic_content";
+const ADMIN_BROADCASTS_KEY = "printq_admin_broadcasts";
+const TRANSACTION_OVERRIDES_KEY = "printq_transaction_overrides";
+
+export const DEFAULT_DYNAMIC_CONTENT: DynamicAppContent = {
+  announcementBanner: {
+    enabled: true,
+    title: "⚡ Campus Express Printing Active",
+    message: "Counter A-2 operating normally. Orders ready for collection within 15 mins!",
+    type: "info",
+    badgeText: "CAMPUS LIVE",
+    actionLabel: "View Live Queue",
+  },
+  shopNotice: "Standard hours: Mon–Fri 9:30 AM to 5:00 PM. Please collect your prints before counter closing.",
+  services: [
+    { id: "srv_bw", title: "Standard B&W Print", description: "Crisp black & white laser printing on 75 GSM paper", priceTag: "₹2.00 / page", category: "print", active: true },
+    { id: "srv_color", title: "Color Laser Print", description: "Vibrant high-resolution full colour diagrams & presentations", priceTag: "₹8.00 / page", category: "print", active: true },
+    { id: "srv_spiral", title: "Spiral Binding", description: "Transparent front & heavy back card binding up to 250 sheets", priceTag: "₹25.00 / set", category: "binding", active: true },
+    { id: "srv_staple", title: "Corner Staple", description: "Heavy duty neat metal staple on top left corner", priceTag: "Free", category: "binding", active: true },
+    { id: "srv_glossy", title: "Glossy Photo Sheet (200 GSM)", description: "High-gloss photographic finish for certificates & posters", priceTag: "+₹6.00 / page", category: "special", active: true },
+    { id: "srv_bond", title: "Executive Bond (85 GSM)", description: "Premium textured royal bond paper for resumes & official letters", priceTag: "+₹1.50 / page", category: "special", active: true },
+  ],
+  promos: [
+    { id: "prm_exam", code: "EXAM20", discountType: "percentage", discountValue: 20, minOrder: 50, active: true, description: "20% off on all Thesis & project prints above ₹50" },
+    { id: "prm_welcome", code: "WELCOME5", discountType: "flat", discountValue: 5, minOrder: 20, active: true, description: "Flat ₹5 off on your first order above ₹20" },
+    { id: "prm_bulk", code: "BULK50", discountType: "percentage", discountValue: 15, minOrder: 100, active: true, description: "15% off bulk class notes above ₹100" },
+  ],
+  lastUpdated: Date.now(),
+  updatedBy: "Vipul (Master Admin)",
+};
 
 // Pre-provisioned Admin email accounts (enforced in admin_roles, not by hardcoded frontend toggles)
 const PROVISIONED_ADMINS: Array<{ uid: string; email: string }> = [
@@ -317,6 +432,12 @@ class SecurityEngine {
         isActive: true,
       };
     } else {
+      if (existing.isBlocked) {
+        throw new Error(`Account Blocked: ${existing.blockedReason || "Your account has been blocked by campus administration. Please contact Counter A-2."}`);
+      }
+      if (existing.isActive === false) {
+        throw new Error("Account Inactive: Your account has been temporarily suspended by campus administration.");
+      }
       // Returning user: verify email matches to prevent impersonation
       if (existing.email.toLowerCase() !== googleUser.email.toLowerCase()) {
         throw new Error("Security Alert: Email mismatch detected. Profile impersonation is prohibited.");
@@ -367,6 +488,12 @@ class SecurityEngine {
         isActive: true,
       };
     } else {
+      if (existing.isBlocked) {
+        throw new Error(`Account Blocked: ${existing.blockedReason || "Your account has been blocked by campus administration. Please contact Counter A-2."}`);
+      }
+      if (existing.isActive === false) {
+        throw new Error("Account Inactive: Your account has been temporarily suspended by campus administration.");
+      }
       existing.lastLoginAt = now;
       if (name.trim()) existing.displayName = name.trim();
       existing.phoneVerified = true;
@@ -523,10 +650,16 @@ class SecurityEngine {
 
     const orderId = `ord_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const now = Date.now();
+    const user = this.activeUid ? this.getAllUsersMap()[this.activeUid] : null;
+    const isCash = (orderData as any).paymentMethod === "Cash" || (orderData as any).paymentMode === "cash";
     const newOrder: FirebaseOrderRecord = {
       ...orderData,
       id: orderId,
       userId: this.activeUid || "guest", // enforce current UID
+      userPhone: orderData.userPhone || user?.phoneNumber || "",
+      paymentMode: orderData.paymentMode || (isCash ? "cash" : "online"),
+      paymentMethod: orderData.paymentMethod || (isCash ? "Cash" : "UPI"),
+      paymentStatus: orderData.paymentStatus || (isCash ? "pending_cash" : "paid"),
       createdAt: now,
       updatedAt: now,
     };
@@ -1058,6 +1191,454 @@ class SecurityEngine {
       targetId: targetUid,
       details: `User account ${target.email} (${targetUid}) was ${isActive ? "activated" : "suspended"}.`,
     });
+  }
+
+  /**
+   * Privileged: Admin blocks or unblocks a student account with explicit reason.
+   */
+  public setUserBlockStatusAsAdmin(targetUid: string, isBlocked: boolean, reason?: string): void {
+    if (!this.hasVerifiedAdminSession()) {
+      throw new Error("Security Violation: Administrator authorization token required.");
+    }
+
+    const users = this.getAllUsersMap();
+    const target = users[targetUid];
+    if (!target) throw new Error("Target user not found.");
+
+    target.isBlocked = isBlocked;
+    if (isBlocked) {
+      target.isActive = false;
+      target.blockedReason = reason || "Account blocked by campus administration";
+      target.blockedAt = Date.now();
+    } else {
+      target.isActive = true;
+      target.blockedReason = undefined;
+      target.blockedAt = undefined;
+    }
+
+    users[targetUid] = target;
+    this.saveUsersMap(users);
+
+    this.appendAuditLog({
+      action: isBlocked ? "USER_BLOCKED" : "USER_UNBLOCKED",
+      targetId: targetUid,
+      details: isBlocked
+        ? `Blocked user ${target.displayName} (${target.phoneNumber || target.email}). Reason: ${reason || "N/A"}`
+        : `Unblocked user ${target.displayName} (${target.phoneNumber || target.email}). Account restored to Active.`,
+    });
+  }
+
+  /**
+   * Privileged: Admin manually sets verification status for walk-in or offline users.
+   */
+  public verifyUserPhoneAsAdmin(targetUid: string, phoneVerified: boolean): void {
+    if (!this.hasVerifiedAdminSession()) {
+      throw new Error("Security Violation: Administrator authorization token required.");
+    }
+
+    const users = this.getAllUsersMap();
+    const target = users[targetUid];
+    if (!target) throw new Error("Target user not found.");
+
+    target.phoneVerified = phoneVerified;
+    users[targetUid] = target;
+    this.saveUsersMap(users);
+
+    this.appendAuditLog({
+      action: "USER_VERIFIED",
+      targetId: targetUid,
+      details: `Admin manually set phone verification for ${target.displayName} to ${phoneVerified ? "VERIFIED" : "UNVERIFIED"}.`,
+    });
+  }
+
+  /**
+   * Content Control: Get active app banners, notices, service listings & promo offers.
+   */
+  public getDynamicContent(): DynamicAppContent {
+    try {
+      const saved = window.localStorage.getItem(DYNAMIC_CONTENT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...DEFAULT_DYNAMIC_CONTENT,
+          ...parsed,
+          announcementBanner: {
+            ...DEFAULT_DYNAMIC_CONTENT.announcementBanner,
+            ...(parsed.announcementBanner || {}),
+          },
+        };
+      }
+    } catch {}
+    return DEFAULT_DYNAMIC_CONTENT;
+  }
+
+  /**
+   * Content Control: Admin updates app banners, services, listings without app rebuild.
+   */
+  public saveDynamicContentAsAdmin(content: DynamicAppContent): void {
+    if (!this.hasVerifiedAdminSession()) {
+      throw new Error("Security Violation: Administrator authorization token required.");
+    }
+
+    const updated: DynamicAppContent = {
+      ...content,
+      lastUpdated: Date.now(),
+      updatedBy: "Vipul (Master Admin)",
+    };
+
+    try {
+      window.localStorage.setItem(DYNAMIC_CONTENT_KEY, JSON.stringify(updated));
+    } catch {}
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("printq:contentUpdated", { detail: updated }));
+    }
+
+    this.appendAuditLog({
+      action: "CONTENT_UPDATED",
+      details: `Updated app banners and content controls (Banner: ${updated.announcementBanner.enabled ? "Active" : "Disabled"}, Services: ${updated.services.length}, Promos: ${updated.promos.length}).`,
+    });
+  }
+
+  /**
+   * Payments & Transactions: Retrieve full transactions ledger across all orders.
+   */
+  public getAllTransactionsAsAdmin(): AdminTransactionRecord[] {
+    if (!this.hasVerifiedAdminSession()) {
+      throw new Error("Security Violation: Administrator authorization token required.");
+    }
+
+    const orders = this.getAllOrdersList();
+    const users = this.getAllUsersMap();
+
+    return orders.map((o) => {
+      const user = users[o.userId];
+      const isCash = o.paymentMode === "cash" || o.paymentMethod === "Cash";
+      const status: AdminTransactionRecord["paymentStatus"] =
+        o.paymentStatus === "refunded"
+          ? "refunded"
+          : o.paymentStatus === "failed" || o.status === "cancelled"
+          ? (o.paymentStatus === "paid" ? "refunded" : "failed")
+          : o.paymentStatus === "paid" || o.status === "completed"
+          ? "paid"
+          : isCash
+          ? "pending_cash"
+          : "paid";
+
+      const refId = (o as any).transactionReference || `TXN-${(o.createdAt || Date.now()).toString().slice(-6)}-${o.token}`;
+
+      return {
+        id: `tx_${o.id}`,
+        orderId: o.id,
+        orderToken: o.token,
+        userId: o.userId,
+        userName: o.userName || user?.displayName || "Campus Student",
+        userPhone: o.userPhone || user?.phoneNumber || "Unlisted",
+        amount: o.totalAmount || 0,
+        paymentMode: isCash ? "cash" : "online",
+        paymentMethod: isCash ? "Cash" : "UPI",
+        paymentStatus: status,
+        timestamp: o.createdAt || Date.now(),
+        referenceId: refId,
+        refundReason: o.refundReason,
+        refundedAt: o.refundedAt,
+        fileName: o.job?.fileName,
+        pages: o.job?.pages,
+      };
+    });
+  }
+
+  /**
+   * Payments: Admin marks counter cash as received.
+   */
+  public markCashCollectedAsAdmin(targetId: string): void {
+    if (!this.hasVerifiedAdminSession()) {
+      throw new Error("Security Violation: Administrator authorization token required.");
+    }
+
+    const cleanId = targetId.startsWith("tx_") ? targetId.replace("tx_", "") : targetId;
+    const orders = this.getAllOrdersList();
+    const order = orders.find((o) => o.id === cleanId || o.token === cleanId);
+    if (!order) throw new Error("Order transaction not found.");
+
+    order.paymentStatus = "paid";
+    order.paymentMode = "cash";
+    order.paymentMethod = "Cash";
+    order.updatedAt = Date.now();
+    this.saveOrdersList(orders);
+
+    this.appendAuditLog({
+      action: "CASH_COLLECTED",
+      targetId: order.id,
+      details: `Collected ₹${order.totalAmount.toFixed(2)} cash at counter for Order #${order.token} (${order.userName}).`,
+    });
+
+    this.createNotification({
+      userId: order.userId,
+      type: "payment_receipt",
+      title: "Cash Payment Received",
+      message: `Counter receipt confirmed: ₹${order.totalAmount.toFixed(2)} received in cash for Order #${order.token}.`,
+      orderToken: order.token,
+      recordId: order.id,
+      iconType: "payment",
+    });
+  }
+
+  /**
+   * Payments: Admin issues refund with reason.
+   */
+  public issueRefundAsAdmin(targetId: string, reason: string): void {
+    if (!this.hasVerifiedAdminSession()) {
+      throw new Error("Security Violation: Administrator authorization token required.");
+    }
+
+    const cleanId = targetId.startsWith("tx_") ? targetId.replace("tx_", "") : targetId;
+    const orders = this.getAllOrdersList();
+    const order = orders.find((o) => o.id === cleanId || o.token === cleanId);
+    if (!order) throw new Error("Order transaction not found.");
+
+    order.paymentStatus = "refunded";
+    order.status = "cancelled";
+    order.refundReason = reason.trim() || "Customer refund issued by counter";
+    order.refundedAt = Date.now();
+    order.updatedAt = Date.now();
+    this.saveOrdersList(orders);
+
+    this.appendAuditLog({
+      action: "PAYMENT_REFUNDED",
+      targetId: order.id,
+      details: `Refunded ₹${order.totalAmount.toFixed(2)} for Order #${order.token}. Reason: ${order.refundReason}`,
+    });
+
+    this.createNotification({
+      userId: order.userId,
+      type: "refund_processed",
+      title: "Payment Refund Processed",
+      message: `Refund of ₹${order.totalAmount.toFixed(2)} processed for Order #${order.token}. Reason: ${order.refundReason}.`,
+      orderToken: order.token,
+      recordId: order.id,
+      iconType: "warning",
+    });
+  }
+
+  /**
+   * Notifications: Retrieve broadcast announcement history.
+   */
+  public getBroadcastHistory(): AdminBroadcastRecord[] {
+    try {
+      const saved = window.localStorage.getItem(ADMIN_BROADCASTS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+
+    return [
+      {
+        id: "bc_initial_demo",
+        title: "Welcome to Campus Central Printing!",
+        message: "Upload up to 5 documents simultaneously and track your pickup queue live in real time.",
+        category: "announcement",
+        targetAudience: "all",
+        targetAudienceLabel: "All Registered Users",
+        sentAt: Date.now() - 86400000,
+        sentBy: "Vipul (Master Admin)",
+        recipientCount: 5,
+        priority: "normal",
+      },
+    ];
+  }
+
+  /**
+   * Notifications: Admin sends push broadcast notification directly to students.
+   */
+  public sendBroadcastAsAdmin(params: {
+    title: string;
+    message: string;
+    category: "announcement" | "offer" | "alert" | "maintenance";
+    targetAudience: "all" | "active" | string;
+    priority?: "normal" | "high" | "urgent";
+  }): AdminBroadcastRecord {
+    if (!this.hasVerifiedAdminSession()) {
+      throw new Error("Security Violation: Administrator authorization token required.");
+    }
+
+    const cleanTitle = params.title.trim();
+    const cleanMessage = params.message.trim();
+    if (!cleanTitle || !cleanMessage) {
+      throw new Error("Broadcast title and message cannot be empty.");
+    }
+
+    const usersMap = this.getAllUsersMap();
+    const users = Object.values(usersMap);
+
+    let recipients: FirebaseUserProfile[] = [];
+    let targetLabel = "All Registered Users";
+
+    if (params.targetAudience === "all") {
+      recipients = users;
+      targetLabel = `All Registered Users (${users.length})`;
+    } else if (params.targetAudience === "active") {
+      recipients = users.filter((u) => u.isActive !== false && !u.isBlocked);
+      targetLabel = `Active Users Only (${recipients.length})`;
+    } else {
+      const specific = usersMap[params.targetAudience];
+      if (specific) {
+        recipients = [specific];
+        targetLabel = `${specific.displayName} (+91 ${specific.phoneNumber?.replace(/\D/g, "").slice(-10) || "user"})`;
+      } else {
+        recipients = users;
+      }
+    }
+
+    const now = Date.now();
+    const recordId = `bc_${now}_${Math.random().toString(36).slice(2, 7)}`;
+
+    recipients.forEach((u) => {
+      this.createNotification({
+        userId: u.uid,
+        type: params.category,
+        title: cleanTitle,
+        message: cleanMessage,
+        iconType: params.category === "offer" ? "gift" : params.category === "alert" ? "warning" : "bell",
+      });
+    });
+
+    try {
+      const notifKey = "printq-notifications-v2";
+      const existingNotifs = JSON.parse(window.localStorage.getItem(notifKey) || "[]");
+      const newNotifItem = {
+        id: `notif_${recordId}`,
+        type: params.category,
+        title: cleanTitle,
+        message: cleanMessage,
+        timestamp: new Date(now).toISOString(),
+        read: false,
+        iconType: params.category === "offer" ? "gift" : params.category === "alert" ? "warning" : "bell",
+      };
+      window.localStorage.setItem(notifKey, JSON.stringify([newNotifItem, ...existingNotifs]));
+    } catch {}
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("printq:notificationReceived", {
+          detail: { title: cleanTitle, message: cleanMessage, category: params.category },
+        })
+      );
+    }
+
+    const broadcastRecord: AdminBroadcastRecord = {
+      id: recordId,
+      title: cleanTitle,
+      message: cleanMessage,
+      category: params.category,
+      targetAudience: params.targetAudience,
+      targetAudienceLabel: targetLabel,
+      sentAt: now,
+      sentBy: "Vipul (Master Admin)",
+      recipientCount: recipients.length,
+      priority: params.priority || "normal",
+    };
+
+    const history = this.getBroadcastHistory();
+    history.unshift(broadcastRecord);
+    try {
+      window.localStorage.setItem(ADMIN_BROADCASTS_KEY, JSON.stringify(history));
+    } catch {}
+
+    this.appendAuditLog({
+      action: "BROADCAST_SENT",
+      targetId: recordId,
+      details: `Broadcast sent to ${targetLabel}: "${cleanTitle}" (${params.category.toUpperCase()})`,
+    });
+
+    return broadcastRecord;
+  }
+
+  /**
+   * Notifications: Admin deletes a broadcast entry.
+   */
+  public deleteBroadcastAsAdmin(broadcastId: string): void {
+    if (!this.hasVerifiedAdminSession()) {
+      throw new Error("Security Violation: Administrator authorization token required.");
+    }
+    const history = this.getBroadcastHistory().filter((b) => b.id !== broadcastId);
+    try {
+      window.localStorage.setItem(ADMIN_BROADCASTS_KEY, JSON.stringify(history));
+    } catch {}
+  }
+
+  /**
+   * Reports & Analytics: Generates clean, downloadable CSV data of orders & payments.
+   */
+  public generateBusinessReportCsv(timeRange: "today" | "week" | "month" | "all"): string {
+    const orders = this.getAllOrdersList();
+    const users = this.getAllUsersMap();
+    const now = Date.now();
+    let cutoff = 0;
+
+    if (timeRange === "today") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      cutoff = today.getTime();
+    } else if (timeRange === "week") {
+      cutoff = now - 7 * 24 * 60 * 60 * 1000;
+    } else if (timeRange === "month") {
+      cutoff = now - 30 * 24 * 60 * 60 * 1000;
+    }
+
+    const filtered = orders.filter((o) => (o.createdAt || now) >= cutoff);
+
+    const headers = [
+      "Order Token",
+      "Transaction ID",
+      "Date & Time",
+      "Customer Name",
+      "Customer Phone",
+      "File Name",
+      "Pages",
+      "Copies",
+      "Colour / BW",
+      "Paper Stock",
+      "Total Amount (INR)",
+      "Payment Method",
+      "Payment Status",
+      "Order Status",
+      "Refund Reason",
+    ];
+
+    const escapeCsv = (str: string | number | undefined | null) => {
+      if (str === undefined || str === null) return '""';
+      const s = String(str).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+
+    const rows = filtered.map((o) => {
+      const user = users[o.userId];
+      const isCash = o.paymentMode === "cash" || o.paymentMethod === "Cash";
+      const txId = (o as any).transactionReference || `TXN-${(o.createdAt || now).toString().slice(-6)}-${o.token}`;
+      const dt = new Date(o.createdAt || now).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+
+      return [
+        escapeCsv(o.token),
+        escapeCsv(txId),
+        escapeCsv(dt),
+        escapeCsv(o.userName || user?.displayName || "Student"),
+        escapeCsv(o.userPhone || user?.phoneNumber || "N/A"),
+        escapeCsv(o.job?.fileName || "Document"),
+        escapeCsv(o.job?.pages || 1),
+        escapeCsv(o.job?.copies || 1),
+        escapeCsv(o.job?.colour ? "Colour" : "Black & White"),
+        escapeCsv(o.job?.paperStock || o.job?.paper || "Standard 75 GSM"),
+        escapeCsv((o.totalAmount || 0).toFixed(2)),
+        escapeCsv(isCash ? "Cash at Counter" : "UPI Online"),
+        escapeCsv(o.paymentStatus || (isCash ? "pending_cash" : "paid")),
+        escapeCsv(o.status),
+        escapeCsv(o.refundReason || ""),
+      ].join(",");
+    });
+
+    return [headers.join(","), ...rows].join("\n");
   }
 
   /**
