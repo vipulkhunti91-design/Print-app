@@ -4,15 +4,13 @@ import type { ActiveOrder } from "../data/demoData";
 
 interface HomeQueueStatusProps {
   language: SupportedLanguage;
-  go: (screen: any) => void;
-  activeOrder: ActiveOrder | null;
+  go?: (screen: any) => void;
+  activeOrder?: ActiveOrder | null;
   nowServing: { token: string; status: string; fileName?: string } | null;
 }
 
 export function HomeQueueStatus({
   language,
-  go,
-  activeOrder,
   nowServing,
 }: HomeQueueStatusProps) {
   // Always display one active token number only, without extra print details
@@ -76,37 +74,21 @@ export function HomeQueueStatus({
           </div>
         </div>
 
-        {activeOrder ? (
-          <button
-            type="button"
-            onClick={() => go("token")}
-            style={{
-              background: "rgba(167, 232, 189, 0.12)",
-              border: "1px solid rgba(167, 232, 189, 0.3)",
-              borderRadius: 10,
-              padding: "6px 10px",
-              minHeight: 44,
-              display: "inline-flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              flexShrink: 0,
-              textAlign: "right",
-              cursor: "pointer",
-            }}
-            aria-label="View Active Order"
-          >
-            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--status-ready)", display: "block" }}>
-              {getTranslation(language, "home_your_pickup_token")}
-            </span>
-            <strong style={{ fontSize: 14, fontWeight: 900, color: "var(--status-ready)" }}>
-              {activeOrder.token} →
-            </strong>
-          </button>
-        ) : (
-          <span style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "right", flexShrink: 0 }}>
-            Campus Counter A-2
-          </span>
-        )}
+        <span
+          style={{
+            fontSize: 11.5,
+            fontWeight: 600,
+            color: "var(--text-secondary)",
+            background: "var(--surface-raised)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            padding: "4px 10px",
+            textAlign: "right",
+            flexShrink: 0,
+          }}
+        >
+          Campus Counter A-2
+        </span>
       </div>
     </section>
   );
