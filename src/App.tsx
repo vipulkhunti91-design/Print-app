@@ -1522,8 +1522,17 @@ function UploadIllustration() {
 }
 
 function HomeExtras({ language = "en" }: { language?: SupportedLanguage }) {
-  const shopStatus = getShopStatus();
+  const [shopStatus, setShopStatus] = useState(getShopStatus);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setShopStatus(getShopStatus());
+    }, 15000); // 15-second real-time clock check
+    return () => window.clearInterval(timer);
+  }, []);
+
   const isOpen = shopStatus.state === "open" || shopStatus.state === "closing-soon";
+  const isWarning = shopStatus.state === "closing-soon";
 
   return (
     <section className="printq-home-extras" aria-label="Print shop information">
@@ -1540,20 +1549,26 @@ function HomeExtras({ language = "en" }: { language?: SupportedLanguage }) {
                 : "Mon–Fri: 9:30 AM – 5:00 PM · Sat & Sun: Closed"}
             </p>
           </div>
-          <div className="shop-status-pill open">
-            <span className="status-dot green" />
+          <div className={`shop-status-pill ${isOpen ? (isWarning ? "warning" : "open") : "closed"}`}>
+            <span className={`status-dot ${isOpen ? (isWarning ? "yellow" : "green") : "red"}`} />
             <span>
-              {language === "gu" ? "હાલ ખુલ્લું છે" : language === "hi" ? "अभी खुला है" : "Open Now"}
+              {isOpen
+                ? (isWarning
+                    ? (language === "gu" ? "ટૂંક સમયમાં બંધ થશે" : language === "hi" ? "जल्द बंद होगा" : "Closing Soon")
+                    : (language === "gu" ? "હાલ ખુલ્લું છે" : language === "hi" ? "अभी खुला है" : "Open Now"))
+                : (language === "gu" ? "બંધ છે" : language === "hi" ? "बंद है" : "Closed")}
             </span>
           </div>
         </div>
         <div className="home-shop-status-meta">
           <span className="home-shop-status-next">
-            {language === "gu"
-              ? "આજે 5:00 PM સુધી ખુલ્લું છે"
-              : language === "hi"
-              ? "आज 5:00 PM तक खुला है"
-              : "Open today until 5:00 PM"}
+            {isOpen
+              ? (language === "gu" ? `આજે 5:00 PM સુધી ખુલ્લું છે` : language === "hi" ? `आज 5:00 PM तक खुला है` : `Open today until 5:00 PM`)
+              : (language === "gu"
+                  ? (shopStatus.nextOpeningText?.includes("Monday") ? "સોમવારે સવારે 9:30 વાગ્યે ખુલશે" : "આવતીકાલે સવારે 9:30 વાગ્યે ખુલશે")
+                  : language === "hi"
+                  ? (shopStatus.nextOpeningText?.includes("Monday") ? "सोमवार सुबह 9:30 बजे खुलेगा" : "कल सुबह 9:30 बजे खुलेगा")
+                  : (shopStatus.nextOpeningText || "Opens tomorrow at 9:30 AM"))}
           </span>
           <span className="home-shop-status-loc">{getTranslation(language, "home_campus_building")}</span>
         </div>
