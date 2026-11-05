@@ -3739,7 +3739,7 @@ function PaymentSuccess({
   }, [cancelTimerAndNavigate]);
 
   return (
-    <main className="page payment-success-page" style={{ padding: "24px 16px calc(24px + env(safe-area-inset-bottom, 0px))", maxWidth: 420, margin: "0 auto" }}>
+    <main className="page payment-success-page" style={{ padding: "24px 16px calc(56px + env(safe-area-inset-bottom, 24px))", maxWidth: 420, margin: "0 auto" }}>
       <section className="payment-success-card" role="status" style={{ textAlign: "center" }}>
         <PaymentCelebrationIllustration />
         <div className="success-badge-circle" aria-hidden="true">
@@ -3799,10 +3799,10 @@ function PaymentSuccess({
           </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "20px", marginBottom: "calc(20px + env(safe-area-inset-bottom, 16px))" }}>
           <button
             type="button"
-            className="bill-pay-btn"
+            className="track-home-btn"
             onClick={() => cancelTimerAndNavigate("token")}
           >
             Track Order Status →
@@ -3873,11 +3873,11 @@ function Token({
 
   if (!order) {
     return (
-      <main className="page" style={{ padding: "40px 16px", textAlign: "center", maxWidth: 420, margin: "0 auto" }}>
+      <main className="page" style={{ padding: "40px 16px calc(56px + env(safe-area-inset-bottom, 24px))", textAlign: "center", maxWidth: 420, margin: "0 auto" }}>
         <NoActiveOrderIllustration />
         <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", margin: "4px 0 6px" }}>No Active Order</h2>
         <p style={{ color: "var(--text-secondary)", margin: "0 0 20px", fontSize: 13.5 }}>You do not have an active print order right now.</p>
-        <button type="button" className="bill-pay-btn" onClick={() => go("home")}>Go to Home</button>
+        <button type="button" className="track-home-btn" onClick={() => go("home")}>Go to Home</button>
       </main>
     );
   }
@@ -4010,7 +4010,7 @@ function Token({
   ];
 
   return (
-    <main className="studio page" style={{ maxWidth: 420, margin: "0 auto", padding: "16px 16px calc(24px + env(safe-area-inset-bottom, 0px))" }}>
+    <main className="studio page" style={{ maxWidth: 420, margin: "0 auto", padding: "16px 16px calc(56px + env(safe-area-inset-bottom, 24px))" }}>
       {/* Top Header */}
       <div className="bill-header-nav" style={{ marginBottom: 14 }}>
         <button type="button" className="bill-back-button" onClick={() => go("home")} aria-label="Back to Home">
@@ -4236,12 +4236,12 @@ function Token({
       </section>
 
       {/* Actions */}
-      <div className="track-actions-bar" style={{ marginTop: 16 }}>
+      <div className="track-actions-bar" style={{ marginTop: 20, marginBottom: "calc(24px + env(safe-area-inset-bottom, 16px))" }}>
         {canCancel && !isCancelled && (
           <button
             type="button"
             className="track-action-btn"
-            style={{ color: "var(--error)", borderColor: "rgba(248, 113, 113, 0.3)" }}
+            style={{ color: "var(--error)", borderColor: "rgba(248, 113, 113, 0.35)" }}
             onClick={() => {
               if (window.confirm("Are you sure you want to cancel this print order?")) {
                 onCancelOrder();
@@ -4256,11 +4256,10 @@ function Token({
         )}
         <button
           type="button"
-          className="bill-pay-btn"
-          style={{ width: "100%" }}
+          className="track-home-btn"
           onClick={() => go("home")}
         >
-          Back to Home
+          {language === "gu" ? "હોમ પર પાછા જાઓ" : language === "hi" ? "होम पर वापस जाएं" : "Back to Home"}
         </button>
       </div>
     </main>
