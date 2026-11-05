@@ -114,6 +114,8 @@ type ActiveOrder = {
   status: "confirmed" | "queued" | "printing" | "ready" | "pickup" | "completed" | "cancelled" | "delayed";
   createdAt?: number;
   totalAmount?: number;
+  paymentMethod?: "UPI" | "Cash" | string;
+  paymentStatus?: "paid" | "unpaid" | "pending";
 };
 
 
@@ -126,11 +128,15 @@ type PrintHistoryRecord = {
   status: ActiveOrder["status"];
   isDemo?: boolean;
   createdAt?: number;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  totalAmount?: number;
 };
 
 const profileStorageKey = "phopy-profile";
 const printHistoryStorageKey = "phopy-print-history";
 const activeOrderStorageKey = "phopy-active-order";
+const activeOrdersStorageKey = "phopy-active-orders";
 const demoDataDisabledKey = "phopy-demo-data-disabled";
 const emptyProfile: ProfileDetails = { name: "", phone: "", email: "", photo: demoProfile.photo };
 const rememberedPayUserKey = "printq-remembered-pay-user";
@@ -3840,12 +3846,16 @@ function PaymentSuccess({
 function Token({
   go,
   order,
+  activeOrders = [],
+  onSelectOrder,
   onCancelOrder,
   onSetStage,
   language = "en",
 }: {
   go: (screen: Screen) => void;
   order: ActiveOrder | null;
+  activeOrders?: ActiveOrder[];
+  onSelectOrder?: (order: ActiveOrder) => void;
   onCancelOrder: () => boolean;
   onSetStage?: (status: ActiveOrder["status"]) => void;
   language?: SupportedLanguage;
@@ -4046,10 +4056,62 @@ function Token({
         </h1>
       </div>
 
+      {/* Multi-Order Switcher Bar (visible when user has 2 or more active orders) */}
+      {activeOrders.filter((o) => o && o.status !== "completed" && o.status !== "cancelled").length > 1 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 14,
+            overflowX: "auto",
+            padding: "2px 2px 6px",
+          }}
+        >
+          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>
+            {language === "gu" ? "ઓર્ડર:" : language === "hi" ? "ऑर्डर:" : "Orders:"}
+          </span>
+          {activeOrders
+            .filter((o) => o && o.status !== "completed" && o.status !== "cancelled")
+            .map((ord) => {
+              const isSelected = ord.recordId === order?.recordId || ord.token === order?.token;
+              return (
+                <button
+                  key={ord.recordId || ord.token}
+                  type="button"
+                  onClick={() => onSelectOrder?.(ord)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "6px 12px",
+                    borderRadius: 9999,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    background: isSelected ? "var(--accent)" : "var(--surface)",
+                    color: isSelected ? "#0A0A0A" : "var(--text-secondary)",
+                    border: isSelected ? "1px solid var(--accent)" : "1px solid var(--border)",
+                    transition: "all 150ms ease",
+                  }}
+                >
+                  <span>Token {ord.token}</span>
+                  {ord.job?.fileName && (
+                    <span style={{ fontSize: 10, opacity: 0.85, maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis" }}>
+                      ({ord.job.fileName.slice(0, 8)})
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+        </div>
+      )}
+
       {/* 2-in-1 Swipeable Token & Counter QR Card */}
       <UnifiedTokenSwipeCard
-        token={order.token}
-        orderRef={order.recordId}
+        token={order?.token || "D-14"}
+        orderRef={order?.recordId}
         statusText={mappedStatus === "ready" ? getTranslation(language, "stage_ready") : mappedStatus === "printing" ? getTranslation(language, "stage_printing") : mappedStatus === "completed" ? getTranslation(language, "stage_completed") : getTranslation(language, "stage_queued")}
         stageIndex={currentStageIndex}
         etaText={etaText}
@@ -4706,22 +4768,65 @@ export default function App() {
       return false;
     }
   });
-  const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(() => {
+  const [activeOrdersList, setActiveOrdersList] = useState<ActiveOrder[]>(() => {
+    try {
+      const raw = window.localStorage.getItem(activeOrdersStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const valid = parsed.filter((o) => o && o.status !== "completed" && o.status !== "cancelled");
+          if (valid.length > 0) return valid;
+        }
+      }
+    } catch {}
     const session = readStoredAuthSession();
-    if (!session) return null;
-    securityEngine.setAuthenticatedUser(session.id);
-    const userOrders = securityEngine.getOrdersForCurrentUser();
-    const active = userOrders.find((o) => o.status !== "completed" && o.status !== "cancelled");
-    if (active) {
-      return {
-        recordId: active.id,
-        token: active.token,
-        job: active.job as PrintJob,
-        status: active.status,
-        createdAt: active.createdAt,
-      };
+    if (session) {
+      securityEngine.setAuthenticatedUser(session.id);
+      const userOrders = securityEngine.getOrdersForCurrentUser();
+      const active = userOrders.filter((o) => o.status !== "completed" && o.status !== "cancelled");
+      if (active.length > 0) {
+        return active.map((o) => ({
+          recordId: o.id,
+          token: o.token,
+          job: o.job as PrintJob,
+          status: o.status,
+          createdAt: o.createdAt,
+          totalAmount: o.totalAmount,
+          paymentMethod: o.paymentMethod,
+          paymentStatus: o.paymentStatus,
+        }));
+      }
     }
-    return null;
+    return demoActiveOrder ? [demoActiveOrder as unknown as ActiveOrder] : [];
+  });
+
+  const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(() => {
+    try {
+      const raw = window.localStorage.getItem(activeOrderStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.status !== "completed" && parsed.status !== "cancelled") return parsed;
+      }
+    } catch {}
+    const session = readStoredAuthSession();
+    if (session) {
+      securityEngine.setAuthenticatedUser(session.id);
+      const userOrders = securityEngine.getOrdersForCurrentUser();
+      const active = userOrders.find((o) => o.status !== "completed" && o.status !== "cancelled");
+      if (active) {
+        return {
+          recordId: active.id,
+          token: active.token,
+          job: active.job as PrintJob,
+          status: active.status,
+          createdAt: active.createdAt,
+          totalAmount: active.totalAmount,
+          paymentMethod: active.paymentMethod,
+          paymentStatus: active.paymentStatus,
+        };
+      }
+    }
+    return demoActiveOrder as unknown as ActiveOrder;
   });
   const [profile, setProfile] = useState<ProfileDetails>(() => {
     const session = readStoredAuthSession();
@@ -4852,6 +4957,7 @@ export default function App() {
       paymentStatus: isCash ? "unpaid" : "paid",
     };
     setActiveOrder(newOrder);
+    setActiveOrdersList((prev) => [newOrder, ...prev.filter((o) => o.recordId !== newOrder.recordId)]);
     try {
       const qTotalPages = uploadedFiles.length > 0 ? uploadedFiles.reduce((sum, f) => sum + (f.pages || 1), 0) : (job.pages || 1);
       printQueueManager.addOrder({
@@ -4979,6 +5085,7 @@ export default function App() {
         setNotificationItems((items) => items.some((it) => it.id === notif.id) ? items : [notif, ...items]);
       }
       setActiveOrder((current) => current ? { ...current, status: nextStatus } : current);
+      setActiveOrdersList((prev) => prev.map((o) => (activeOrder && o.recordId === activeOrder.recordId) ? { ...o, status: nextStatus } : o));
       setPrintHistory((records) => records.map((record) => record.id === activeOrder.recordId ? { ...record, status: nextStatus } : record));
     }
   }, [activeOrder, createStageNotification]);
@@ -4990,6 +5097,7 @@ export default function App() {
       setNotificationItems((items) => items.some((it) => it.id === notif.id) ? items : [notif, ...items]);
     }
     setActiveOrder((current) => current ? { ...current, status } : current);
+    setActiveOrdersList((prev) => prev.map((o) => (activeOrder && o.recordId === activeOrder.recordId) ? { ...o, status } : o));
     setPrintHistory((records) => records.map((record) => record.id === activeOrder.recordId ? { ...record, status } : record));
   }, [activeOrder, createStageNotification]);
 
@@ -5001,6 +5109,7 @@ export default function App() {
     }
     setPrintHistory((records) => records.map((record) => record.id === activeOrder.recordId ? { ...record, status: "completed" } : record));
     setActiveOrder((current) => current ? { ...current, status: "completed" } : null);
+    setActiveOrdersList((prev) => prev.filter((o) => o.recordId !== activeOrder.recordId));
   }, [activeOrder, createStageNotification]);
 
   const cancelActiveOrder = useCallback(() => {
@@ -5010,6 +5119,7 @@ export default function App() {
       setNotificationItems((items) => items.some((it) => it.id === notif.id) ? items : [notif, ...items]);
     }
     setActiveOrder((current) => (current?.status === "queued" || current?.status === "confirmed") ? { ...current, status: "cancelled" } : current);
+    setActiveOrdersList((prev) => prev.filter((o) => o.recordId !== activeOrder.recordId));
     setPrintHistory((records) => records.map((record) => record.id === activeOrder.recordId ? { ...record, status: "cancelled" } : record));
     return true;
   }, [activeOrder, createStageNotification]);
@@ -5031,6 +5141,7 @@ export default function App() {
     setProfile(emptyProfile);
     setPrintHistory([]);
     setActiveOrder(null);
+    setActiveOrdersList([]);
     setNotificationItems([]);
     if (homeFileInput.current) homeFileInput.current.value = "";
     setUploadedFiles([]);
@@ -5050,6 +5161,9 @@ export default function App() {
   useEffect(() => {
     try { window.localStorage.setItem(activeOrderStorageKey, JSON.stringify(activeOrder)); } catch { /* Keep the order available for this session. */ }
   }, [activeOrder]);
+  useEffect(() => {
+    try { window.localStorage.setItem(activeOrdersStorageKey, JSON.stringify(activeOrdersList)); } catch { /* Keep active orders list available */ }
+  }, [activeOrdersList]);
   useEffect(() => {
     try { window.localStorage.setItem(profileStorageKey, JSON.stringify(profile)); } catch { /* Keep the profile available for this session. */ }
   }, [profile]);
@@ -5641,6 +5755,8 @@ export default function App() {
         <Token
           go={go}
           order={activeOrder}
+          activeOrders={activeOrdersList}
+          onSelectOrder={(ord) => setActiveOrder(ord)}
           onCancelOrder={cancelActiveOrder}
           onSetStage={setOrderStage}
           language={language}
@@ -6563,41 +6679,64 @@ export default function App() {
               </div>
             </div>
           )}
-          {activeOrder && activeOrder.status !== "completed" && activeOrder.status !== "cancelled" && (
-            <div
-              className="home-active-order-banner"
-              onClick={() => go("token")}
-              role="button"
-              tabIndex={0}
-              aria-label={`Active print order token ${activeOrder.token}. Tap to track status.`}
-            >
-              <div className="home-active-order-left">
-                <span className="home-active-order-pulse-dot" />
-                <div>
-                  <div className="home-active-order-title">
-                    {getTranslation(language, "home_active_order_banner")} <span className="home-active-order-token-pill">{activeOrder.token}</span>
+          {/* Active Print Orders List - Supports all active orders / multiple tokens for this user */}
+          {(() => {
+            const activeList = activeOrdersList.filter((o) => o && o.status !== "completed" && o.status !== "cancelled");
+            const displayList = activeList.length > 0 ? activeList : (activeOrder && activeOrder.status !== "completed" && activeOrder.status !== "cancelled" ? [activeOrder] : []);
+            if (displayList.length === 0) return null;
+
+            return (
+              <div className="home-active-orders-container" style={{ display: "flex", flexDirection: "column", gap: 10, margin: "0 0 16px" }}>
+                {displayList.map((ord, idx) => (
+                  <div
+                    key={ord.recordId || ord.token || idx}
+                    className="home-active-order-banner"
+                    onClick={() => {
+                      setActiveOrder(ord);
+                      go("token");
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Active print order token ${ord.token}. Tap to track status.`}
+                    style={{ margin: 0 }}
+                  >
+                    <div className="home-active-order-left">
+                      <span className="home-active-order-pulse-dot" />
+                      <div>
+                        <div className="home-active-order-title">
+                          {getTranslation(language, "home_active_order_banner")}{" "}
+                          <span className="home-active-order-token-pill">{ord.token}</span>
+                          {ord.job?.fileName && (
+                            <span style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 500, marginLeft: 6 }}>
+                              · {sanitizeDisplayFileName(ord.job.fileName)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="home-active-order-sub">
+                          {ord.status === "ready"
+                            ? (language === "gu" ? "🎉 કેમ્પસ સેન્ટ્રલ પર પિકઅપ માટે તૈયાર છે!" : language === "hi" ? "🎉 कैंपस सेंट्रल पर पिकअप के लिए तैयार है!" : "🎉 Ready for pickup now at Campus Central!")
+                            : ord.status === "printing"
+                            ? (language === "gu" ? "પ્રિન્ટર પર પ્રિન્ટિંગ ચાલુ છે" : language === "hi" ? "प्रिंटर पर प्रिंटिंग जारी है" : "Printing in progress on Printer")
+                            : (language === "gu" ? "કેમ્પસ સેન્ટ્રલ પર કતારમાં છે · ટ્રેક કરવા ટેપ કરો" : language === "hi" ? "कैंपस सेंट्रल पर कतारबद्ध है · ट्रैक करने के लिए टैप करें" : "Queued at Campus Central · Tap to track")}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="home-active-order-track-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveOrder(ord);
+                        go("token");
+                      }}
+                    >
+                      {getTranslation(language, "home_view_order")}
+                    </button>
                   </div>
-                  <div className="home-active-order-sub">
-                    {activeOrder.status === "ready"
-                      ? (language === "gu" ? "🎉 કેમ્પસ સેન્ટ્રલ પર પિકઅપ માટે તૈયાર છે!" : language === "hi" ? "🎉 कैंपस सेंट्रल पर पिकअप के लिए तैयार है!" : "🎉 Ready for pickup now at Campus Central!")
-                      : activeOrder.status === "printing"
-                      ? (language === "gu" ? "પ્રિન્ટર #૨ પર પ્રિન્ટિંગ ચાલુ છે" : language === "hi" ? "प्रिंटर #2 पर प्रिंटिंग जारी है" : "Printing in progress on Printer #2")
-                      : (language === "gu" ? "કેમ્પસ સેન્ટ્રલ પર કતારમાં છે · ટ્રેક કરવા ટેપ કરો" : language === "hi" ? "कैंपस सेंट्रल पर कतारबद्ध है · ट्रैक करने के लिए टैप करें" : "Queued at Campus Central · Tap to track")}
-                  </div>
-                </div>
+                ))}
               </div>
-              <button
-                type="button"
-                className="home-active-order-track-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  go("token");
-                }}
-              >
-                {getTranslation(language, "home_view_order")}
-              </button>
-            </div>
-          )}
+            );
+          })()}
 
           <HomeQueueStatus
             language={language}
