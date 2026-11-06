@@ -69,7 +69,7 @@ class RootErrorBoundary extends Component<
             padding: '24px',
             backgroundColor: '#0A0A0A',
             color: '#F2F3F7',
-            fontFamily: 'Inter, sans-serif',
+            fontFamily: 'Manrope, sans-serif',
             textAlign: 'center',
           }}
         >

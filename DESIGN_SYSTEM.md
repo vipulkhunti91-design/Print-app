@@ -25,7 +25,7 @@
 | Glass | `rgba(26,30,41,0.6)` | Menu bar, Pay bar, and bottom sheet only |
 | Glass border | `rgba(255,255,255,0.10)` | Glass border |
 
-Glass uses `backdrop-filter: blur(20px) saturate(140%)`, a 1px border, and 20px radius. Its solid fallback uses the `surface-raised` token. The app font is Inter; card and button radii are 12px.
+Glass uses `backdrop-filter: blur(20px) saturate(140%)`, a 1px border, and 20px radius. Its solid fallback uses the `surface-raised` token. The app font is Manrope; card and button radii are 12px.
 
 ## Rules
 
