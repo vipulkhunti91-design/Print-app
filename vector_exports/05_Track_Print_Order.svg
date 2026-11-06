@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" fill="none">
+  <!-- Background -->
+  <rect width="390" height="844" fill="#0A0A0A"/>
+
+  <!-- Top Navigation Bar -->
+  <rect x="0" y="0" width="390" height="72" fill="#171717"/>
+  <rect x="16" y="24" width="32" height="32" rx="8" fill="#212121" stroke="rgba(255,255,255,0.1)"/>
+  <path d="M35 34L29 40L35 46" stroke="#F2F3F7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="60" y="46" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="18" font-weight="700">Live Order Tracking</text>
+  <rect x="294" y="26" width="80" height="26" rx="6" fill="rgba(143,163,255,0.16)"/>
+  <text x="306" y="43" fill="#8FA3FF" font-family="Inter, sans-serif" font-size="11" font-weight="700">PRINTING</text>
+
+  <!-- Hero Digital Token Card with QR -->
+  <rect x="16" y="86" width="358" height="216" rx="16" fill="#171717" stroke="rgba(244,215,121,0.3)"/>
+  <text x="32" y="116" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11" font-weight="700" letter-spacing="1">DIGITAL PICKUP TOKEN</text>
+  <text x="32" y="160" fill="#F4D779" font-family="Inter, sans-serif" font-size="40" font-weight="900">#A-104</text>
+  <text x="32" y="186" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="13" font-weight="600">Campus_Final_Presentation.pdf</text>
+  <text x="32" y="204" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11.5">12 pgs · Colour · Duplex · Spiral Bound</text>
+  <text x="32" y="226" fill="#A7E8BD" font-family="Inter, sans-serif" font-size="11.5" font-weight="600">📍 Counter #2 (Express Pickup Lane)</text>
+
+  <!-- Vector Simulated QR Code Box -->
+  <rect x="256" y="104" width="102" height="102" rx="10" fill="#FFFFFF"/>
+  <!-- QR Outer boxes -->
+  <rect x="264" y="112" width="28" height="28" fill="#000000"/>
+  <rect x="268" y="116" width="20" height="20" fill="#FFFFFF"/>
+  <rect x="272" y="120" width="12" height="12" fill="#000000"/>
+
+  <rect x="322" y="112" width="28" height="28" fill="#000000"/>
+  <rect x="326" y="116" width="20" height="20" fill="#FFFFFF"/>
+  <rect x="330" y="120" width="12" height="12" fill="#000000"/>
+
+  <rect x="264" y="170" width="28" height="28" fill="#000000"/>
+  <rect x="268" y="174" width="20" height="20" fill="#FFFFFF"/>
+  <rect x="272" y="178" width="12" height="12" fill="#000000"/>
+
+  <!-- QR Center Data Pixels -->
+  <rect x="300" y="120" width="8" height="8" fill="#000000"/>
+  <rect x="310" y="132" width="8" height="8" fill="#000000"/>
+  <rect x="296" y="144" width="16" height="8" fill="#000000"/>
+  <rect x="320" y="152" width="8" height="12" fill="#000000"/>
+  <rect x="304" y="164" width="12" height="8" fill="#000000"/>
+  <rect x="324" y="174" width="16" height="10" fill="#000000"/>
+  <text x="262" y="222" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="9" text-anchor="middle">Scan at Counter</text>
+
+  <!-- Queue Metrics Trio Cards -->
+  <rect x="16" y="314" width="112" height="72" rx="12" fill="#171717" stroke="rgba(255,255,255,0.08)"/>
+  <text x="28" y="338" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11">Now Serving</text>
+  <text x="28" y="368" fill="#F4D779" font-family="Inter, sans-serif" font-size="20" font-weight="800">#A-102</text>
+
+  <rect x="139" y="314" width="112" height="72" rx="12" fill="#171717" stroke="rgba(255,255,255,0.08)"/>
+  <text x="151" y="338" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11">Ahead of You</text>
+  <text x="151" y="368" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="20" font-weight="800">2 Orders</text>
+
+  <rect x="262" y="314" width="112" height="72" rx="12" fill="#171717" stroke="rgba(255,255,255,0.08)"/>
+  <text x="274" y="338" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11">Est. Ready</text>
+  <text x="274" y="368" fill="#A7E8BD" font-family="Inter, sans-serif" font-size="20" font-weight="800">~4 Mins</text>
+
+  <!-- FIFO Queue Timeline Stepper Card -->
+  <rect x="16" y="398" width="358" height="270" rx="16" fill="#171717" stroke="rgba(255,255,255,0.1)"/>
+  <text x="32" y="426" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="14" font-weight="700">Order Progress Timeline</text>
+
+  <!-- Step 1: Confirmed -->
+  <circle cx="44" cy="458" r="10" fill="#A7E8BD"/>
+  <path d="M40 458L43 461L48 455" stroke="#1A1405" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="64" y="454" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="13" font-weight="600">Order Confirmed &amp; Payment Received</text>
+  <text x="64" y="470" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11">Paid ₹242.00 via UPI · 11:42 AM</text>
+  <line x1="44" y1="468" x2="44" y2="502" stroke="#A7E8BD" stroke-width="2"/>
+
+  <!-- Step 2: In Queue -->
+  <circle cx="44" cy="512" r="10" fill="#A7E8BD"/>
+  <path d="M40 512L43 515L48 509" stroke="#1A1405" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="64" y="508" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="13" font-weight="600">Queued in Express Line</text>
+  <text x="64" y="524" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11">Assigned position 4 → now position 2</text>
+  <line x1="44" y1="522" x2="44" y2="556" stroke="#8FA3FF" stroke-width="2"/>
+
+  <!-- Step 3: Printing (Current) -->
+  <circle cx="44" cy="566" r="10" fill="#8FA3FF"/>
+  <circle cx="44" cy="566" r="4" fill="#0A0A0A"/>
+  <text x="64" y="562" fill="#8FA3FF" font-family="Inter, sans-serif" font-size="13" font-weight="700">Currently Printing...</text>
+  <text x="64" y="578" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11">HP PageWide Pro 777z (Tray 1) · Sheet 8 of 12</text>
+  <line x1="44" y1="576" x2="44" y2="610" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-dasharray="3 3"/>
+
+  <!-- Step 4: Ready for Pickup -->
+  <circle cx="44" cy="620" r="10" fill="#212121" stroke="#6B7280" stroke-width="2"/>
+  <text x="64" y="616" fill="#6B7280" font-family="Inter, sans-serif" font-size="13" font-weight="500">Ready for Counter Pickup</text>
+  <text x="64" y="632" fill="#6B7280" font-family="Inter, sans-serif" font-size="11">Show token #A-104 at counter</text>
+
+  <!-- Interactive Action Buttons -->
+  <rect x="16" y="682" width="358" height="48" rx="12" fill="#212121" stroke="rgba(255,255,255,0.1)"/>
+  <text x="120" y="711" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="13.5" font-weight="600">⏱ Schedule Custom Pickup Time</text>
+
+  <rect x="16" y="740" width="173" height="46" rx="12" fill="#171717" stroke="rgba(255,255,255,0.1)"/>
+  <text x="44" y="768" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="12.5" font-weight="600">📞 Call Print Shop</text>
+
+  <rect x="201" y="740" width="173" height="46" rx="12" fill="#171717" stroke="rgba(248,113,113,0.3)"/>
+  <text x="238" y="768" fill="#F87171" font-family="Inter, sans-serif" font-size="12.5" font-weight="600">Cancel Order</text>
+
+  <rect x="16" y="796" width="358" height="36" rx="10" fill="#0A0A0A"/>
+  <text x="145" y="818" fill="#6B7280" font-family="Inter, sans-serif" font-size="11">Auto-updates every 10 seconds</text>
+</svg>

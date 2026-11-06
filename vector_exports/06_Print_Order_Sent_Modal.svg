@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" fill="none">
+  <!-- Background with Dim Overlay -->
+  <rect width="390" height="844" fill="#000000" fill-opacity="0.82"/>
+
+  <!-- Centered Modal Card -->
+  <rect x="24" y="196" width="342" height="452" rx="20" fill="#171717" stroke="rgba(255,255,255,0.12)" stroke-width="1.5"/>
+
+  <!-- Success Check Circle Badge -->
+  <circle cx="195" cy="254" r="32" fill="rgba(167,232,189,0.16)"/>
+  <circle cx="195" cy="254" r="24" fill="#A7E8BD"/>
+  <path d="M187 254L192 259L203 248" stroke="#1A1405" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Title & Subtitle -->
+  <text x="195" y="314" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="20" font-weight="800" text-anchor="middle">Print Order Sent!</text>
+  <text x="195" y="336" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="13" text-anchor="middle">Your document is queued in Fast Lane</text>
+
+  <!-- Pickup Token Box -->
+  <rect x="44" y="358" width="302" height="136" rx="14" fill="#212121" stroke="rgba(244,215,121,0.25)"/>
+  <text x="195" y="384" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="10.5" font-weight="700" letter-spacing="1.2" text-anchor="middle">YOUR PICKUP TOKEN</text>
+  <text x="195" y="426" fill="#F4D779" font-family="Inter, sans-serif" font-size="34" font-weight="900" text-anchor="middle">#A-104</text>
+  <text x="195" y="452" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle">Campus_Final_Presentation.pdf • 12 pgs</text>
+  <text x="195" y="474" fill="#A7E8BD" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle">Est. wait: ~4 minutes · Counter #2 (Express)</text>
+
+  <!-- Primary Action: Track Order -->
+  <rect x="44" y="516" width="302" height="50" rx="12" fill="#F4D779"/>
+  <text x="195" y="547" fill="#1A1405" font-family="Inter, sans-serif" font-size="14.5" font-weight="800" text-anchor="middle">Track Live Order →</text>
+
+  <!-- Secondary Action: Back to Home -->
+  <rect x="44" y="576" width="302" height="44" rx="12" fill="transparent" stroke="rgba(255,255,255,0.12)"/>
+  <text x="195" y="603" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle">Return to Home</text>
+</svg>

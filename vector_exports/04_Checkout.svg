@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844" fill="none">
+  <!-- Background -->
+  <rect width="390" height="844" fill="#0A0A0A"/>
+
+  <!-- Top Navigation Bar -->
+  <rect x="0" y="0" width="390" height="72" fill="#171717"/>
+  <rect x="16" y="24" width="32" height="32" rx="8" fill="#212121" stroke="rgba(255,255,255,0.1)"/>
+  <path d="M35 34L29 40L35 46" stroke="#F2F3F7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="60" y="46" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="18" font-weight="700">Checkout &amp; Review</text>
+  <rect x="290" y="26" width="84" height="26" rx="6" fill="rgba(244,215,121,0.14)"/>
+  <text x="302" y="43" fill="#F4D779" font-family="Inter, sans-serif" font-size="11" font-weight="700">Step 4 of 4</text>
+
+  <!-- Shop Hours Badge -->
+  <rect x="16" y="84" width="358" height="36" rx="8" fill="#171717" stroke="rgba(255,255,255,0.08)"/>
+  <circle cx="32" cy="102" r="4" fill="#A7E8BD"/>
+  <text x="44" y="106" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="12">Campus Central Shop · Open 9:30 AM – 5:00 PM</text>
+
+  <!-- Document Summary Card -->
+  <rect x="16" y="132" width="358" height="136" rx="12" fill="#171717" stroke="rgba(255,255,255,0.1)"/>
+  <rect x="30" y="146" width="36" height="36" rx="8" fill="#212121"/>
+  <text x="42" y="169" fill="#F4D779" font-family="Inter, sans-serif" font-size="16" font-weight="700">PDF</text>
+  <text x="76" y="160" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="14" font-weight="600">Campus_Final_Presentation.pdf</text>
+  <text x="76" y="178" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="12">12 Pages • Full Colour • Double Sided (A4)</text>
+
+  <line x1="30" y1="194" x2="360" y2="194" stroke="rgba(255,255,255,0.08)"/>
+
+  <text x="30" y="218" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="12">Binding &amp; Finishing</text>
+  <text x="240" y="218" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="12" font-weight="500">Spiral Binding (+₹25)</text>
+
+  <text x="30" y="246" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="12">Print Sets &amp; Copies</text>
+  <text x="290" y="246" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="12" font-weight="500">2 Complete Sets</text>
+
+  <!-- Price Breakdown Card -->
+  <rect x="16" y="280" width="358" height="134" rx="12" fill="#171717" stroke="rgba(255,255,255,0.1)"/>
+  <text x="30" y="306" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="14" font-weight="700">Price Breakdown</text>
+
+  <text x="30" y="332" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="12">Colour Print (12 pgs × 2 sets × ₹8)</text>
+  <text x="318" y="332" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="12" font-weight="600">₹192.00</text>
+
+  <text x="30" y="354" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="12">Spiral Coil Binding (2 sets × ₹25)</text>
+  <text x="324" y="354" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="12" font-weight="600">₹50.00</text>
+
+  <text x="30" y="376" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="12">Express Counter Pickup</text>
+  <text x="330" y="376" fill="#A7E8BD" font-family="Inter, sans-serif" font-size="12" font-weight="600">FREE</text>
+
+  <line x1="30" y1="388" x2="360" y2="388" stroke="rgba(255,255,255,0.08)"/>
+
+  <text x="30" y="404" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="13" font-weight="700">Total Payable</text>
+  <text x="308" y="404" fill="#F4D779" font-family="Inter, sans-serif" font-size="15" font-weight="800">₹242.00</text>
+
+  <!-- Express Counter & Queue Position -->
+  <rect x="16" y="426" width="358" height="66" rx="12" fill="#212121" stroke="rgba(244,215,121,0.2)"/>
+  <circle cx="36" cy="459" r="14" fill="rgba(244,215,121,0.14)"/>
+  <text x="31" y="464" fill="#F4D779" font-family="Inter, sans-serif" font-size="14">⚡</text>
+  <text x="58" y="452" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="13" font-weight="700">Counter #2 (Fast Lane Express)</text>
+  <text x="58" y="472" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11.5">Live Queue: 3 students ahead • ~6 mins wait</text>
+  <rect x="296" y="446" width="66" height="24" rx="6" fill="#F4D779"/>
+  <text x="306" y="462" fill="#1A1405" font-family="Inter, sans-serif" font-size="11" font-weight="800">FAST LANE</text>
+
+  <!-- Payment Selection Section -->
+  <text x="20" y="518" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="14" font-weight="700">Select Payment Method</text>
+
+  <!-- Payment Option 1: UPI (Selected) -->
+  <rect x="16" y="532" width="358" height="64" rx="12" fill="#171717" stroke="#F4D779" stroke-width="1.5"/>
+  <circle cx="40" cy="564" r="9" fill="none" stroke="#F4D779" stroke-width="2"/>
+  <circle cx="40" cy="564" r="5" fill="#F4D779"/>
+  <text x="60" y="556" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="13" font-weight="700">Online UPI (Instant Token)</text>
+  <text x="60" y="574" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11.5">Google Pay, PhonePe, Paytm, BHIM</text>
+  <rect x="308" y="550" width="54" height="24" rx="6" fill="rgba(244,215,121,0.14)"/>
+  <text x="317" y="566" fill="#F4D779" font-family="Inter, sans-serif" font-size="11" font-weight="700">INSTANT</text>
+
+  <!-- Payment Option 2: Campus Wallet -->
+  <rect x="16" y="604" width="358" height="60" rx="12" fill="#171717" stroke="rgba(255,255,255,0.1)"/>
+  <circle cx="40" cy="634" r="9" fill="none" stroke="#6B7280" stroke-width="2"/>
+  <text x="60" y="627" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="13" font-weight="600">Campus Print Wallet</text>
+  <text x="60" y="645" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11.5">Available Balance: ₹142.50 (Tap to add funds)</text>
+
+  <!-- Payment Option 3: Cash at Counter -->
+  <rect x="16" y="672" width="358" height="60" rx="12" fill="#171717" stroke="rgba(255,255,255,0.1)"/>
+  <circle cx="40" cy="702" r="9" fill="none" stroke="#6B7280" stroke-width="2"/>
+  <text x="60" y="695" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="13" font-weight="600">Pay at Counter</text>
+  <text x="60" y="713" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11.5">Pay cash or UPI scan when collecting printout</text>
+
+  <!-- Sticky Bottom Pay Bar -->
+  <rect x="0" y="748" width="390" height="96" fill="#171717" stroke="rgba(255,255,255,0.1)"/>
+  <text x="20" y="784" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="12">Total Price</text>
+  <text x="20" y="810" fill="#F4D779" font-family="Inter, sans-serif" font-size="22" font-weight="800">₹242.00</text>
+  <rect x="160" y="768" width="214" height="48" rx="12" fill="#F4D779"/>
+  <text x="190" y="798" fill="#1A1405" font-family="Inter, sans-serif" font-size="14" font-weight="800">Confirm &amp; Pay →</text>
+</svg>

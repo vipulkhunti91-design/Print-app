@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="680" viewBox="0 0 760 680" fill="none">
+  <!-- Frame Background -->
+  <rect width="760" height="680" rx="20" fill="#0A0A0A" stroke="rgba(255,255,255,0.1)"/>
+  <text x="24" y="38" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="18" font-weight="800">Midnight Gold — Reusable Component Sets</text>
+  <text x="24" y="58" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="12">Production Design Tokens &amp; Variant Sets</text>
+
+  <!-- ------------------------------------------------------------- -->
+  <!-- 1. Component Set: Print Type -->
+  <!-- ------------------------------------------------------------- -->
+  <text x="24" y="96" fill="#F4D779" font-family="Inter, sans-serif" font-size="13" font-weight="700">1. Print Type (Mode=Black &amp; White | Colour)</text>
+
+  <!-- B&W (Active) -->
+  <rect x="24" y="110" width="168" height="96" rx="12" fill="#171717" stroke="#F4D779" stroke-width="1.5"/>
+  <rect x="36" y="122" width="28" height="28" rx="6" fill="#212121"/>
+  <text x="44" y="142" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="14">⬛</text>
+  <circle cx="176" cy="128" r="6" fill="#F4D779"/>
+  <text x="36" y="168" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="13" font-weight="700">Black &amp; White</text>
+  <text x="36" y="186" fill="#F4D779" font-family="Inter, sans-serif" font-size="12" font-weight="700">₹2.00 / page</text>
+
+  <!-- B&W (Inactive) -->
+  <rect x="204" y="110" width="168" height="96" rx="12" fill="#171717" stroke="rgba(255,255,255,0.08)"/>
+  <rect x="216" y="122" width="28" height="28" rx="6" fill="#212121"/>
+  <text x="224" y="142" fill="#6B7280" font-family="Inter, sans-serif" font-size="14">⬛</text>
+  <text x="216" y="168" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="13" font-weight="600">Black &amp; White</text>
+  <text x="216" y="186" fill="#6B7280" font-family="Inter, sans-serif" font-size="12">₹2.00 / page</text>
+
+  <!-- Colour (Active) -->
+  <rect x="384" y="110" width="168" height="96" rx="12" fill="#171717" stroke="#F4D779" stroke-width="1.5"/>
+  <rect x="396" y="122" width="28" height="28" rx="6" fill="rgba(244,215,121,0.16)"/>
+  <text x="404" y="142" fill="#F4D779" font-family="Inter, sans-serif" font-size="14">🌈</text>
+  <circle cx="536" cy="128" r="6" fill="#F4D779"/>
+  <text x="396" y="168" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="13" font-weight="700">Full Colour</text>
+  <text x="396" y="186" fill="#F4D779" font-family="Inter, sans-serif" font-size="12" font-weight="700">₹8.00 / page</text>
+
+  <!-- Colour (Inactive) -->
+  <rect x="564" y="110" width="168" height="96" rx="12" fill="#171717" stroke="rgba(255,255,255,0.08)"/>
+  <rect x="576" y="122" width="28" height="28" rx="6" fill="#212121"/>
+  <text x="584" y="142" fill="#6B7280" font-family="Inter, sans-serif" font-size="14">🌈</text>
+  <text x="576" y="168" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="13" font-weight="600">Full Colour</text>
+  <text x="576" y="186" fill="#6B7280" font-family="Inter, sans-serif" font-size="12">₹8.00 / page</text>
+
+  <!-- ------------------------------------------------------------- -->
+  <!-- 2. Component Set: Print Side -->
+  <!-- ------------------------------------------------------------- -->
+  <text x="24" y="238" fill="#F4D779" font-family="Inter, sans-serif" font-size="13" font-weight="700">2. Print Side (Side=1-Sided | 2-Sided)</text>
+
+  <!-- 1-Sided (Simplex) -->
+  <rect x="24" y="252" width="168" height="72" rx="12" fill="#171717" stroke="rgba(255,255,255,0.1)"/>
+  <text x="38" y="280" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="13" font-weight="600">1-Sided (Simplex)</text>
+  <text x="38" y="302" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11">Single sheet per printed page</text>
+
+  <!-- 2-Sided (Duplex Active) -->
+  <rect x="204" y="252" width="210" height="72" rx="12" fill="#171717" stroke="#F4D779" stroke-width="1.5"/>
+  <text x="218" y="280" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="13" font-weight="700">2-Sided (Duplex)</text>
+  <rect x="330" y="266" width="72" height="20" rx="5" fill="rgba(167,232,189,0.16)"/>
+  <text x="338" y="280" fill="#A7E8BD" font-family="Inter, sans-serif" font-size="10" font-weight="700">Save 50%</text>
+  <text x="218" y="302" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11">Eco-friendly campus standard</text>
+
+  <!-- ------------------------------------------------------------- -->
+  <!-- 3. Component Set: Order Status Chips -->
+  <!-- ------------------------------------------------------------- -->
+  <text x="24" y="356" fill="#F4D779" font-family="Inter, sans-serif" font-size="13" font-weight="700">3. Order Status Chips (State=Confirmed | In Queue | Printing | Ready | Completed | Cancelled)</text>
+
+  <!-- State 1: Confirmed -->
+  <rect x="24" y="370" width="108" height="32" rx="8" fill="rgba(143,163,255,0.14)" stroke="rgba(143,163,255,0.3)"/>
+  <circle cx="38" cy="386" r="4" fill="#8FA3FF"/>
+  <text x="48" y="391" fill="#8FA3FF" font-family="Inter, sans-serif" font-size="11.5" font-weight="700">Confirmed</text>
+
+  <!-- State 2: In Queue -->
+  <rect x="144" y="370" width="108" height="32" rx="8" fill="rgba(251,146,60,0.14)" stroke="rgba(251,146,60,0.3)"/>
+  <circle cx="158" cy="386" r="4" fill="#FB923C"/>
+  <text x="168" y="391" fill="#FB923C" font-family="Inter, sans-serif" font-size="11.5" font-weight="700">In Queue</text>
+
+  <!-- State 3: Printing -->
+  <rect x="264" y="370" width="108" height="32" rx="8" fill="rgba(143,163,255,0.18)" stroke="#8FA3FF"/>
+  <circle cx="278" cy="386" r="4" fill="#8FA3FF"/>
+  <text x="288" y="391" fill="#8FA3FF" font-family="Inter, sans-serif" font-size="11.5" font-weight="800">Printing...</text>
+
+  <!-- State 4: Ready for Pickup -->
+  <rect x="384" y="370" width="124" height="32" rx="8" fill="rgba(167,232,189,0.16)" stroke="#A7E8BD"/>
+  <text x="394" y="391" fill="#A7E8BD" font-family="Inter, sans-serif" font-size="11.5" font-weight="800">✓ Ready</text>
+
+  <!-- State 5: Completed -->
+  <rect x="520" y="370" width="108" height="32" rx="8" fill="#212121" stroke="rgba(255,255,255,0.1)"/>
+  <text x="536" y="391" fill="#9CA3AF" font-family="Inter, sans-serif" font-size="11.5" font-weight="600">Completed</text>
+
+  <!-- State 6: Cancelled -->
+  <rect x="640" y="370" width="100" height="32" rx="8" fill="rgba(248,113,113,0.14)" stroke="rgba(248,113,113,0.3)"/>
+  <text x="654" y="391" fill="#F87171" font-family="Inter, sans-serif" font-size="11.5" font-weight="700">Cancelled</text>
+
+  <!-- ------------------------------------------------------------- -->
+  <!-- 4. Component Set: Payment Option Cards -->
+  <!-- ------------------------------------------------------------- -->
+  <text x="24" y="434" fill="#F4D779" font-family="Inter, sans-serif" font-size="13" font-weight="700">4. Payment Option Cards (Method=UPI | Wallet | Cash | QR Counter)</text>
+
+  <!-- Card 1: UPI (Selected) -->
+  <rect x="24" y="448" width="348" height="92" rx="14" fill="#171717" stroke="#F4D779" stroke-width="1.5"/>
+  <circle cx="50" cy="494" r="9" fill="none" stroke="#F4D779" stroke-width="2"/>
+  <circle cx="50" cy="494" r="5" fill="#F4D779"/>
+  <text x="72" y="482" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="14" font-weight="700">Online UPI (Instant Token)</text>
+  <text x="72" y="504" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="12">GPay · PhonePe · Paytm · BHIM</text>
+  <text x="72" y="524" fill="#F4D779" font-family="Inter, sans-serif" font-size="11" font-weight="600">⚡ Auto-confirms order in seconds</text>
+  <rect x="296" y="462" width="64" height="24" rx="6" fill="rgba(244,215,121,0.14)"/>
+  <text x="306" y="478" fill="#F4D779" font-family="Inter, sans-serif" font-size="11" font-weight="700">POPULAR</text>
+
+  <!-- Card 2: Campus Wallet -->
+  <rect x="388" y="448" width="348" height="92" rx="14" fill="#171717" stroke="rgba(255,255,255,0.1)"/>
+  <circle cx="414" cy="494" r="9" fill="none" stroke="#6B7280" stroke-width="2"/>
+  <text x="436" y="482" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="14" font-weight="600">Campus Print Wallet</text>
+  <text x="436" y="504" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="12">Student balance: ₹142.50 (1-Tap Deduct)</text>
+  <text x="436" y="524" fill="#A7E8BD" font-family="Inter, sans-serif" font-size="11" font-weight="600">✓ Zero gateway fee</text>
+
+  <!-- Card 3: Cash on Counter -->
+  <rect x="24" y="556" width="348" height="92" rx="14" fill="#171717" stroke="rgba(255,255,255,0.1)"/>
+  <circle cx="50" cy="602" r="9" fill="none" stroke="#6B7280" stroke-width="2"/>
+  <text x="72" y="590" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="14" font-weight="600">Cash on Collection</text>
+  <text x="72" y="612" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="12">Pay exact cash directly at store pickup counter</text>
+  <text x="72" y="632" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="11">Receipt printed with job</text>
+
+  <!-- Card 4: QR at Counter -->
+  <rect x="388" y="556" width="348" height="92" rx="14" fill="#171717" stroke="rgba(255,255,255,0.1)"/>
+  <circle cx="414" cy="602" r="9" fill="none" stroke="#6B7280" stroke-width="2"/>
+  <text x="436" y="590" fill="#F2F3F7" font-family="Inter, sans-serif" font-size="14" font-weight="600">UPI QR at Shop Counter</text>
+  <text x="436" y="612" fill="#A3A9B8" font-family="Inter, sans-serif" font-size="12">Scan physical shop QR code upon arrival</text>
+  <text x="436" y="632" fill="#8FA3FF" font-family="Inter, sans-serif" font-size="11" font-weight="600">No advance payment needed</text>
+</svg>

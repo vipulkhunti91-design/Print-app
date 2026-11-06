@@ -54,6 +54,7 @@ import PaymentPage from "./components/PaymentPage";
 import AdminMasterControl from "./components/AdminMasterControl";
 import { securityEngine, type FirebaseOrderRecord } from "./services/securityEngine";
 import OnboardingFlow from "./components/OnboardingFlow";
+import SplashScreen from "./components/SplashScreen";
 
 const A = `${import.meta.env.BASE_URL}assets`;
 
@@ -4801,6 +4802,14 @@ export default function App() {
       return false;
     }
   });
+  const [showSplash, setShowSplash] = useState<boolean>(() => {
+    try {
+      if (typeof window !== "undefined" && window.location.search.includes("screen=admin")) {
+        return false;
+      }
+    } catch {}
+    return true;
+  });
   const [activeOrdersList, setActiveOrdersList] = useState<ActiveOrder[]>(() => {
     try {
       const raw = window.localStorage.getItem(activeOrdersStorageKey);
@@ -5671,6 +5680,15 @@ export default function App() {
     );
   };
 
+  if (showSplash) {
+    return (
+      <SplashScreen
+        duration={1800}
+        onFinish={() => setShowSplash(false)}
+      />
+    );
+  }
+
   if (isOnboardingOpen) {
     return (
       <OnboardingFlow
@@ -6492,6 +6510,57 @@ export default function App() {
                 >
                   <span>↺</span>
                   <span>{language === "gu" ? "ફરી શરૂ કરો" : language === "hi" ? "शुरू करें" : "Replay"}</span>
+                </button>
+              </div>
+
+              {/* Row: Splash Screen Preview */}
+              <div className="settings-pref-row" style={{ alignItems: "center" }}>
+                <div className="settings-pref-text">
+                  <span className="settings-pref-title">
+                    {language === "gu"
+                      ? "Phtopy સ્પ્લેશ સ્ક્રીન"
+                      : language === "hi"
+                      ? "Phtopy स्प्लैश स्क्रीन"
+                      : "Phtopy Splash Screen"}
+                  </span>
+                  <span className="settings-pref-desc">
+                    {language === "gu"
+                      ? "એપ શરૂ થતાં પ્રદર્શિત થતો બ્રાન્ડ લોગો અને એનિમેશન જુઓ"
+                      : language === "hi"
+                      ? "ऐप शुरू होने पर दिखने वाला ब्रांड लोगो और एनिमेशन देखें"
+                      : "Preview the startup brand logo, soundless aura & load sequence"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSplash(true)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "7px 12px",
+                    borderRadius: 8,
+                    border: "1px solid var(--border)",
+                    background: "var(--surface-raised)",
+                    color: "var(--text)",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    transition: "all 120ms ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "var(--accent)";
+                    e.currentTarget.style.color = "var(--accent)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "var(--border)";
+                    e.currentTarget.style.color = "var(--text)";
+                  }}
+                  aria-label="Preview Splash Screen"
+                >
+                  <span>▶</span>
+                  <span>{language === "gu" ? "જુઓ" : language === "hi" ? "देखें" : "Preview"}</span>
                 </button>
               </div>
 
