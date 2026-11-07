@@ -8,6 +8,8 @@ import {
   verifyOtp,
 } from "../services/otpService";
 import { useSmsOtpAutoFill } from "../hooks/useSmsOtpAutoFill";
+import { securityEngine } from "../services/securityEngine";
+import { saveAuthSession, type AuthUser } from "./AuthModal";
 
 const emptyOtp = () => Array.from({ length: OTP_LENGTH }, () => "");
 
@@ -35,7 +37,7 @@ function readRememberedUser(): User | null {
   }
 }
 
-export default function LoginSheet({ summary, onClose, onPaymentContinue }: { summary: LoginSummary; onClose: () => void; onPaymentContinue: () => void }) {
+export default function LoginSheet({ summary, onClose, onPaymentContinue, onAuthSuccess }: { summary: LoginSummary; onClose: () => void; onPaymentContinue: () => void; onAuthSuccess?: (user: AuthUser) => void }) {
   const [step, setStep] = useState<LoginStep>("details");
   const [rememberedUser, setRememberedUser] = useState<User | null>(() => readRememberedUser());
   const [showRemembered, setShowRemembered] = useState(() => Boolean(readRememberedUser()));
@@ -154,7 +156,26 @@ export default function LoginSheet({ summary, onClose, onPaymentContinue }: { su
     try {
       await verifyOtp(mobile, code);
       setOtpStatus("success");
-      const user = { name: name.trim(), mobile };
+      const cleanName = name.trim() || "Student";
+      const profile = await securityEngine.handlePhoneAuthSuccess(cleanName, mobile);
+
+      const fullUser: AuthUser = {
+        id: profile.uid,
+        uid: profile.uid,
+        name: profile.displayName,
+        email: profile.email,
+        phone: profile.phoneNumber,
+        photo: profile.photoURL,
+        provider: "phone",
+        phoneVerified: true,
+        createdAt: profile.createdAt,
+        role: profile.role,
+      };
+
+      saveAuthSession(fullUser);
+      onAuthSuccess?.(fullUser);
+
+      const user = { name: cleanName, mobile };
       try { window.localStorage.setItem(rememberedUserKey, JSON.stringify(user)); } catch { /* Remember the user for this session. */ }
       setRememberedUser(user);
 
@@ -229,6 +250,23 @@ export default function LoginSheet({ summary, onClose, onPaymentContinue }: { su
 
   const continueRemembered = () => {
     setShowRemembered(false);
+    if (rememberedUser) {
+      const clean = rememberedUser.mobile.replace(/\D/g, "").slice(-10);
+      const uid = `uid_ph_${clean}`;
+      const fullUser: AuthUser = {
+        id: uid,
+        uid: uid,
+        name: rememberedUser.name,
+        email: `${clean}@campus.printq`,
+        phone: `+91 ${clean.slice(0, 5)} ${clean.slice(5)}`,
+        provider: "phone",
+        phoneVerified: true,
+        createdAt: Date.now(),
+        role: clean === "7096447726" ? "admin" : "user",
+      };
+      saveAuthSession(fullUser);
+      onAuthSuccess?.(fullUser);
+    }
     onPaymentContinue();
     onClose();
   };

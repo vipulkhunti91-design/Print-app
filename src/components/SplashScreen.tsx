@@ -1,62 +1,81 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 export interface SplashScreenProps {
   onFinish: () => void;
-  duration?: number; // total duration in ms, default 1800
+  duration?: number; // total duration in ms, default 1300
+  isReturningUser?: boolean;
 }
 
 export default function SplashScreen({
   onFinish,
-  duration = 1800,
+  duration = 1300,
 }: SplashScreenProps) {
   const [progress, setProgress] = useState(0);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [statusText, setStatusText] = useState("Initializing Phtopy...");
 
-  useEffect(() => {
-    // Dynamic loading messages
-    const t1 = setTimeout(() => {
-      setStatusText("Connecting to Campus Central Counter...");
-    }, duration * 0.3);
+  const onFinishRef = useRef(onFinish);
+  onFinishRef.current = onFinish;
 
-    const t2 = setTimeout(() => {
-      setStatusText("Syncing live print queue...");
-    }, duration * 0.65);
+  const hasFinishedRef = useRef(false);
 
-    const t3 = setTimeout(() => {
-      setStatusText("Ready for instant printing ✓");
-    }, duration * 0.9);
-
-    // Progress bar animation
-    const startTime = Date.now();
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const pct = Math.min(100, Math.round((elapsed / duration) * 100));
-      setProgress(pct);
-
-      if (elapsed >= duration) {
-        clearInterval(interval);
-        setIsFadingOut(true);
-        setTimeout(() => {
-          onFinish();
-        }, 380);
-      }
-    }, 25);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearInterval(interval);
-    };
-  }, [duration, onFinish]);
-
-  const handleSkip = () => {
-    if (isFadingOut) return;
+  const finishSequence = () => {
+    if (hasFinishedRef.current) return;
+    hasFinishedRef.current = true;
+    setProgress(100);
+    setStatusText("Ready for instant printing ✓");
     setIsFadingOut(true);
     setTimeout(() => {
-      onFinish();
-    }, 250);
+      onFinishRef.current();
+    }, 240);
+  };
+
+  useEffect(() => {
+    let animFrame: number;
+    let finishTimer: any;
+    const startTime = performance.now();
+    const totalDuration = Math.max(900, duration);
+
+    const tick = (now: number) => {
+      if (hasFinishedRef.current) return;
+
+      const elapsed = now - startTime;
+      const pct = Math.min(100, Math.round((elapsed / totalDuration) * 100));
+
+      setProgress(pct);
+
+      if (pct < 30) {
+        setStatusText("Initializing Phtopy...");
+      } else if (pct < 65) {
+        setStatusText("Connecting to Campus Central Counter...");
+      } else if (pct < 98) {
+        setStatusText("Syncing live print queue...");
+      } else {
+        setStatusText("Ready for instant printing ✓");
+      }
+
+      if (pct < 100) {
+        animFrame = requestAnimationFrame(tick);
+      } else {
+        // Progress reached 100% full! Hold for a brief visual confirmation, then navigate to next page
+        setProgress(100);
+        setStatusText("Ready for instant printing ✓");
+        finishTimer = setTimeout(() => {
+          finishSequence();
+        }, 180);
+      }
+    };
+
+    animFrame = requestAnimationFrame(tick);
+
+    return () => {
+      if (animFrame) cancelAnimationFrame(animFrame);
+      if (finishTimer) clearTimeout(finishTimer);
+    };
+  }, [duration]);
+
+  const handleSkip = () => {
+    finishSequence();
   };
 
   const logoSrc = `${import.meta.env.BASE_URL}assets/phtopy-logo.png`;
@@ -83,8 +102,8 @@ export default function SplashScreen({
         userSelect: "none",
         cursor: "pointer",
         opacity: isFadingOut ? 0 : 1,
-        transform: isFadingOut ? "scale(1.03)" : "scale(1)",
-        transition: "opacity 380ms cubic-bezier(0.4, 0, 0.2, 1), transform 380ms cubic-bezier(0.4, 0, 0.2, 1)",
+        transform: isFadingOut ? "scale(1.02)" : "scale(1)",
+        transition: "opacity 240ms cubic-bezier(0.4, 0, 0.2, 1), transform 240ms cubic-bezier(0.4, 0, 0.2, 1)",
         overflow: "hidden",
       }}
     >
@@ -215,13 +234,15 @@ export default function SplashScreen({
         {/* Sleek Loading Bar */}
         <div
           style={{
-            width: 200,
-            height: 4,
-            borderRadius: 2,
+            width: 220,
+            maxWidth: "80vw",
+            height: 5,
+            borderRadius: 3,
             background: "rgba(255, 255, 255, 0.08)",
             overflow: "hidden",
-            marginBottom: 10,
+            marginBottom: 12,
             position: "relative",
+            boxShadow: "inset 0 1px 2px rgba(0, 0, 0, 0.5)",
           }}
         >
           <div
@@ -229,24 +250,48 @@ export default function SplashScreen({
               width: `${progress}%`,
               height: "100%",
               background: "linear-gradient(90deg, #F4D779 0%, #FFE9A8 100%)",
-              borderRadius: 2,
-              transition: "width 40ms linear",
+              borderRadius: 3,
+              boxShadow: "0 0 10px rgba(244, 215, 121, 0.5)",
+              transition: progress === 100 ? "width 80ms ease-out" : "width 25ms linear",
             }}
           />
         </div>
 
-        {/* Dynamic Status Text */}
-        <span
+        {/* Dynamic Status Text & Live Percentage */}
+        <div
           style={{
-            fontSize: 11.5,
-            color: "var(--text-muted)",
-            fontWeight: 500,
-            minHeight: 16,
-            transition: "all 200ms ease",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            minHeight: 18,
           }}
         >
-          {statusText}
-        </span>
+          <span
+            style={{
+              fontSize: 11.5,
+              color: progress === 100 ? "var(--accent)" : "var(--text-muted)",
+              fontWeight: progress === 100 ? 700 : 500,
+              letterSpacing: "0.2px",
+              transition: "color 200ms ease",
+            }}
+          >
+            {statusText}
+          </span>
+          <span
+            style={{
+              fontSize: 10.5,
+              fontWeight: 700,
+              color: "var(--accent)",
+              background: "rgba(244, 215, 121, 0.12)",
+              padding: "1px 6px",
+              borderRadius: 8,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {progress}%
+          </span>
+        </div>
       </div>
 
       {/* Bottom Footer Details */}

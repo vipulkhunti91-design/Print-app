@@ -656,72 +656,21 @@ type AppNotification = PrintOrderNotification;
 
 const notificationStorageKey = "printq-notifications-v2";
 
-const defaultNotifications: PrintOrderNotification[] = [
-  {
-    id: "notif-demo-queued-A-26",
-    type: "queued",
-    title: "Order Queued",
-    message: "Your order #A-26 (Assignment_Maths.pdf) has been added to the printing queue at Campus Central.",
-    timestamp: Date.now() - 4 * 60 * 1000,
-    orderToken: "A-26",
-    recordId: "demo-active-A-26",
-    read: false,
-    iconType: "queue",
-  },
-  {
-    id: "notif-demo-placed-A-26",
-    type: "order_placed",
-    title: "Order Placed & Payment Confirmed",
-    message: "Your print order for Assignment_Maths.pdf was placed with Pickup Token A-26.",
-    timestamp: Date.now() - 10 * 60 * 1000,
-    orderToken: "A-26",
-    recordId: "demo-active-A-26",
-    read: false,
-    iconType: "payment",
-  },
-  {
-    id: "notif-demo-ready-A-22",
-    type: "ready",
-    title: "Ready for Pickup",
-    message: "Your order #A-22 (Project_Report.pdf) is ready for pickup at Shelf A-2.",
-    timestamp: Date.now() - 4 * 24 * 60 * 60 * 1000,
-    orderToken: "A-22",
-    recordId: "demo-old-2",
-    read: true,
-    iconType: "ready",
-  },
-  {
-    id: "notif-demo-collected-A-25",
-    type: "completed",
-    title: "Order Collected",
-    message: "Your order #A-25 (Assignment_Maths.pdf) was marked as collected. Thank you!",
-    timestamp: Date.now() - 2 * 24 * 60 * 60 * 1000,
-    orderToken: "A-25",
-    recordId: "demo-old-1",
-    read: true,
-    iconType: "completed",
-  },
-  {
-    id: "notif-demo-cancelled-A-16",
-    type: "cancelled",
-    title: "Order Cancelled",
-    message: "Your print order for Notes_Physics.pdf (Token A-16) was cancelled.",
-    timestamp: Date.now() - 9 * 24 * 60 * 60 * 1000,
-    orderToken: "A-16",
-    recordId: "demo-old-4",
-    read: true,
-    iconType: "cancelled",
-  },
-];
+const defaultNotifications: PrintOrderNotification[] = [];
 
 function readNotifications(): PrintOrderNotification[] {
   try {
+    const session = readStoredAuthSession();
+    if (!session) {
+      window.localStorage.removeItem(notificationStorageKey);
+      return [];
+    }
     const saved = window.localStorage.getItem(notificationStorageKey);
-    if (!saved) return isDemoDataDisabled() ? [] : defaultNotifications;
+    if (!saved) return [];
     const parsed: unknown = JSON.parse(saved);
-    return Array.isArray(parsed) && parsed.length > 0 ? (parsed as PrintOrderNotification[]) : isDemoDataDisabled() ? [] : defaultNotifications;
+    return Array.isArray(parsed) && parsed.length > 0 ? (parsed as PrintOrderNotification[]) : [];
   } catch {
-    return isDemoDataDisabled() ? [] : defaultNotifications;
+    return [];
   }
 }
 
@@ -4795,13 +4744,30 @@ export default function App() {
   }, []);
   const [authSession, setAuthSession] = useState<AuthUser | null>(() => readStoredAuthSession());
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const isReturningUser = useMemo(() => {
+    try {
+      if (typeof window === "undefined") return false;
+      const onboarded = window.localStorage.getItem("onboardingCompleted") === "true";
+      const hasAuth = !!window.localStorage.getItem("printq-auth-session");
+      const hasVisited = window.localStorage.getItem("phtopy_visited") === "true";
+      return onboarded || hasAuth || hasVisited;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
     try {
-      return window.localStorage.getItem("onboardingCompleted") === "show";
+      if (typeof window !== "undefined" && window.location.search.includes("screen=admin")) {
+        return false;
+      }
+      return window.localStorage.getItem("onboardingCompleted") !== "true";
     } catch {
       return false;
     }
   });
+
   const [showSplash, setShowSplash] = useState<boolean>(() => {
     try {
       if (typeof window !== "undefined" && window.location.search.includes("screen=admin")) {
@@ -4810,19 +4776,18 @@ export default function App() {
     } catch {}
     return true;
   });
+
   const [activeOrdersList, setActiveOrdersList] = useState<ActiveOrder[]>(() => {
-    try {
-      const raw = window.localStorage.getItem(activeOrdersStorageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const valid = parsed.filter((o) => o && o.status !== "completed" && o.status !== "cancelled");
-          if (valid.length > 0) return valid;
-        }
-      }
-    } catch {}
     const session = readStoredAuthSession();
-    if (session) {
+    if (!session) {
+      // New / Unauthenticated user must NEVER see any previous user's order tokens!
+      try {
+        window.localStorage.removeItem(activeOrdersStorageKey);
+        window.localStorage.removeItem(activeOrderStorageKey);
+      } catch {}
+      return [];
+    }
+    try {
       securityEngine.setAuthenticatedUser(session.id);
       const userOrders = securityEngine.getOrdersForCurrentUser();
       const active = userOrders.filter((o) => o.status !== "completed" && o.status !== "cancelled");
@@ -4835,23 +4800,17 @@ export default function App() {
           createdAt: o.createdAt,
           totalAmount: o.totalAmount,
           paymentMethod: o.paymentMethod,
-          paymentStatus: o.paymentStatus,
+          paymentStatus: (o.paymentStatus === "paid" || o.paymentStatus === "unpaid" || o.paymentStatus === "pending") ? o.paymentStatus : undefined,
         }));
       }
-    }
-    return demoActiveOrder ? [demoActiveOrder as unknown as ActiveOrder] : [];
+    } catch {}
+    return [];
   });
 
   const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(() => {
-    try {
-      const raw = window.localStorage.getItem(activeOrderStorageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && parsed.status !== "completed" && parsed.status !== "cancelled") return parsed;
-      }
-    } catch {}
     const session = readStoredAuthSession();
-    if (session) {
+    if (!session) return null;
+    try {
       securityEngine.setAuthenticatedUser(session.id);
       const userOrders = securityEngine.getOrdersForCurrentUser();
       const active = userOrders.find((o) => o.status !== "completed" && o.status !== "cancelled");
@@ -4864,11 +4823,11 @@ export default function App() {
           createdAt: active.createdAt,
           totalAmount: active.totalAmount,
           paymentMethod: active.paymentMethod,
-          paymentStatus: active.paymentStatus,
+          paymentStatus: (active.paymentStatus === "paid" || active.paymentStatus === "unpaid" || active.paymentStatus === "pending") ? active.paymentStatus : undefined,
         };
       }
-    }
-    return demoActiveOrder as unknown as ActiveOrder;
+    } catch {}
+    return null;
   });
   const [profile, setProfile] = useState<ProfileDetails>(() => {
     const session = readStoredAuthSession();
@@ -4974,9 +4933,36 @@ export default function App() {
         phone: authSession.phone || "",
         photo: authSession.photo || demoProfile.photo,
       });
+      const userOrders = securityEngine.getOrdersForCurrentUser();
+      const active = userOrders.filter((o) => o.status !== "completed" && o.status !== "cancelled");
+      if (active.length > 0) {
+        const mapped: ActiveOrder[] = active.map((o): ActiveOrder => ({
+          recordId: o.id,
+          token: o.token,
+          job: o.job as PrintJob,
+          status: o.status as ActiveOrder["status"],
+          createdAt: o.createdAt,
+          totalAmount: o.totalAmount,
+          paymentMethod: o.paymentMethod,
+          paymentStatus: (o.paymentStatus === "paid" || o.paymentStatus === "unpaid" || o.paymentStatus === "pending") ? o.paymentStatus : undefined,
+        }));
+        setActiveOrdersList(mapped);
+        setActiveOrder(mapped[0]);
+      } else {
+        setActiveOrdersList([]);
+        setActiveOrder(null);
+      }
     } else {
       securityEngine.setAuthenticatedUser(null);
       setProfile(emptyProfile);
+      setActiveOrdersList([]);
+      setActiveOrder(null);
+      setPrintHistory([]);
+      setNotificationItems([]);
+      try {
+        window.localStorage.removeItem(activeOrderStorageKey);
+        window.localStorage.removeItem(activeOrdersStorageKey);
+      } catch {}
     }
   }, [authSession]);
   const confirmOrder = useCallback((assignedToken?: string, confirmedAmount?: number, paymentMethod: "UPI" | "Cash" = "UPI") => {
@@ -5033,9 +5019,12 @@ export default function App() {
     setNotificationItems((items) => [notif, ...items.filter((it) => it.id !== notif.id)]);
 
     try {
+      if (authSession?.id) {
+        securityEngine.setAuthenticatedUser(authSession.id);
+      }
       securityEngine.createOrder({
-        userEmail: authSession?.email || "vipul.khunti@gmail.com",
-        userName: authSession?.name || "Vipul Khunti",
+        userEmail: authSession?.email || "student@campus.printq",
+        userName: authSession?.name || "Student",
         token,
         status: "confirmed",
         job: { ...job },
@@ -5201,11 +5190,23 @@ export default function App() {
     return true;
   };
   useEffect(() => {
-    try { window.localStorage.setItem(activeOrderStorageKey, JSON.stringify(activeOrder)); } catch { /* Keep the order available for this session. */ }
-  }, [activeOrder]);
+    try {
+      if (authSession && activeOrder) {
+        window.localStorage.setItem(activeOrderStorageKey, JSON.stringify(activeOrder));
+      } else {
+        window.localStorage.removeItem(activeOrderStorageKey);
+      }
+    } catch {}
+  }, [activeOrder, authSession]);
   useEffect(() => {
-    try { window.localStorage.setItem(activeOrdersStorageKey, JSON.stringify(activeOrdersList)); } catch { /* Keep active orders list available */ }
-  }, [activeOrdersList]);
+    try {
+      if (authSession && activeOrdersList.length > 0) {
+        window.localStorage.setItem(activeOrdersStorageKey, JSON.stringify(activeOrdersList));
+      } else {
+        window.localStorage.removeItem(activeOrdersStorageKey);
+      }
+    } catch {}
+  }, [activeOrdersList, authSession]);
   useEffect(() => {
     try { window.localStorage.setItem(profileStorageKey, JSON.stringify(profile)); } catch { /* Keep the profile available for this session. */ }
   }, [profile]);
@@ -5577,74 +5578,83 @@ export default function App() {
     : "";
   const phoneMask = payMobile.length === 10 ? `${payMobile.slice(0, 2)}xxxxxx${payMobile.slice(-2)}` : "";
 
+  const handleAuthSuccess = useCallback((user: AuthUser) => {
+    setAuthSession(user);
+    securityEngine.setAuthenticatedUser(user.id);
+    setProfile({
+      name: user.name,
+      email: user.email,
+      phone: user.phone || "",
+      photo: user.photo || demoProfile.photo,
+    });
+
+    const userOrders = securityEngine.getOrdersForCurrentUser();
+    if (userOrders.length > 0) {
+      const mappedHistory: PrintHistoryRecord[] = userOrders.map((o) => ({
+        id: o.id,
+        token: o.token,
+        job: o.job as PrintJob,
+        submittedAt: new Date(o.createdAt).toISOString(),
+        status: o.status,
+        createdAt: o.createdAt,
+      }));
+      setPrintHistory(mappedHistory);
+      const active = userOrders.filter((o) => o.status !== "completed" && o.status !== "cancelled");
+      if (active.length > 0) {
+        const mapped: ActiveOrder[] = active.map((o): ActiveOrder => ({
+          recordId: o.id,
+          token: o.token,
+          job: o.job as PrintJob,
+          status: o.status as ActiveOrder["status"],
+          createdAt: o.createdAt,
+          totalAmount: o.totalAmount,
+          paymentMethod: o.paymentMethod,
+          paymentStatus: (o.paymentStatus === "paid" || o.paymentStatus === "unpaid" || o.paymentStatus === "pending") ? o.paymentStatus : undefined,
+        }));
+        setActiveOrdersList(mapped);
+        setActiveOrder(mapped[0]);
+      } else {
+        setActiveOrdersList([]);
+        setActiveOrder(null);
+      }
+    } else {
+      setActiveOrdersList([]);
+      setActiveOrder(null);
+      setPrintHistory([]);
+    }
+
+    const userNotifs = securityEngine.getNotificationsForCurrentUser();
+    if (userNotifs.length > 0) {
+      setNotificationItems(userNotifs.map((n) => ({
+        id: n.id,
+        type: n.type as any,
+        title: n.title,
+        message: n.message,
+        timestamp: n.timestamp,
+        orderToken: n.orderToken,
+        recordId: n.recordId,
+        read: n.read,
+        iconType: (n.iconType || "placed") as any,
+      })));
+    } else {
+      setNotificationItems([]);
+    }
+
+    setIsAuthModalOpen(false);
+  }, []);
+
   const renderAuthModal = () => (
     <>
       <AuthModal
-      isOpen={isAuthModalOpen}
-      onClose={() => {
-        try { window.sessionStorage.setItem("printq-auth-dismissed", "true"); } catch {}
-        setIsAuthModalOpen(false);
-      }}
-      onAuthSuccess={(user) => {
-        setAuthSession(user);
-        securityEngine.setAuthenticatedUser(user.id);
-        setProfile({
-          name: user.name,
-          email: user.email,
-          phone: user.phone || "",
-          photo: user.photo || demoProfile.photo,
-        });
-
-        const userOrders = securityEngine.getOrdersForCurrentUser();
-        if (userOrders.length > 0) {
-          const mappedHistory: PrintHistoryRecord[] = userOrders.map((o) => ({
-            id: o.id,
-            token: o.token,
-            job: o.job as PrintJob,
-            submittedAt: new Date(o.createdAt).toISOString(),
-            status: o.status,
-            createdAt: o.createdAt,
-          }));
-          setPrintHistory(mappedHistory);
-          const active = userOrders.find((o) => o.status !== "completed" && o.status !== "cancelled");
-          if (active) {
-            setActiveOrder({
-              recordId: active.id,
-              token: active.token,
-              job: active.job as PrintJob,
-              status: active.status,
-              createdAt: active.createdAt,
-            });
-          } else {
-            setActiveOrder(null);
-          }
-        } else {
-          setActiveOrder(null);
-          setPrintHistory([]);
-        }
-
-        const userNotifs = securityEngine.getNotificationsForCurrentUser();
-        if (userNotifs.length > 0) {
-          setNotificationItems(userNotifs.map((n) => ({
-            id: n.id,
-            type: n.type as any,
-            title: n.title,
-            message: n.message,
-            timestamp: n.timestamp,
-            orderToken: n.orderToken,
-            recordId: n.recordId,
-            read: n.read,
-            iconType: (n.iconType || "placed") as any,
-          })));
-        } else {
-          setNotificationItems([]);
-        }
-
-        setIsAuthModalOpen(false);
-      }}
-    />
-  </>
-);
+        isOpen={isAuthModalOpen}
+        onClose={() => {
+          try { window.sessionStorage.setItem("printq-auth-dismissed", "true"); } catch {}
+          setIsAuthModalOpen(false);
+        }}
+        onAuthSuccess={handleAuthSuccess}
+      />
+    </>
+  );
 
   const renderDocumentPreviewModal = () => {
     if (!showPreview) return null;
@@ -5683,8 +5693,14 @@ export default function App() {
   if (showSplash) {
     return (
       <SplashScreen
-        duration={1800}
-        onFinish={() => setShowSplash(false)}
+        duration={1400}
+        isReturningUser={isReturningUser}
+        onFinish={() => {
+          try {
+            window.localStorage.setItem("phtopy_visited", "true");
+          } catch {}
+          setShowSplash(false);
+        }}
       />
     );
   }
@@ -5697,6 +5713,7 @@ export default function App() {
           setScreen("home");
           try {
             window.localStorage.setItem("onboardingCompleted", "true");
+            window.localStorage.setItem("phtopy_visited", "true");
           } catch {}
         }}
       />
@@ -6025,8 +6042,13 @@ export default function App() {
                   setAuthSession(null);
                   setProfile(emptyProfile);
                   setActiveOrder(null);
+                  setActiveOrdersList([]);
                   setPrintHistory([]);
                   setNotificationItems([]);
+                  try {
+                    window.localStorage.removeItem(activeOrderStorageKey);
+                    window.localStorage.removeItem(activeOrdersStorageKey);
+                  } catch {}
                   setIsAuthModalOpen(false);
                   setScreen("home");
                   window.scrollTo(0, 0);
@@ -6728,6 +6750,7 @@ export default function App() {
         {isLoginOpen && loginSummary && (
           <LoginSheet
             summary={loginSummary}
+            onAuthSuccess={handleAuthSuccess}
             onPaymentContinue={() => {
               setIsLoginOpen(false);
               go("checkout");
@@ -6855,8 +6878,8 @@ export default function App() {
               </div>
             </div>
           )}
-          {/* Active Print Orders List - Supports all active orders / multiple tokens for this user */}
-          {(() => {
+          {/* Active Print Orders List - Strictly scoped to signed-in user */}
+          {Boolean(authSession) && (() => {
             const activeList = activeOrdersList.filter((o) => o && o.status !== "completed" && o.status !== "cancelled");
             const displayList = activeList.length > 0 ? activeList : (activeOrder && activeOrder.status !== "completed" && activeOrder.status !== "cancelled" ? [activeOrder] : []);
             if (displayList.length === 0) return null;
@@ -6961,6 +6984,7 @@ export default function App() {
       {isLoginOpen && loginSummary && (
         <LoginSheet
           summary={loginSummary}
+          onAuthSuccess={handleAuthSuccess}
           onPaymentContinue={() => {
             setIsLoginOpen(false);
             go("checkout");
