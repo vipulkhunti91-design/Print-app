@@ -4757,17 +4757,9 @@ export default function App() {
     return true;
   });
 
-  const [showSplash, setShowSplash] = useState<boolean>(() => {
-    try {
-      if (typeof window !== "undefined") {
-        const search = window.location.search;
-        if (search.includes("screen=admin") || search.includes("screen=onboarding")) {
-          return false;
-        }
-      }
-    } catch {}
-    return true;
-  });
+  // The shared app link always opens on the onboarding walkthrough. The splash
+  // remains available from Settings as an intentional replay action.
+  const [showSplash, setShowSplash] = useState(false);
 
   const [activeOrdersList, setActiveOrdersList] = useState<ActiveOrder[]>(() => {
     const session = readStoredAuthSession();
