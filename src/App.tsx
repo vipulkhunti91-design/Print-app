@@ -4744,18 +4744,9 @@ export default function App() {
     }
   }, []);
 
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
-    try {
-      if (typeof window !== "undefined") {
-        const search = window.location.search;
-        if (search.includes("screen=admin") || search.includes("screen=token")) {
-          return false;
-        }
-      }
-    } catch {}
-    // Whenever someone opens the link, ensure they always see this Onboarding walkthrough screen
-    return true;
-  });
+  // Every shared URL starts at the onboarding walkthrough, regardless of its
+  // query parameters. Visitors can then continue through the normal flow.
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(true);
 
   // The shared app link always opens on the onboarding walkthrough. The splash
   // remains available from Settings as an intentional replay action.
