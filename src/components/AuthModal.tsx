@@ -366,7 +366,7 @@ export default function AuthModal({
     setOtpError("");
 
     try {
-      const nameToUse = fullName.trim() || (document.getElementById("auth-name-input") as HTMLInputElement)?.value?.trim() || pendingUser?.name || "PrintQ Student";
+      const nameToUse = fullName.trim() || (document.getElementById("auth-name-input") as HTMLInputElement)?.value?.trim() || pendingUser?.name || "Phtopy Student";
       const cleanMobile = mobileNumber || (document.getElementById("auth-mobile-input") as HTMLInputElement)?.value?.replace(/\D/g, "") || "";
 
       if (cleanMobile.length !== 10) {
@@ -507,7 +507,7 @@ export default function AuthModal({
 
             <div className="real-google-hero-copy">
               <h2 id="auth-modal-title" className="real-google-title">Sign in</h2>
-              <p className="real-google-subtitle">with your Google Account to continue to PrintQ</p>
+              <p className="real-google-subtitle">with your Google Account to continue to Phtopy</p>
             </div>
 
             {/* Quick account suggestions chip row */}
@@ -562,7 +562,7 @@ export default function AuthModal({
             </div>
 
             <p className="real-google-disclaimer">
-              To continue, Google will share your name, email address, language preference, and profile picture with PrintQ.
+              To continue, Google will share your name, email address, language preference, and profile picture with Phtopy.
             </p>
 
             <div className="real-google-actions-row">
@@ -697,7 +697,7 @@ export default function AuthModal({
               <button
                 type="button"
                 className="real-google-text-link"
-                onClick={() => setGooglePassword("PrintQ#2026")}
+                onClick={() => setGooglePassword("Phtopy#2026")}
               >
                 Forgot password?
               </button>

@@ -1,5 +1,5 @@
 /**
- * PrintQ OTP server (zero dependencies).
+ * Phtopy OTP server (zero dependencies).
  *
  * Endpoints:
  *   POST /api/auth/send-otp    { mobile, domain } -> sends a real 4-digit SMS OTP
@@ -114,7 +114,7 @@ function generateOtp(digits = 6) {
  *   @<domain> #<otp>
  */
 function buildWebOtpMessage(otp, domain) {
-  return `Your PrintQ verification OTP is ${otp}. It will expire in 5 minutes. Do not share your OTP with anyone.\n\n@${domain} #${otp}`;
+  return `Your Phtopy verification OTP is ${otp}. It will expire in 5 minutes. Do not share your OTP with anyone.\n\n@${domain} #${otp}`;
 }
 
 async function sendSmsGateway(mobile, message, otp) {
@@ -160,7 +160,7 @@ async function sendSmsGateway(mobile, message, otp) {
     return { delivery: "sms" };
   }
 
-  console.log(`[PrintQ OTP preview] +91${mobile}: ${message.replace(/\n+/g, " | ")}`);
+  console.log(`[Phtopy OTP preview] +91${mobile}: ${message.replace(/\n+/g, " | ")}`);
   return { delivery: "preview" };
 }
 
@@ -207,7 +207,7 @@ async function handleSendOtp(req, res) {
     return sendJson(res, 200, payload);
   } catch (error) {
     otpStore.delete(mobile);
-    console.error("[PrintQ OTP] SMS delivery failed:", error);
+    console.error("[Phtopy OTP] SMS delivery failed:", error);
     return sendJson(res, 502, {
       success: false,
       error: "Could not send SMS right now. Please try again.",
@@ -282,11 +282,11 @@ const server = http.createServer(async (req, res) => {
     }
     return sendJson(res, 404, { success: false, error: "Not found" });
   } catch (error) {
-    console.error("[PrintQ OTP] Request failed:", error);
+    console.error("[Phtopy OTP] Request failed:", error);
     return sendJson(res, 500, { success: false, error: "Server error. Please try again." });
   }
 });
 
 server.listen(PORT, () => {
-  console.log(`[PrintQ OTP] server listening on http://localhost:${PORT}`);
+  console.log(`[Phtopy OTP] server listening on http://localhost:${PORT}`);
 });

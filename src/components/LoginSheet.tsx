@@ -248,24 +248,30 @@ export default function LoginSheet({ summary, onClose, onPaymentContinue, onAuth
     triggerAutoVerify(otp);
   };
 
-  const continueRemembered = () => {
+  const continueRemembered = async () => {
     setShowRemembered(false);
     if (rememberedUser) {
       const clean = rememberedUser.mobile.replace(/\D/g, "").slice(-10);
-      const uid = `uid_ph_${clean}`;
-      const fullUser: AuthUser = {
-        id: uid,
-        uid: uid,
-        name: rememberedUser.name,
-        email: `${clean}@campus.printq`,
-        phone: `+91 ${clean.slice(0, 5)} ${clean.slice(5)}`,
-        provider: "phone",
-        phoneVerified: true,
-        createdAt: Date.now(),
-        role: clean === "7096447726" ? "admin" : "user",
-      };
-      saveAuthSession(fullUser);
-      onAuthSuccess?.(fullUser);
+      try {
+        const profile = await securityEngine.handlePhoneAuthSuccess(rememberedUser.name, clean);
+        const fullUser: AuthUser = {
+          id: profile.uid,
+          uid: profile.uid,
+          name: profile.displayName,
+          email: profile.email,
+          phone: profile.phoneNumber,
+          photo: profile.photoURL,
+          provider: "phone",
+          phoneVerified: true,
+          createdAt: profile.createdAt,
+          role: profile.role,
+        };
+        saveAuthSession(fullUser);
+        onAuthSuccess?.(fullUser);
+      } catch (error) {
+        setSendError(otpErrorMessage(error));
+        return;
+      }
     }
     onPaymentContinue();
     onClose();

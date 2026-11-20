@@ -177,7 +177,7 @@ export default function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             )}
             {currentStep === 4 && (
               <>
-                <h1 className="onboarding-heading">PrintQ Quick Tools</h1>
+                <h1 className="onboarding-heading">Phtopy Quick Tools</h1>
                 <p className="onboarding-subtext">
                   Legibility checks, deadline estimates and group cost splits
                   are built right into your print setup.
@@ -287,7 +287,7 @@ function IllustrationQueue() {
           fill="var(--text-muted)"
           fontSize="8.5"
           fontWeight="700"
-          fontFamily="sans-serif"
+          fontFamily="Manrope, sans-serif"
           letterSpacing="0.1em"
           textAnchor="middle"
         >
@@ -336,14 +336,14 @@ function IllustrationQueue() {
           fill="var(--error)"
           fontSize="9"
           fontWeight="800"
-          fontFamily="sans-serif"
+          fontFamily="Manrope, sans-serif"
           letterSpacing="0.08em"
           textAnchor="middle"
         >
           WAITING
         </text>
 
-        {/* Arrow: old way → PrintQ */}
+        {/* Arrow: old way → Phtopy */}
         <path
           d="M128 100h16M138 94l7 6-7 6"
           stroke="var(--text-secondary)"
@@ -352,7 +352,7 @@ function IllustrationQueue() {
           strokeLinejoin="round"
         />
 
-        {/* RIGHT: PrintQ — instant token, no queue */}
+        {/* RIGHT: Phtopy — instant token, no queue */}
         <rect
           x="156"
           y="26"
@@ -369,11 +369,11 @@ function IllustrationQueue() {
           fill="var(--accent)"
           fontSize="8.5"
           fontWeight="700"
-          fontFamily="sans-serif"
+          fontFamily="Manrope, sans-serif"
           letterSpacing="0.1em"
           textAnchor="middle"
         >
-          PRINTQ
+          PHTOPY
         </text>
 
         {/* Token card */}
@@ -393,7 +393,7 @@ function IllustrationQueue() {
           fill="var(--accent)"
           fontSize="22"
           fontWeight="900"
-          fontFamily="sans-serif"
+          fontFamily="Manrope, sans-serif"
           textAnchor="middle"
           letterSpacing="-0.02em"
         >
@@ -405,7 +405,7 @@ function IllustrationQueue() {
           fill="var(--text-secondary)"
           fontSize="7.5"
           fontWeight="700"
-          fontFamily="sans-serif"
+          fontFamily="Manrope, sans-serif"
           letterSpacing="0.08em"
           textAnchor="middle"
         >
@@ -435,7 +435,7 @@ function IllustrationQueue() {
           fill="var(--status-ready)"
           fontSize="9"
           fontWeight="800"
-          fontFamily="sans-serif"
+          fontFamily="Manrope, sans-serif"
           letterSpacing="0.08em"
           textAnchor="middle"
         >
@@ -508,7 +508,7 @@ function IllustrationSettings() {
             fill="#888"
             fontSize="9"
             fontWeight="600"
-            fontFamily="sans-serif"
+            fontFamily="Manrope, sans-serif"
           >
             PAPER SIZE
           </text>
@@ -518,7 +518,7 @@ function IllustrationSettings() {
             fill="#F4D779"
             fontSize="9"
             fontWeight="700"
-            fontFamily="sans-serif"
+            fontFamily="Manrope, sans-serif"
           >
             A4
           </text>
@@ -542,7 +542,7 @@ function IllustrationSettings() {
             fill="#888"
             fontSize="9"
             fontWeight="600"
-            fontFamily="sans-serif"
+            fontFamily="Manrope, sans-serif"
           >
             COPIES & SIDES
           </text>
@@ -552,7 +552,7 @@ function IllustrationSettings() {
             fill="#F4D779"
             fontSize="9"
             fontWeight="700"
-            fontFamily="sans-serif"
+            fontFamily="Manrope, sans-serif"
           >
             2 COPIES
           </text>
@@ -576,7 +576,7 @@ function IllustrationSettings() {
             fill="#F4D779"
             fontSize="10"
             fontWeight="700"
-            fontFamily="sans-serif"
+            fontFamily="Manrope, sans-serif"
           >
             B&W
           </text>
@@ -597,7 +597,7 @@ function IllustrationSettings() {
             fill="#777"
             fontSize="10"
             fontWeight="600"
-            fontFamily="sans-serif"
+            fontFamily="Manrope, sans-serif"
           >
             Colour
           </text>
@@ -618,7 +618,7 @@ function IllustrationSettings() {
             fill="#777"
             fontSize="10"
             fontWeight="600"
-            fontFamily="sans-serif"
+            fontFamily="Manrope, sans-serif"
           >
             Duplex
           </text>
@@ -747,7 +747,7 @@ function IllustrationMultipleFiles() {
             fill="#FFFFFF"
             fontSize="12"
             fontWeight="700"
-            fontFamily="sans-serif"
+            fontFamily="Manrope, sans-serif"
           >
             assignment.pdf
           </text>
@@ -768,7 +768,7 @@ function IllustrationMultipleFiles() {
             fill="#A3A9B8"
             fontSize="10"
             fontWeight="600"
-            fontFamily="sans-serif"
+            fontFamily="Manrope, sans-serif"
           >
             Colour · 3 copies
           </text>
@@ -828,7 +828,7 @@ function IllustrationMultipleFiles() {
             fill="#FFFFFF"
             fontSize="12"
             fontWeight="700"
-            fontFamily="sans-serif"
+            fontFamily="Manrope, sans-serif"
           >
             resume.pdf
           </text>
@@ -849,7 +849,7 @@ function IllustrationMultipleFiles() {
             fill="#A3A9B8"
             fontSize="10"
             fontWeight="600"
-            fontFamily="sans-serif"
+            fontFamily="Manrope, sans-serif"
           >
             B&W · 2 copies
           </text>
@@ -896,7 +896,7 @@ function IllustrationMultipleFiles() {
             fill="#FFFFFF"
             fontSize="12"
             fontWeight="700"
-            fontFamily="sans-serif"
+            fontFamily="Manrope, sans-serif"
           >
             photo.jpg
           </text>
@@ -917,7 +917,7 @@ function IllustrationMultipleFiles() {
             fill="#A3A9B8"
             fontSize="10"
             fontWeight="600"
-            fontFamily="sans-serif"
+            fontFamily="Manrope, sans-serif"
           >
             Glossy · 1 copy
           </text>
@@ -929,7 +929,7 @@ function IllustrationMultipleFiles() {
 
 // ============================================================================
 
-// Guide Screen: PrintQ Quick Tools overview
+// Guide Screen: Phtopy Quick Tools overview
 
 // ============================================================================
 
@@ -1058,7 +1058,7 @@ function IllustrationToken() {
           fill="#F4D779"
           fontSize="10"
           fontWeight="800"
-          fontFamily="sans-serif"
+          fontFamily="Manrope, sans-serif"
           letterSpacing="0.05em"
         >
           PICKUP TOKEN
@@ -1071,7 +1071,7 @@ function IllustrationToken() {
           fill="#FFFFFF"
           fontSize="34"
           fontWeight="900"
-          fontFamily="sans-serif"
+          fontFamily="Manrope, sans-serif"
           letterSpacing="-0.02em"
         >
           A-26
@@ -1103,7 +1103,7 @@ function IllustrationToken() {
           fill="#A7E8BD"
           fontSize="9.5"
           fontWeight="700"
-          fontFamily="sans-serif"
+          fontFamily="Manrope, sans-serif"
         >
           Ready in 10m
         </text>

@@ -4,6 +4,7 @@ import type { SupportedLanguage } from "../utils/i18n";
 import { getTranslation } from "../utils/i18n";
 import { sanitizeDisplayFileName } from "../utils/sanitizeFileName";
 import { RealQRCode } from "./RealQRCode";
+import AppIcon from "./AppIcon";
 
 interface UnifiedTokenSwipeCardProps {
   token: string;
@@ -196,7 +197,7 @@ export function UnifiedTokenSwipeCard({
             gap: 6,
           }}
         >
-          <span>🎫</span>
+          <AppIcon name="ticket" className="token-tab-icon" />
           <span>{getTranslation(language, "pickup_token")}</span>
         </button>
 
@@ -220,7 +221,7 @@ export function UnifiedTokenSwipeCard({
             gap: 6,
           }}
         >
-          <span>📱</span>
+          <AppIcon name="qr-code" className="token-tab-icon" />
           <span>{getTranslation(language, "counter_qr")}</span>
         </button>
       </div>

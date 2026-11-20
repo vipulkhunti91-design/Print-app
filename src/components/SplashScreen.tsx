@@ -9,6 +9,7 @@ export interface SplashScreenProps {
 export default function SplashScreen({
   onFinish,
   duration = 1300,
+  isReturningUser = false,
 }: SplashScreenProps) {
   const [progress, setProgress] = useState(0);
   const [isFadingOut, setIsFadingOut] = useState(false);
@@ -34,7 +35,8 @@ export default function SplashScreen({
     let animFrame: number;
     let finishTimer: any;
     const startTime = performance.now();
-    const totalDuration = Math.max(900, duration);
+    // Returning users already saw the full brand animation; keep a short, smooth 0→100% pass.
+    const totalDuration = isReturningUser ? 650 : Math.max(900, duration);
 
     const tick = (now: number) => {
       if (hasFinishedRef.current) return;
@@ -72,7 +74,7 @@ export default function SplashScreen({
       if (animFrame) cancelAnimationFrame(animFrame);
       if (finishTimer) clearTimeout(finishTimer);
     };
-  }, [duration]);
+  }, [duration, isReturningUser]);
 
   const handleSkip = () => {
     finishSequence();
@@ -242,7 +244,6 @@ export default function SplashScreen({
             overflow: "hidden",
             marginBottom: 12,
             position: "relative",
-            boxShadow: "inset 0 1px 2px rgba(0, 0, 0, 0.5)",
           }}
         >
           <div
@@ -251,7 +252,6 @@ export default function SplashScreen({
               height: "100%",
               background: "linear-gradient(90deg, #F4D779 0%, #FFE9A8 100%)",
               borderRadius: 3,
-              boxShadow: "0 0 10px rgba(244, 215, 121, 0.5)",
               transition: progress === 100 ? "width 80ms ease-out" : "width 25ms linear",
             }}
           />

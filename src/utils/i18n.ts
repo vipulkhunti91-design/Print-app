@@ -1,4 +1,4 @@
-// PrintQ Internationalization (i18n) Engine
+// Phtopy Internationalization (i18n) Engine
 // Supports English (en), Hindi (hi), and Gujarati (gu)
 
 import React, { createContext, useContext, useState, useEffect } from "react";
@@ -225,7 +225,7 @@ export const translations: Record<SupportedLanguage, TranslationDictionary> = {
     nav_history: "History",
     nav_settings: "Settings",
 
-    app_name: "PrintQ",
+    app_name: "Phtopy",
     back_home: "← Back to Home",
     back: "Back",
     save: "Save",
@@ -245,7 +245,7 @@ export const translations: Record<SupportedLanguage, TranslationDictionary> = {
     home_files_count: "files uploaded",
     home_eta_prompt: "Add a file to see estimated time",
     home_eta_prompt_sub: "Upload a document to calculate completion time",
-    home_shortcuts_title: "PrintQ Quick Tools",
+    home_shortcuts_title: "Phtopy Quick Tools",
     home_now_serving: "Now Serving",
     home_current_serving: "Counter Serving Token",
     home_your_pickup_token: "Your Pickup Token",
@@ -280,7 +280,7 @@ export const translations: Record<SupportedLanguage, TranslationDictionary> = {
 
     settings_title: "Shop & Settings",
     settings_language_section: "Display Language",
-    settings_language_desc: "Choose your preferred language across PrintQ",
+    settings_language_desc: "Choose your preferred language across Phtopy",
     settings_notifications_section: "Notifications & Alerts",
     settings_order_updates: "Order Ready Alerts",
     settings_order_updates_sub: "Push alerts as soon as prints are ready for pickup",
@@ -477,7 +477,7 @@ export const translations: Record<SupportedLanguage, TranslationDictionary> = {
 
     settings_title: "દુકાન અને સેટિંગ્સ",
     settings_language_section: "પ્રદર્શન ભાષા (Display Language)",
-    settings_language_desc: "PrintQ માટે તમારી પસંદગીની ભાષા પસંદ કરો",
+    settings_language_desc: "Phtopy માટે તમારી પસંદગીની ભાષા પસંદ કરો",
     settings_notifications_section: "સૂચનાઓ અને ચેતવણીઓ",
     settings_order_updates: "ઓર્ડર પિકઅપ ચેતવણીઓ",
     settings_order_updates_sub: "પ્રિન્ટ તૈયાર થતાં જ ત્વરિત સૂચના મેળવો",
@@ -674,7 +674,7 @@ export const translations: Record<SupportedLanguage, TranslationDictionary> = {
 
     settings_title: "शॉप और सेटिंग्स",
     settings_language_section: "प्रदर्शन भाषा (Display Language)",
-    settings_language_desc: "PrintQ के लिए अपनी पसंदीदा भाषा चुनें",
+    settings_language_desc: "Phtopy के लिए अपनी पसंदीदा भाषा चुनें",
     settings_notifications_section: "सूचनाएं और अलर्ट",
     settings_order_updates: "ऑर्डर पिकअप अलर्ट",
     settings_order_updates_sub: "प्रिंट तैयार होते ही तुरंत सूचना प्राप्त करें",

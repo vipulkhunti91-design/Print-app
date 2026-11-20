@@ -320,8 +320,8 @@ export default function AdminMasterControl({
   // Secure File Download for Printer
   const handleDownloadDocument = (order: FirebaseOrderRecord) => {
     try {
-      const fileName = order.job.fileName || `PrintQ_Doc_${order.token}.pdf`;
-      const docHeader = `=== PRINTQ CAMPUS PRINT DOCUMENT ===\n` +
+      const fileName = order.job.fileName || `Phtopy_Doc_${order.token}.pdf`;
+      const docHeader = `=== PHTOPY CAMPUS PRINT DOCUMENT ===\n` +
         `Token: ${order.token}\n` +
         `Customer: ${order.userName} (${order.userEmail})\n` +
         `Job Details: ${order.job.pages} Pages × ${order.job.copies} Copies | ${order.job.colour ? "Full Colour" : "B&W"}\n` +
@@ -705,7 +705,7 @@ export default function AdminMasterControl({
       link.href = url;
       link.setAttribute(
         "download",
-        `printq_business_report_${reportTimeRange}_${new Date().toISOString().slice(0, 10)}.csv`
+        `phtopy_business_report_${reportTimeRange}_${new Date().toISOString().slice(0, 10)}.csv`
       );
       document.body.appendChild(link);
       link.click();
@@ -841,7 +841,7 @@ export default function AdminMasterControl({
             </button>
 
             <button type="button" className="admin-secondary-btn" onClick={onBack} style={{ marginTop: 10 }}>
-              ← Return to PrintQ
+              ← Return to Phtopy
             </button>
           </form>
 
@@ -1421,7 +1421,7 @@ export default function AdminMasterControl({
                       return (
                         <tr key={u.uid}>
                           <td>
-                            <strong style={{ fontSize: 13, color: "var(--text)" }}>{u.displayName || "PrintQ Student"}</strong>
+                            <strong style={{ fontSize: 13, color: "var(--text)" }}>{u.displayName || "Phtopy Student"}</strong>
                             <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>{u.email}</div>
                             <div style={{ fontSize: 10, color: "var(--text-muted)" }}>UID: {u.uid}</div>
                           </td>
@@ -3085,7 +3085,7 @@ export default function AdminMasterControl({
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
-                fontFamily: "monospace",
+                fontFamily: "var(--font-app)",
                 fontSize: 11,
                 border: "1px solid var(--border)",
                 marginBottom: 16,
@@ -3100,7 +3100,7 @@ export default function AdminMasterControl({
                 </p>
               </div>
               <div style={{ textAlign: "right", color: "#888", fontSize: 10 }}>
-                PrintQ Verified · Token {previewOrder.token}
+                Phtopy Verified · Token {previewOrder.token}
               </div>
             </div>
 
@@ -3422,7 +3422,7 @@ export default function AdminMasterControl({
                 background: "#FFFFFF",
                 borderRadius: 8,
                 color: "#111827",
-                fontFamily: "monospace",
+                fontFamily: "var(--font-app)",
                 fontSize: 12,
                 lineHeight: 1.5,
                 border: "1px solid var(--border)",

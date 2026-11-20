@@ -1,7 +1,7 @@
 import React from "react";
 
 /**
- * PrintQ Anime-Inspired Minimal Illustrations
+ * Phtopy Anime-Inspired Minimal Illustrations
  * Crafted specifically for the dark UI design system:
  * - Butter Yellow accent: #F4D779
  * - Mint Green success: #A7E8BD
@@ -63,7 +63,7 @@ export function UploadHeroIllustration() {
           fill="var(--accent)"
           fontSize="10"
           fontWeight="800"
-          fontFamily="sans-serif"
+          fontFamily="Manrope, sans-serif"
         >
           A-26
         </text>
@@ -468,8 +468,8 @@ export function PrinterPaymentProcessingIllustration() {
         <circle cx="110" cy="50" r="3.2" fill="var(--accent)" className="printer-processing-led" />
         <circle cx="110" cy="50" r="6" fill="var(--accent)" opacity="0.25" className="printer-processing-led-halo" />
 
-        {/* Brand Label "PrintQ" on chassis */}
-        <text x="50" y="53" fill="var(--text-secondary)" fontSize="8.5" fontWeight="700" letterSpacing="0.05em">PRINTQ</text>
+        {/* Brand Label "Phtopy" on chassis */}
+        <text x="50" y="53" fill="var(--text-secondary)" fontSize="8.5" fontWeight="700" letterSpacing="0.05em">PHTOPY</text>
 
         {/* Front Output Slot */}
         <rect
@@ -638,7 +638,7 @@ export function MobileLoginIllustration() {
           stroke="var(--accent)"
           strokeWidth="1.2"
         />
-        <text x="18" y="62" fill="var(--accent)" fontSize="9.5" fontWeight="800" fontFamily="var(--font-app)">+91 💬</text>
+        <text x="18" y="62" fill="var(--accent)" fontSize="9.5" fontWeight="800" fontFamily="Manrope, sans-serif">+91 💬</text>
       </g>
 
       {/* Floating Verified Shield Badge (Right) */}

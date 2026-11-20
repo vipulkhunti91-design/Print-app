@@ -28,7 +28,7 @@
   --radius-button: 12px;
   --app-max-width: 430px;
   --app-gutter: 16px;
-  --font-app: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-app: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --transparent: transparent;
   --theme-bg: var(--background);
   --theme-canvas: var(--background);
@@ -2161,7 +2161,7 @@ body:has(.login-sheet-overlay) .printq-paybar {
 .track-countdown-digits {
   font-size: 32px;
   font-weight: 900;
-  font-family: monospace, sans-serif;
+  font-family: var(--font-app);
   color: var(--accent);
   letter-spacing: 0.04em;
   line-height: 1;

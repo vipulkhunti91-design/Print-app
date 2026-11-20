@@ -69,7 +69,7 @@ export default function PaymentPage({
       setStatusMessage("Verifying signature & debit confirmation…");
       window.setTimeout(() => {
         setPaymentStatus("success");
-        setStatusMessage("Payment Verified ✓ Amount credited to PrintQ Campus Desk.");
+        setStatusMessage("Payment Verified ✓ Amount credited to Phtopy Campus Desk.");
         window.setTimeout(() => {
           onPaymentSuccess(
             selectedMethod === "upi"

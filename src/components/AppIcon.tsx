@@ -42,6 +42,8 @@ const icons: Record<string, ReactNode> = {
   "fc492.svg": <><path d="M6 9V4h12v5M6 17H4V9h16v8h-2M7 14h10v6H7z" /><path d="M17 11h.01" /></>,
   "4236e.svg": <path d="m5 12 4.2 4.2L19 6.5" />,
   "pickup.svg": <><path d="M4 13h6l2 3h8a2 2 0 0 1 0 4h-9l-3-3H4z" /><path d="M8 13V5h9v8M11 8h3" /></>,
+  ticket: <><path d="M3 9a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z" /><path d="M13 7v2M13 11v2M13 15v2" /></>,
+  "qr-code": <><rect width="5" height="5" x="3" y="3" rx="1" /><rect width="5" height="5" x="16" y="3" rx="1" /><rect width="5" height="5" x="3" y="16" rx="1" /><path d="M21 16h-3a2 2 0 0 0-2 2v3M21 21v.01M12 7v3a2 2 0 0 1-2 2H7M3 12h.01M12 3h.01M12 16v.01M16 12h1M21 12v.01M12 21v-1" /></>,
 };
 
 export default function AppIcon({ name, className = "" }: { name: string; className?: string }) {

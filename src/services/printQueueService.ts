@@ -1,4 +1,4 @@
-// PrintQ Shared Live Queue Service & Engine
+// Phtopy Shared Live Queue Service & Engine
 
 export type QueueItemStatus = "waiting" | "printing" | "ready" | "completed" | "cancelled";
 

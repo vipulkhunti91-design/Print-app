@@ -26,7 +26,7 @@ import {
 import AppIcon from "./components/AppIcon";
 import LoginSheet, { type LoginSummary } from "./components/LoginSheet";
 import { formatTimeRemaining, getShopStatus, type ShopStatus } from "./config/shopHours";
-import { demoActiveOrder, demoOldDocuments, demoProfile } from "./data/demoData";
+import { demoProfile } from "./data/demoData";
 import { calculateEstimatedReadyTime } from "./utils/estimatedTime";
 import { sanitizeDisplayFileName } from "./utils/sanitizeFileName";
 import {
@@ -119,6 +119,16 @@ type ActiveOrder = {
   paymentStatus?: "paid" | "unpaid" | "pending";
 };
 
+function toActiveOrderPaymentStatus(
+  status: string | undefined,
+  method: string | undefined,
+): ActiveOrder["paymentStatus"] {
+  if (status === "paid" || status === "unpaid" || status === "pending") return status;
+  // Cash orders are stored as "pending_cash"; refunded/failed payments are also not collectible as paid.
+  if (status === "pending_cash" || status === "failed" || status === "refunded") return "unpaid";
+  return method === "Cash" ? "unpaid" : undefined;
+}
+
 
 type ProfileDetails = { name: string; phone: string; email: string; photo: string };
 type PrintHistoryRecord = {
@@ -155,10 +165,6 @@ function readRememberedPayUser(): RememberedPayUser | null {
   } catch {
     return null;
   }
-}
-
-function isDemoDataDisabled() {
-  try { return window.localStorage.getItem(demoDataDisabledKey) === "true"; } catch { return false; }
 }
 
 function readStoredValue<T>(key: string, fallback: T): T {
@@ -656,31 +662,13 @@ type AppNotification = PrintOrderNotification;
 
 const notificationStorageKey = "printq-notifications-v2";
 
-const defaultNotifications: PrintOrderNotification[] = [];
-
-function readNotifications(): PrintOrderNotification[] {
-  try {
-    const session = readStoredAuthSession();
-    if (!session) {
-      window.localStorage.removeItem(notificationStorageKey);
-      return [];
-    }
-    const saved = window.localStorage.getItem(notificationStorageKey);
-    if (!saved) return [];
-    const parsed: unknown = JSON.parse(saved);
-    return Array.isArray(parsed) && parsed.length > 0 ? (parsed as PrintOrderNotification[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 function Asset({ name, className = "" }: { name: string; className?: string }) {
   return <AppIcon name={name} className={className} />;
 }
 
 function AuthLogo() {
   return (
-    <div className="auth-logo" aria-label="Phopy">
+    <div className="auth-logo" aria-label="Phtopy">
       <span>Ph</span>
       <Asset name="85546.svg" />
       <span>opy</span>
@@ -1631,7 +1619,7 @@ function Document({
     finish?.();
   };
   const selectDemoDocument = (demo: typeof demoDocuments[number]) => {
-    const demoBytes = new Blob([`%PDF-1.4\n% PrintQ testing sample: ${demo.name}\n%%EOF`], { type: "application/pdf" }).size;
+    const demoBytes = new Blob([`%PDF-1.4\n% Phtopy testing sample: ${demo.name}\n%%EOF`], { type: "application/pdf" }).size;
     const demoJob: PrintJob = {
       ...job,
       title: demo.title,
@@ -4748,10 +4736,9 @@ export default function App() {
   const isReturningUser = useMemo(() => {
     try {
       if (typeof window === "undefined") return false;
-      const onboarded = window.localStorage.getItem("onboardingCompleted") === "true";
       const hasAuth = !!window.localStorage.getItem("printq-auth-session");
       const hasVisited = window.localStorage.getItem("phtopy_visited") === "true";
-      return onboarded || hasAuth || hasVisited;
+      return hasAuth || hasVisited;
     } catch {
       return false;
     }
@@ -4759,19 +4746,24 @@ export default function App() {
 
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => {
     try {
-      if (typeof window !== "undefined" && window.location.search.includes("screen=admin")) {
-        return false;
+      if (typeof window !== "undefined") {
+        const search = window.location.search;
+        if (search.includes("screen=admin") || search.includes("screen=token")) {
+          return false;
+        }
       }
-      return window.localStorage.getItem("onboardingCompleted") !== "true";
-    } catch {
-      return false;
-    }
+    } catch {}
+    // Whenever someone opens the link, ensure they always see this Onboarding walkthrough screen
+    return true;
   });
 
   const [showSplash, setShowSplash] = useState<boolean>(() => {
     try {
-      if (typeof window !== "undefined" && window.location.search.includes("screen=admin")) {
-        return false;
+      if (typeof window !== "undefined") {
+        const search = window.location.search;
+        if (search.includes("screen=admin") || search.includes("screen=onboarding")) {
+          return false;
+        }
       }
     } catch {}
     return true;
@@ -4800,7 +4792,7 @@ export default function App() {
           createdAt: o.createdAt,
           totalAmount: o.totalAmount,
           paymentMethod: o.paymentMethod,
-          paymentStatus: (o.paymentStatus === "paid" || o.paymentStatus === "unpaid" || o.paymentStatus === "pending") ? o.paymentStatus : undefined,
+          paymentStatus: toActiveOrderPaymentStatus(o.paymentStatus, o.paymentMethod),
         }));
       }
     } catch {}
@@ -4823,7 +4815,7 @@ export default function App() {
           createdAt: active.createdAt,
           totalAmount: active.totalAmount,
           paymentMethod: active.paymentMethod,
-          paymentStatus: (active.paymentStatus === "paid" || active.paymentStatus === "unpaid" || active.paymentStatus === "pending") ? active.paymentStatus : undefined,
+          paymentStatus: toActiveOrderPaymentStatus(active.paymentStatus, active.paymentMethod),
         };
       }
     } catch {}
@@ -4944,7 +4936,7 @@ export default function App() {
           createdAt: o.createdAt,
           totalAmount: o.totalAmount,
           paymentMethod: o.paymentMethod,
-          paymentStatus: (o.paymentStatus === "paid" || o.paymentStatus === "unpaid" || o.paymentStatus === "pending") ? o.paymentStatus : undefined,
+          paymentStatus: toActiveOrderPaymentStatus(o.paymentStatus, o.paymentMethod),
         }));
         setActiveOrdersList(mapped);
         setActiveOrder(mapped[0]);
@@ -5025,10 +5017,14 @@ export default function App() {
       securityEngine.createOrder({
         userEmail: authSession?.email || "student@campus.printq",
         userName: authSession?.name || "Student",
+        userPhone: authSession?.phone || "",
         token,
         status: "confirmed",
         job: { ...job },
         totalAmount: amount,
+        paymentMode: isCash ? "cash" : "online",
+        paymentMethod: isCash ? "Cash" : "UPI",
+        paymentStatus: isCash ? "pending_cash" : "paid",
       });
     } catch {}
 
@@ -5609,7 +5605,7 @@ export default function App() {
           createdAt: o.createdAt,
           totalAmount: o.totalAmount,
           paymentMethod: o.paymentMethod,
-          paymentStatus: (o.paymentStatus === "paid" || o.paymentStatus === "unpaid" || o.paymentStatus === "pending") ? o.paymentStatus : undefined,
+          paymentStatus: toActiveOrderPaymentStatus(o.paymentStatus, o.paymentMethod),
         }));
         setActiveOrdersList(mapped);
         setActiveOrder(mapped[0]);
@@ -5869,7 +5865,7 @@ export default function App() {
             onStartPrint={() => go("home")}
           />
         </MainSwipeContainer>
-        <PrintQNavigation active="notifications" go={go} unreadCount={unreadCount} language={language} />
+        <MainTabBar active="notifications" go={go} unreadCount={unreadCount} language={language} />
         {renderDocumentPreviewModal()}
         {renderAuthModal()}
       </div>
@@ -5950,7 +5946,7 @@ export default function App() {
             )}
           </main>
         </MainSwipeContainer>
-        <PrintQNavigation active="history" go={go} unreadCount={unreadCount} language={language} />
+        <MainTabBar active="history" go={go} unreadCount={unreadCount} language={language} />
         {renderDocumentPreviewModal()}
         {renderAuthModal()}
       </div>
@@ -6017,7 +6013,7 @@ export default function App() {
               </div>
               {authSession && (
                 <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 2 }}>
-                  <span style={{ fontSize: 10, color: "var(--accent)", fontFamily: "monospace", letterSpacing: "0.02em" }}>
+                  <span style={{ fontSize: 10, color: "var(--accent)", fontFamily: "var(--font-app)", letterSpacing: "0.02em" }}>
                     UID: {authSession.id}
                   </span>
                   {(authSession.role === "admin" || securityEngine.isProvisionedAdmin(authSession.id)) && (
@@ -6693,7 +6689,7 @@ export default function App() {
           </section>
         </main>
         </MainSwipeContainer>
-        <PrintQNavigation active="settings" go={go} unreadCount={unreadCount} language={language} />
+        <MainTabBar active="settings" go={go} unreadCount={unreadCount} language={language} />
         {renderDocumentPreviewModal()}
         {renderAuthModal()}
       </div>
@@ -6997,7 +6993,7 @@ export default function App() {
       )}
 
       {!isLoginOpen && screen === "home" && (
-        <PrintQNavigation active="home" go={go} unreadCount={unreadCount} language={language} />
+        <MainTabBar active="home" go={go} unreadCount={unreadCount} language={language} />
       )}
       {renderDocumentPreviewModal()}
       {renderAuthModal()}
@@ -7046,7 +7042,7 @@ function MainSwipeContainer({
   );
 }
 
-function PrintQNavigation({
+function MainTabBar({
   active,
   go,
   unreadCount = 0,

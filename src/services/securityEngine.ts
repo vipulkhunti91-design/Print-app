@@ -1,5 +1,5 @@
 /**
- * PrintQ Security Engine & Backend Authorization Layer
+ * Phtopy Security Engine & Backend Authorization Layer
  * 
  * Enforces Firestore and Storage Security Rules:
  * - Scoped per-user isolation based on Firebase UID
@@ -422,7 +422,7 @@ class SecurityEngine {
       existing = {
         uid,
         email: googleUser.email,
-        displayName: googleUser.displayName || "PrintQ Student",
+        displayName: googleUser.displayName || "Phtopy Student",
         photoURL: googleUser.photoURL,
         phoneNumber: googleUser.phoneNumber,
         phoneVerified: Boolean(googleUser.phoneNumber),
@@ -479,7 +479,7 @@ class SecurityEngine {
       existing = {
         uid,
         email: syntheticEmail,
-        displayName: name.trim() || "PrintQ Student",
+        displayName: name.trim() || "Phtopy Student",
         phoneNumber: formattedPhone,
         phoneVerified: true,
         createdAt: now,

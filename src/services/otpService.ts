@@ -1,5 +1,5 @@
 /**
- * Mobile OTP client for the PrintQ OTP server (/api/auth/*).
+ * Mobile OTP client for the Phtopy OTP server (/api/auth/*).
  *
  * Strictly 4 digits, range 1000-9999. When the API server is unreachable the
  * app falls back to a labelled preview code so local previews keep working.

@@ -1,5 +1,5 @@
 /**
- * Automated QA & Security Verification Test Suite for Phtopy (PrintQ)
+ * Automated QA & Security Verification Test Suite for Phtopy
  * Run with: node tests/suite.test.cjs
  */
 const assert = require('assert');
@@ -35,7 +35,7 @@ async function itAsync(name, fn) {
 }
 
 console.log('\n======================================================');
-console.log(' PHTOPY (PRINTQ) COMPREHENSIVE AUTOMATED TEST SUITE');
+console.log(' PHTOPY COMPREHENSIVE AUTOMATED TEST SUITE');
 console.log('======================================================\n');
 
 // -----------------------------------------------------------------
@@ -96,8 +96,8 @@ it('Should generate strict 6-digit integer strings', () => {
 it('Should format SMS according to specified template', () => {
   const otp = '123456';
   const domain = 'localhost';
-  const sms = `Your PrintQ verification OTP is ${otp}. It will expire in 5 minutes. Do not share your OTP with anyone.\n\n@${domain} #${otp}`;
-  assert.ok(sms.includes('Your PrintQ verification OTP is 123456.'));
+  const sms = `Your Phtopy verification OTP is ${otp}. It will expire in 5 minutes. Do not share your OTP with anyone.\n\n@${domain} #${otp}`;
+  assert.ok(sms.includes('Your Phtopy verification OTP is 123456.'));
   assert.ok(sms.includes('It will expire in 5 minutes.'));
   assert.ok(sms.includes('Do not share your OTP with anyone.'));
   assert.ok(sms.includes('@localhost #123456'));
