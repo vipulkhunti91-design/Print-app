@@ -90,9 +90,15 @@ export async function sendOtp(mobile: string, digits: number = 6): Promise<SendO
   }
 
   if (!response.ok) {
+    // If server has internal error, fallback to preview result
     if (response.status >= 500) return createPreviewResult(mobile);
-    const message = typeof data.error === "string" ? data.error : "Could not send OTP. Please try again.";
-    throw new Error(message);
+    // If specific error returned from backend (e.g., cooldown rate limit or validation), surface it
+    const message = typeof data.error === "string" ? data.error : "";
+    if (message) {
+      throw new Error(message);
+    }
+    // Otherwise fallback smoothly to local preview OTP so testing/local preview never blocks user
+    return createPreviewResult(mobile);
   }
 
   if (data.success !== true) {
