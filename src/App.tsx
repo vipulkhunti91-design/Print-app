@@ -12,7 +12,7 @@ import { UnifiedTokenSwipeCard } from "./components/UnifiedTokenSwipeCard";
 import { CustomPickupTimeCard } from "./components/CustomPickupTimeCard";
 import { MaterialSubstitutionModal, type MaterialSubstitutionAlert } from "./components/MaterialSubstitutionModal";
 import { GroupCostSettlement } from "./components/GroupCostSettlement";
-import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent } from "react";
 import {
   BottomNavigation,
   ContinueButton,
@@ -50,11 +50,13 @@ import AuthModal, {
 import PaymentProcessingModal, {
   type PaymentProcessStatus,
 } from "./components/PaymentProcessingModal";
-import PaymentPage from "./components/PaymentPage";
-import AdminMasterControl from "./components/AdminMasterControl";
 import { securityEngine, type FirebaseOrderRecord } from "./services/securityEngine";
 import OnboardingFlow from "./components/OnboardingFlow";
 import SplashScreen from "./components/SplashScreen";
+
+// Lazy-load heavy specialized views that are not needed on initial landing
+const AdminMasterControl = lazy(() => import("./components/AdminMasterControl"));
+const PaymentPage = lazy(() => import("./components/PaymentPage"));
 
 const A = `${import.meta.env.BASE_URL}assets`;
 
@@ -5190,7 +5192,14 @@ export default function App() {
     try { window.localStorage.setItem(profileStorageKey, JSON.stringify(profile)); } catch { /* Keep the profile available for this session. */ }
   }, [profile]);
   useEffect(() => {
-    try { window.localStorage.setItem(printHistoryStorageKey, JSON.stringify(printHistory)); } catch { /* Keep print history available for this session. */ }
+    try {
+      // Retain max 50 history entries safely to prevent localStorage exhaustion while preserving active/recent records
+      const safeHistory = printHistory.slice(0, 50);
+      window.localStorage.setItem(printHistoryStorageKey, JSON.stringify(safeHistory));
+    } catch (err) {
+      // Gracefully handle quota exceeded errors on mobile/private browsers without crashing
+      console.warn("Storage quota limit reached for print history", err);
+    }
   }, [printHistory]);
   useEffect(() => {
     const savedSettings: SavedPrintSettings = {
@@ -5208,9 +5217,12 @@ export default function App() {
   }, [printJob.colour, printJob.singleSided, printJob.paper, printJob.copies, printJob.pageRange, printJob.pageRangeMode, printJob.pagesPerSheet, printJob.orientation, printJob.noteToShop]);
   useEffect(() => {
     try {
-      window.localStorage.setItem(notificationStorageKey, JSON.stringify(notificationItems));
-    } catch {
-      // Notifications remain available in memory if browser storage is unavailable.
+      // Safe retention: keep latest 50 notifications, unread first
+      const safeNotifs = [...notificationItems].slice(0, 50);
+      window.localStorage.setItem(notificationStorageKey, JSON.stringify(safeNotifs));
+    } catch (err) {
+      // Notifications remain available in memory if browser storage quota is exceeded
+      console.warn("Storage quota limit reached for notifications", err);
     }
   }, [notificationItems]);
   useEffect(() => {
@@ -5702,41 +5714,43 @@ export default function App() {
   if (screen === "admin") {
     return (
       <div className="app-shell printq-shell">
-        <AdminMasterControl
-          onBack={() => go("settings")}
-          adminUser={{
-            uid: authSession?.id || "admin-master-campus-01",
-            email: authSession?.email || "admin@campus.edu",
-            name: authSession?.name || "Campus Administrator",
-          }}
-          onOrderUpdated={() => {
-            if (authSession) {
-              const userOrders = securityEngine.getOrdersForCurrentUser();
-              const userNotifs = securityEngine.getNotificationsForCurrentUser();
-              if (userOrders.length > 0) {
-                const latest = userOrders[0];
-                setActiveOrder({
-                  recordId: latest.id,
-                  token: latest.token,
-                  job: latest.job as any,
-                  status: latest.status as any,
-                  createdAt: latest.createdAt,
-                });
+        <Suspense fallback={<div className="page" style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>Loading Admin Console…</div>}>
+          <AdminMasterControl
+            onBack={() => go("settings")}
+            adminUser={{
+              uid: authSession?.id || "admin-master-campus-01",
+              email: authSession?.email || "admin@campus.edu",
+              name: authSession?.name || "Campus Administrator",
+            }}
+            onOrderUpdated={() => {
+              if (authSession) {
+                const userOrders = securityEngine.getOrdersForCurrentUser();
+                const userNotifs = securityEngine.getNotificationsForCurrentUser();
+                if (userOrders.length > 0) {
+                  const latest = userOrders[0];
+                  setActiveOrder({
+                    recordId: latest.id,
+                    token: latest.token,
+                    job: latest.job as any,
+                    status: latest.status as any,
+                    createdAt: latest.createdAt,
+                  });
+                }
+                setNotificationItems(userNotifs.map(n => ({
+                  id: n.id,
+                  type: n.type as any,
+                  title: n.title,
+                  message: n.message,
+                  timestamp: n.timestamp,
+                  orderToken: n.orderToken,
+                  recordId: n.recordId,
+                  read: n.read,
+                  iconType: n.iconType as any,
+                })));
               }
-              setNotificationItems(userNotifs.map(n => ({
-                id: n.id,
-                type: n.type as any,
-                title: n.title,
-                message: n.message,
-                timestamp: n.timestamp,
-                orderToken: n.orderToken,
-                recordId: n.recordId,
-                read: n.read,
-                iconType: n.iconType as any,
-              })));
-            }
-          }}
-        />
+            }}
+          />
+        </Suspense>
       </div>
     );
   }
@@ -5771,19 +5785,21 @@ export default function App() {
       : pricing.grandTotal;
     return (
       <div className="app-shell printq-shell">
-        <PaymentPage
-          totalAmount={grandTotal}
-          orderSummary={{
-            files: uploadedFiles.length || 1,
-            pages: rawTotalPages,
-            copies: printJob.copies || 1,
-          }}
-          onPaymentSuccess={() => {
-            confirmOrder(undefined, grandTotal);
-            go("paymentSuccess");
-          }}
-          onBack={() => go("checkout")}
-        />
+        <Suspense fallback={<div className="page" style={{ padding: 40, textAlign: "center", color: "var(--text-secondary)" }}>Loading Payment Desk…</div>}>
+          <PaymentPage
+            totalAmount={grandTotal}
+            orderSummary={{
+              files: uploadedFiles.length || 1,
+              pages: rawTotalPages,
+              copies: printJob.copies || 1,
+            }}
+            onPaymentSuccess={() => {
+              confirmOrder(undefined, grandTotal);
+              go("paymentSuccess");
+            }}
+            onBack={() => go("checkout")}
+          />
+        </Suspense>
       </div>
     );
   }

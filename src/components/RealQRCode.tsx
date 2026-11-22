@@ -9,6 +9,22 @@ interface RealQRCodeProps {
   style?: React.CSSProperties;
 }
 
+// In-memory LRU-like cache to prevent repetitive heavy recalculations on main thread
+const qrCodeMemoryCache = new Map<string, string>();
+const MAX_QR_CACHE_SIZE = 100;
+
+function getCachedQRCode(key: string): string | undefined {
+  return qrCodeMemoryCache.get(key);
+}
+
+function setCachedQRCode(key: string, url: string) {
+  if (qrCodeMemoryCache.size >= MAX_QR_CACHE_SIZE) {
+    const oldestKey = qrCodeMemoryCache.keys().next().value;
+    if (oldestKey) qrCodeMemoryCache.delete(oldestKey);
+  }
+  qrCodeMemoryCache.set(key, url);
+}
+
 export function RealQRCode({
   value,
   size = 140,
@@ -16,32 +32,49 @@ export function RealQRCode({
   alt = "QR Code",
   style = {},
 }: RealQRCodeProps) {
-  const [dataUrl, setDataUrl] = useState<string>("");
+  const cacheKey = `${value}_${size}`;
+  const initialCached = getCachedQRCode(cacheKey) || "";
+  const [dataUrl, setDataUrl] = useState<string>(initialCached);
 
   useEffect(() => {
     let isCurrent = true;
     if (!value) return;
 
-    QRCode.toDataURL(value, {
-      margin: 1,
-      width: Math.max(160, size * 2), // High-DPI crisp rendering
-      color: {
-        dark: "#000000",
-        light: "#FFFFFF",
-      },
-      errorCorrectionLevel: "M",
-    })
-      .then((url) => {
-        if (isCurrent) setDataUrl(url);
+    const cached = getCachedQRCode(cacheKey);
+    if (cached) {
+      setDataUrl(cached);
+      return;
+    }
+
+    // Schedule QR generation non-blocking using microtask / idle scheduler
+    const schedule = typeof window !== "undefined" && "requestIdleCallback" in window
+      ? (cb: () => void) => (window as any).requestIdleCallback(cb, { timeout: 120 })
+      : (cb: () => void) => setTimeout(cb, 0);
+
+    const timer = schedule(() => {
+      QRCode.toDataURL(value, {
+        margin: 1,
+        width: Math.max(160, size * 2), // High-DPI crisp rendering
+        color: {
+          dark: "#000000",
+          light: "#FFFFFF",
+        },
+        errorCorrectionLevel: "M",
       })
-      .catch((err) => {
-        console.warn("Failed to generate real QR code", err);
-      });
+        .then((url) => {
+          setCachedQRCode(cacheKey, url);
+          if (isCurrent) setDataUrl(url);
+        })
+        .catch((err) => {
+          console.warn("Failed to generate real QR code", err);
+        });
+    });
 
     return () => {
       isCurrent = false;
+      if (typeof timer === "number") clearTimeout(timer);
     };
-  }, [value, size]);
+  }, [value, size, cacheKey]);
 
   if (!dataUrl) {
     return (
@@ -81,4 +114,3 @@ export function RealQRCode({
   );
 }
 export default RealQRCode;
-

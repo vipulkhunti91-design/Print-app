@@ -1708,8 +1708,22 @@ class SecurityEngine {
 
   private saveOrdersList(orders: FirebaseOrderRecord[]) {
     try {
-      window.localStorage.setItem(DB_ORDERS_KEY, JSON.stringify(orders));
-    } catch {}
+      // 1. Separate active vs finished orders
+      const active = orders.filter((o) => o.status !== "completed" && o.status !== "cancelled");
+      // Keep newest completed/cancelled orders first (since all.unshift adds to beginning)
+      const finished = orders.filter((o) => o.status === "completed" || o.status === "cancelled").slice(0, 100);
+      const safeOrders = [...active, ...finished];
+      window.localStorage.setItem(DB_ORDERS_KEY, JSON.stringify(safeOrders));
+    } catch (e) {
+      // Quota recovery: if quota exceeded, trim finished history more aggressively without touching active orders
+      try {
+        const active = orders.filter((o) => o.status !== "completed" && o.status !== "cancelled");
+        const finished = orders.filter((o) => o.status === "completed" || o.status === "cancelled").slice(0, 30);
+        window.localStorage.setItem(DB_ORDERS_KEY, JSON.stringify([...active, ...finished]));
+      } catch (err2) {
+        console.warn("Storage quota warning for orders database", err2);
+      }
+    }
   }
 
   private getAllNotificationsList(): FirebaseNotificationRecord[] {
@@ -1723,8 +1737,16 @@ class SecurityEngine {
 
   private saveNotificationsList(notifs: FirebaseNotificationRecord[]) {
     try {
-      window.localStorage.setItem(DB_NOTIFS_KEY, JSON.stringify(notifs));
-    } catch {}
+      // Safe retention: keep latest 80 notifications
+      const safeNotifs = notifs.slice(0, 80);
+      window.localStorage.setItem(DB_NOTIFS_KEY, JSON.stringify(safeNotifs));
+    } catch (e) {
+      try {
+        window.localStorage.setItem(DB_NOTIFS_KEY, JSON.stringify(notifs.slice(0, 20)));
+      } catch (err2) {
+        console.warn("Storage quota warning for notifications database", err2);
+      }
+    }
   }
 
   private getAllAuditLogsList(): AdminAuditLogEntry[] {
