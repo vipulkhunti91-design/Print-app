@@ -356,11 +356,11 @@ export default function LoginSheet({ summary, onClose, onPaymentContinue, onAuth
           </div>
           <form className="login-sheet-form" onSubmit={(event) => { event.preventDefault(); submitDetails(); }}>
             <label>Full name
-              <input ref={nameRef} autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} onBlur={() => setNameTouched(true)} aria-invalid={showNameError} aria-describedby={showNameError ? "login-name-error" : undefined} />
+              <input ref={nameRef} autoComplete="name" value={name} onChange={(event) => { setName(event.target.value); setSendError(""); }} onBlur={() => setNameTouched(true)} aria-invalid={showNameError} aria-describedby={showNameError ? "login-name-error" : undefined} />
               {showNameError && <small id="login-name-error" className="login-sheet-error" role="alert">Please enter your name</small>}
             </label>
             <label>Mobile number
-              <span className="login-sheet-mobile-input"><span aria-hidden="true">+91</span><input type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={10} value={mobile} onChange={(event) => setMobile(event.target.value.replace(/\D/g, "").slice(0, 10))} onBlur={() => setMobileTouched(true)} aria-label="10-digit mobile number" aria-invalid={showMobileError} aria-describedby={showMobileError ? "login-mobile-error" : undefined} /></span>
+              <span className="login-sheet-mobile-input"><span aria-hidden="true">+91</span><input type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={10} value={mobile} onChange={(event) => { setMobile(event.target.value.replace(/\D/g, "").slice(0, 10)); setSendError(""); }} onBlur={() => setMobileTouched(true)} aria-label="10-digit mobile number" aria-invalid={showMobileError} aria-describedby={showMobileError ? "login-mobile-error" : undefined} /></span>
               {mobile.length === 10 && !showMobileError && (
                 <small style={{ color: "var(--status-ready)", fontSize: 11, display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontWeight: 700 }}>
                   <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--status-ready)" }} />
