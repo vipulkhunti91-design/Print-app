@@ -288,63 +288,86 @@ select:focus-visible, textarea:focus-visible {
 .printq-icon-menu {
   position: fixed;
   z-index: 90;
-  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: space-around;
-  width: min(340px, calc(100% - 28px));
-  height: 62px;
-  padding: 4px 8px;
+  width: min(320px, calc(100% - 32px));
+  height: 56px;
+  padding: 6px 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 32px;
+  border-radius: 28px;
   background: rgba(23, 23, 23, 0.94);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
   box-sizing: border-box;
 }
-.printq-icon-menu button {
+.printq-icon-menu button,
+.printq-icon-menu .nav-tab-btn {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  flex: 1;
-  height: 100%;
-  min-height: 48px;
-  padding: 4px 6px;
+  width: 52px;
+  height: 42px;
+  padding: 0;
   border: 0;
-  border-radius: 20px;
+  border-radius: 18px;
   background: transparent;
   color: #8E8E93;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: color 150ms ease, background-color 150ms ease;
+  transition: color 150ms ease, background-color 150ms ease, transform 120ms ease;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
-.printq-icon-menu button svg {
+.printq-icon-menu button:hover {
+  color: #D1D5DB;
+}
+.printq-icon-menu button:active {
+  transform: scale(0.94);
+}
+.printq-icon-menu button[aria-current="page"],
+.printq-icon-menu button.is-active {
+  color: var(--accent);
+  background: rgba(244, 215, 121, 0.15);
+}
+.printq-icon-menu button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.printq-icon-menu .nav-icon-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+.printq-icon-menu .nav-icon-container svg {
   display: block;
   width: 22px;
   height: 22px;
   color: inherit;
   flex-shrink: 0;
 }
-.printq-icon-menu button span {
-  font-size: 11px;
-  line-height: 1;
-}
-.printq-icon-menu button[aria-current="page"] {
-  color: var(--accent);
-  background: rgba(244, 215, 121, 0.08);
-  font-weight: 600;
-}
-.printq-icon-menu button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+.printq-icon-menu .nav-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #EF4444;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-sizing: border-box;
+  pointer-events: none;
 }
 
 

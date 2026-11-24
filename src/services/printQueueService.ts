@@ -125,7 +125,11 @@ class PrintQueueManager {
 
   public subscribe(callback: (queue: QueueOrder[]) => void): () => void {
     this.listeners.add(callback);
-    callback(this.getQueue());
+    setTimeout(() => {
+      if (this.listeners.has(callback)) {
+        callback(this.getQueue());
+      }
+    }, 0);
     return () => {
       this.listeners.delete(callback);
     };

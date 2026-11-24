@@ -4746,13 +4746,11 @@ export default function App() {
     }
   }, []);
 
-  // Every shared URL starts at the onboarding walkthrough, regardless of its
-  // query parameters. Visitors can then continue through the normal flow.
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState(true);
+  // Opening Flow: When anyone opens the app or its link, show SplashScreen (Image 2) first
+  const [showSplash, setShowSplash] = useState(true);
 
-  // The shared app link always opens on the onboarding walkthrough. The splash
-  // remains available from Settings as an intentional replay action.
-  const [showSplash, setShowSplash] = useState(false);
+  // After SplashScreen finishes, OnboardingFlow (Image 3) opens next
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
   const [activeOrdersList, setActiveOrdersList] = useState<ActiveOrder[]>(() => {
     const session = readStoredAuthSession();
@@ -5295,6 +5293,7 @@ export default function App() {
       setAuthSession(null);
       setProfile(emptyProfile);
       setActiveOrder(null);
+      setActiveOrdersList([]);
       setPrintHistory([]);
       setNotificationItems([]);
       setScreen("home");
@@ -5685,12 +5684,13 @@ export default function App() {
     return (
       <SplashScreen
         duration={1400}
-        isReturningUser={isReturningUser}
+        isReturningUser={false}
         onFinish={() => {
           try {
             window.localStorage.setItem("phtopy_visited", "true");
           } catch {}
           setShowSplash(false);
+          setIsOnboardingOpen(true);
         }}
       />
     );
@@ -6873,69 +6873,12 @@ export default function App() {
               </div>
             </div>
           )}
-          {/* Active Print Orders List - Strictly scoped to signed-in user */}
-          {Boolean(authSession) && (() => {
-            const activeList = activeOrdersList.filter((o) => o && o.status !== "completed" && o.status !== "cancelled");
-            const displayList = activeList.length > 0 ? activeList : (activeOrder && activeOrder.status !== "completed" && activeOrder.status !== "cancelled" ? [activeOrder] : []);
-            if (displayList.length === 0) return null;
-
-            return (
-              <div className="home-active-orders-container" style={{ display: "flex", flexDirection: "column", gap: 10, margin: "0 0 16px" }}>
-                {displayList.map((ord, idx) => (
-                  <div
-                    key={ord.recordId || ord.token || idx}
-                    className="home-active-order-banner"
-                    onClick={() => {
-                      setActiveOrder(ord);
-                      go("token");
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Active print order token ${ord.token}. Tap to track status.`}
-                    style={{ margin: 0 }}
-                  >
-                    <div className="home-active-order-left">
-                      <span className="home-active-order-pulse-dot" />
-                      <div>
-                        <div className="home-active-order-title">
-                          {getTranslation(language, "home_active_order_banner")}{" "}
-                          <span className="home-active-order-token-pill">{ord.token}</span>
-                          {ord.job?.fileName && (
-                            <span style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 500, marginLeft: 6 }}>
-                              · {sanitizeDisplayFileName(ord.job.fileName)}
-                            </span>
-                          )}
-                        </div>
-                        <div className="home-active-order-sub">
-                          {ord.status === "ready"
-                            ? (language === "gu" ? "🎉 કેમ્પસ સેન્ટ્રલ પર પિકઅપ માટે તૈયાર છે!" : language === "hi" ? "🎉 कैंपस सेंट्रल पर पिकअप के लिए तैयार है!" : "🎉 Ready for pickup now at Campus Central!")
-                            : ord.status === "printing"
-                            ? (language === "gu" ? "પ્રિન્ટર પર પ્રિન્ટિંગ ચાલુ છે" : language === "hi" ? "प्रिंटर पर प्रिंटिंग जारी है" : "Printing in progress on Printer")
-                            : (language === "gu" ? "કેમ્પસ સેન્ટ્રલ પર કતારમાં છે · ટ્રેક કરવા ટેપ કરો" : language === "hi" ? "कैंपस सेंट्रल पर कतारबद्ध है · ट्रैक करने के लिए टैप करें" : "Queued at Campus Central · Tap to track")}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="home-active-order-track-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveOrder(ord);
-                        go("token");
-                      }}
-                    >
-                      {getTranslation(language, "home_view_order")}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
-
           <HomeQueueStatus
             language={language}
             go={go}
-            activeOrder={activeOrder}
+            userAuthenticated={Boolean(authSession)}
+            activeOrder={authSession ? activeOrder : null}
+            activeOrders={authSession ? activeOrdersList : []}
             nowServing={nowServing}
           />
 
@@ -7045,7 +6988,6 @@ function MainTabBar({
   active,
   go,
   unreadCount = 0,
-  language = "en",
 }: {
   active: NavTab;
   go: (screen: Screen) => void;
@@ -7053,49 +6995,55 @@ function MainTabBar({
   language?: SupportedLanguage;
 }) {
   const tabs: { id: NavTab; label: string }[] = [
-    { id: "home", label: getTranslation(language, "nav_home") || "Home" },
-    { id: "notifications", label: getTranslation(language, "nav_alerts") || "Notifications" },
-    { id: "history", label: getTranslation(language, "nav_history") || "History" },
-    { id: "settings", label: getTranslation(language, "nav_settings") || "Settings" },
+    { id: "home", label: "Home" },
+    { id: "notifications", label: "Notifications" },
+    { id: "history", label: "History" },
+    { id: "settings", label: "Settings" },
   ];
 
   return (
     <nav className="printq-icon-menu" aria-label="Main navigation">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          aria-label={tab.id === "notifications" ? "Notifications" : tab.label}
-          aria-current={active === tab.id ? "page" : undefined}
-          onClick={() => go(tab.id)}
-          className={active === tab.id ? "is-active" : undefined}
-        >
-          <div className="nav-icon-container">
-            <NavigationIcon name={tab.id} active={active === tab.id} />
-            {tab.id === "notifications" && unreadCount > 0 && (
-              <span className="nav-badge" aria-label={`${unreadCount} unread notifications`}>
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            )}
-          </div>
-          <span>{tab.label}</span>
-        </button>
-      ))}
+      {tabs.map((tab) => {
+        const isActive = active === tab.id;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            aria-label={tab.label}
+            aria-current={isActive ? "page" : undefined}
+            onClick={() => go(tab.id)}
+            className={`nav-tab-btn ${isActive ? "is-active" : ""}`}
+          >
+            <div className="nav-icon-container">
+              <NavigationIcon name={tab.id} active={isActive} />
+              {tab.id === "notifications" && unreadCount > 0 && (
+                <span className="nav-badge" aria-label={`${unreadCount} unread notifications`}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </div>
+          </button>
+        );
+      })}
     </nav>
   );
 }
 
 function NavigationIcon({ name, active }: { name: NavTab; active: boolean }) {
+  const strokeColor = active ? "var(--accent)" : "currentColor";
+  const fillColor = active ? "rgba(244, 215, 121, 0.16)" : "none";
+  const strokeWidth = active ? "2.3" : "1.85";
+
   if (name === "home") {
     return (
-      <svg aria-hidden="true" viewBox="0 0 24 24" fill={active ? "rgba(244, 215, 121, 0.15)" : "none"} stroke="currentColor" strokeWidth={active ? "2.2" : "1.9"} strokeLinecap="round" strokeLinejoin="round">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill={fillColor} stroke={strokeColor} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-4.5v-6h-6v6H4.5A1.5 1.5 0 0 1 3 19.5v-9Z" />
       </svg>
     );
   }
   if (name === "notifications") {
     return (
-      <svg aria-hidden="true" viewBox="0 0 24 24" fill={active ? "rgba(244, 215, 121, 0.15)" : "none"} stroke="currentColor" strokeWidth={active ? "2.2" : "1.9"} strokeLinecap="round" strokeLinejoin="round">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill={fillColor} stroke={strokeColor} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
         <path d="M13.73 21a2 2 0 0 1-3.46 0" />
       </svg>
@@ -7103,14 +7051,14 @@ function NavigationIcon({ name, active }: { name: NavTab; active: boolean }) {
   }
   if (name === "history") {
     return (
-      <svg aria-hidden="true" viewBox="0 0 24 24" fill={active ? "rgba(244, 215, 121, 0.15)" : "none"} stroke="currentColor" strokeWidth={active ? "2.2" : "1.9"} strokeLinecap="round" strokeLinejoin="round">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill={fillColor} stroke={strokeColor} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="9.5" />
         <polyline points="12 6 12 12 16 14" />
       </svg>
     );
   }
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill={active ? "rgba(244, 215, 121, 0.15)" : "none"} stroke="currentColor" strokeWidth={active ? "2.2" : "1.9"} strokeLinecap="round" strokeLinejoin="round">
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill={fillColor} stroke={strokeColor} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z" />
     </svg>

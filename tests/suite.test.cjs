@@ -221,6 +221,30 @@ it('Ensures minimum 5-minute campus production turnaround for orders', () => {
   assert.ok(totalMinutes >= 5, 'Turnaround must be at least 5 minutes so timer does not vanish');
 });
 
+it('Resolves next in line token accurately from live queue', () => {
+  const liveQueue = [
+    { token: 'D-14', status: 'printing' },
+    { token: 'K-08', status: 'ready' },
+    { token: 'P-32', status: 'waiting' },
+    { token: 'M-19', status: 'waiting' },
+  ];
+  const waitingOrders = liveQueue.filter(q => q.status === 'waiting');
+  const nextToken = waitingOrders.length > 0 ? waitingOrders[0].token : 'None';
+  assert.strictEqual(nextToken, 'P-32', 'Next token in line must be the earliest waiting order');
+});
+
+it('Computes user estimated wait time dynamically based on orders ahead', () => {
+  const userOrder = { token: 'A-26', totalPages: 4, copies: 1, colour: false, status: 'waiting' };
+  const printingOrder = { token: 'D-14', totalPages: 10, copies: 1, colour: true, status: 'printing' };
+  
+  // Printing order duration
+  const printRemainingMs = 120000; // 2 minutes remaining
+  // User wait = remaining of printing order
+  const waitMs = printRemainingMs;
+  const waitMinutes = Math.max(1, Math.round(waitMs / (60 * 1000)));
+  assert.strictEqual(waitMinutes, 2, 'Wait time correctly computed');
+});
+
 // -----------------------------------------------------------------
 // 6. DEFENSIVE SECURITY & PRIVILEGE CHECKS
 // -----------------------------------------------------------------

@@ -33,27 +33,6 @@ export function readStoredAuthSession(): AuthUser | null {
   try {
     const raw = window.localStorage.getItem(authSessionStorageKey);
     if (!raw) {
-      // Check fallback remembered user
-      const remRaw = window.localStorage.getItem(rememberedUserKey);
-      if (remRaw) {
-        const parsedRem = JSON.parse(remRaw) as { name?: string; mobile?: string } | null;
-        if (parsedRem?.name && parsedRem?.mobile) {
-          const clean = parsedRem.mobile.replace(/\D/g, "").slice(-10);
-          const uid = `uid_ph_${clean}`;
-          securityEngine.setAuthenticatedUser(uid);
-          return {
-            id: uid,
-            uid: uid,
-            name: parsedRem.name,
-            email: `${clean}@campus.printq`,
-            phone: `+91 ${clean.slice(0, 5)} ${clean.slice(5)}`,
-            provider: "phone",
-            phoneVerified: true,
-            createdAt: Date.now(),
-            role: clean === "7096447726" ? "admin" : "user",
-          };
-        }
-      }
       return null;
     }
     const parsed = JSON.parse(raw) as Partial<AuthUser>;
@@ -109,6 +88,10 @@ export function clearAuthSession() {
     securityEngine.endAdminSession();
     window.localStorage.removeItem(authSessionStorageKey);
     window.localStorage.removeItem(rememberedUserKey);
+    window.localStorage.removeItem(profileStorageKey);
+    window.localStorage.removeItem("phopy-active-order");
+    window.localStorage.removeItem("phopy-active-orders");
+    window.localStorage.removeItem("printq-notifications-v2");
     window.sessionStorage.removeItem("printq-auth-dismissed");
   } catch {
     // Ignore error
