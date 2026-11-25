@@ -4249,7 +4249,7 @@ function Token({
       {/* Callout if Ready */}
       {isReady && (
         <div className="track-pickup-callout" role="alert" style={{ marginBottom: 16 }}>
-          <span style={{ fontSize: 20 }}>🎉</span>
+          <Asset name="pickup.svg" className="track-pickup-callout-icon" />
           <div>
             <strong>{getTranslation(language, "ready_collection_banner")}</strong>
             <div style={{ fontSize: 12, marginTop: 2 }}>

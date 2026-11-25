@@ -191,7 +191,7 @@ export default function SplashScreen({
             }}
           />
 
-          {/* SVG Fallback in case of asset path issues */}
+          {/* Text-only fallback in case the brand asset is unavailable. */}
           <div
             id="phtopy-fallback-logo"
             style={{
@@ -202,7 +202,7 @@ export default function SplashScreen({
               letterSpacing: "1px",
             }}
           >
-            Ph🖨opy
+            Phtopy
           </div>
         </div>
 

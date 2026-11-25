@@ -280,9 +280,7 @@ export function UnifiedTokenSwipeCard({
               boxShadow: isReady || isCompleted ? "0 0 14px rgba(167, 232, 189, 0.22)" : "0 0 12px rgba(244, 215, 121, 0.12)",
             }}
           >
-            <span style={{ fontSize: 13 }}>
-              {isReady || isCompleted ? "🎉" : "⏱️"}
-            </span>
+            <AppIcon name={isReady || isCompleted ? "pickup.svg" : "39cf5.svg"} />
 
             {isCompleted ? (
               <span>
@@ -369,7 +367,6 @@ export function UnifiedTokenSwipeCard({
                   color: "var(--accent)",
                 }}
               >
-                <span style={{ fontSize: 13 }}>💵</span>
                 <span>
                   {language === "gu"
                     ? `કાઉન્ટર પર રોકડ: ₹${amount.toFixed(2)} ચૂકવવાના બાકી`

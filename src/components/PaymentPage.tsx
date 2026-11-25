@@ -36,11 +36,11 @@ export default function PaymentPage({
   const formatAmount = (amount: number) => `₹${amount.toFixed(2)}`;
 
   const upiApps = [
-    { id: "gpay" as const, name: "Google Pay", icon: "🟢", desc: "Fast approval via Tez UPI" },
-    { id: "phonepe" as const, name: "PhonePe", icon: "🟣", desc: "Instant UPI Intent & QR" },
-    { id: "paytm" as const, name: "Paytm UPI", icon: "🔵", desc: "Paytm Payments Bank / Wallet UPI" },
-    { id: "bhim" as const, name: "BHIM UPI", icon: "🟠", desc: "National NPCI BHIM Portal" },
-    { id: "custom" as const, name: "Other UPI ID / VPA", icon: "💳", desc: "Enter username@upi / @okhdfcbank" },
+    { id: "gpay" as const, name: "Google Pay", desc: "Fast approval via Tez UPI" },
+    { id: "phonepe" as const, name: "PhonePe", desc: "Instant UPI Intent & QR" },
+    { id: "paytm" as const, name: "Paytm UPI", desc: "Paytm Payments Bank / Wallet UPI" },
+    { id: "bhim" as const, name: "BHIM UPI", desc: "National NPCI BHIM Portal" },
+    { id: "custom" as const, name: "Other UPI ID / VPA", desc: "Enter username@upi / @okhdfcbank" },
   ];
 
   const handleInitiatePayment = (simulateFailure = false) => {
@@ -170,7 +170,7 @@ export default function PaymentPage({
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 20 }}>⚡</span>
+                <span style={{ minWidth: 32, color: "var(--accent)", fontSize: 10, fontWeight: 800, letterSpacing: "0.08em" }}>UPI</span>
                 <div>
                   <strong style={{ fontSize: 13.5, color: "var(--text)", display: "block" }}>
                     UPI / QR Code
@@ -208,7 +208,6 @@ export default function PaymentPage({
                       }}
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span>{app.icon}</span>
                         <strong style={{ fontSize: 12, color: selectedUPIApp === app.id ? "var(--accent)" : "var(--text)" }}>
                           {app.name}
                         </strong>
@@ -295,7 +294,7 @@ export default function PaymentPage({
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 20 }}>💳</span>
+                <span style={{ minWidth: 32, color: "var(--text-secondary)", fontSize: 10, fontWeight: 800, letterSpacing: "0.08em" }}>CARD</span>
                 <div>
                   <strong style={{ fontSize: 13.5, color: "var(--text)", display: "block" }}>
                     Debit / Credit Card
@@ -325,7 +324,7 @@ export default function PaymentPage({
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 20 }}>👛</span>
+                <span style={{ minWidth: 32, color: "var(--text-secondary)", fontSize: 10, fontWeight: 800, letterSpacing: "0.08em" }}>PAY</span>
                 <div>
                   <strong style={{ fontSize: 13.5, color: "var(--text)", display: "block" }}>
                     Digital Wallets
@@ -355,7 +354,7 @@ export default function PaymentPage({
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 20 }}>🏬</span>
+                  <span style={{ minWidth: 32, color: "var(--text-secondary)", fontSize: 10, fontWeight: 800, letterSpacing: "0.08em" }}>DESK</span>
                   <div>
                     <strong style={{ fontSize: 13.5, color: "var(--text)", display: "block" }}>
                       Pay at Pickup / Counter

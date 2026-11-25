@@ -935,10 +935,10 @@ function IllustrationMultipleFiles() {
 
 function QuickToolsShowcase() {
   const tools = [
-    { icon: "🔍", title: "B&W Legibility" },
-    { icon: "⏱", title: "Deadline Check" },
-    { icon: "👥", title: "Group Printing" },
-    { icon: "🌐", title: "Language" },
+    { code: "B/W", title: "B&W Legibility" },
+    { code: "ETA", title: "Deadline Check" },
+    { code: "TEAM", title: "Group Printing" },
+    { code: "LANG", title: "Language" },
   ]
 
   return (
@@ -979,10 +979,13 @@ function QuickToolsShowcase() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 16,
+              color: "var(--accent)",
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: "0.04em",
             }}
           >
-            {tool.icon}
+            {tool.code}
           </span>
           <strong
             style={{
