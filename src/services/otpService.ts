@@ -130,16 +130,17 @@ export async function verifyOtp(mobile: string, code: string): Promise<{ token?:
   if (!OTP_CODE_PATTERN.test(code)) {
     throw new Error(`Enter a valid ${OTP_LENGTH}-digit OTP.`);
   }
+  const clean = mobile.replace(/\D/g, "").slice(-10);
 
   let response: Response;
   try {
     response = await fetch("/api/auth/verify-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mobile, code }),
+      body: JSON.stringify({ mobile: clean, code }),
     });
   } catch {
-    return verifyPreviewOtp(mobile, code);
+    return verifyPreviewOtp(clean, code);
   }
 
   let data: Record<string, unknown> = {};
@@ -150,13 +151,18 @@ export async function verifyOtp(mobile: string, code: string): Promise<{ token?:
   }
 
   if (!response.ok) {
-    if (response.status >= 500) return verifyPreviewOtp(mobile, code);
+    if (response.status >= 500) return verifyPreviewOtp(clean, code);
+    // A preview code was issued when the SMS/API route was unavailable. Vite
+    // returns a 404 for that same route, so validate the matching local record
+    // before showing a server-side OTP error.
+    const preview = readPreviewRecord();
+    if (preview?.mobile === clean) return verifyPreviewOtp(clean, code);
     const message = typeof data.error === "string" ? data.error : "Incorrect OTP. Please try again.";
     throw new Error(message);
   }
 
   if (data.success !== true) {
-    return verifyPreviewOtp(mobile, code);
+    return verifyPreviewOtp(clean, code);
   }
 
   clearPreviewOtp();
