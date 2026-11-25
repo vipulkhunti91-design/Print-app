@@ -671,9 +671,7 @@ function Asset({ name, className = "" }: { name: string; className?: string }) {
 function AuthLogo() {
   return (
     <div className="auth-logo" aria-label="Phtopy">
-      <span>Ph</span>
-      <Asset name="85546.svg" />
-      <span>opy</span>
+      <img className="brand-mark" src="/assets/phtopy-logo.png" alt="Phtopy" />
     </div>
   );
 }

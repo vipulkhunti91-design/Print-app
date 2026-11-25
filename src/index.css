@@ -96,10 +96,12 @@ button:hover, button:active { transform: none; }
 }
 .auth-logo span { font: 400 34px/1.5 Manrope; letter-spacing: -.92px; }
 .auth-logo img { display: block; width: 66px; height: 70.5px; margin: 0 -2px; }
+.auth-logo .brand-mark { width: 196px; height: auto; margin: 0; object-fit: contain; }
 @media (max-width: 480px) {
   .auth-logo { width: 210px; height: 86px; margin: 0 auto 24px; border-radius: 22px; }
   .auth-logo span { font-size: 30px; }
   .auth-logo img { width: 58px; height: 62px; }
+  .auth-logo .brand-mark { width: 174px; height: auto; }
 }
 .auth-panel {
   width: 100%; min-height: calc(100dvh - 272px); margin-inline: auto; padding: 20px 22px 44px; border-radius: 25px 25px 0 0;
