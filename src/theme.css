@@ -3521,12 +3521,26 @@ body:has(.login-sheet-overlay) .printq-paybar {
 }
 .bill-file-breakdown-block .file-name-row {
   display: flex;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   font-size: 13px;
   font-weight: 600;
 }
+.bill-breakdown-file-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bill-file-breakdown-block .file-name-row > span {
+  flex: 0 0 auto;
+}
 .bill-file-breakdown-block .file-detail-row {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 3px;

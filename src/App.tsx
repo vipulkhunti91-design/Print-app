@@ -3497,7 +3497,7 @@ function Checkout({
               {fileCalculations.map((file, idx) => (
                 <div key={idx} className="bill-file-breakdown-block">
                   <div className="bill-line-row file-name-row">
-                    <strong style={{ color: "var(--text)", fontSize: 13 }}>{file.name}</strong>
+                    <strong className="bill-breakdown-file-name" title={file.name}>{file.name}</strong>
                     <span style={{ color: "var(--accent)", fontWeight: 700 }}>₹{file.subtotal.toFixed(2)}</span>
                   </div>
                   <div className="bill-line-row file-detail-row">
